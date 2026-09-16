@@ -1,0 +1,103 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ****************** TENANT ******************
+
+model Tenant {
+  id     String  @id @default(cuid())
+  name   String  @unique
+  active Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdById String?
+  createdBy   User?   @relation("TenantCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  sites Site[]
+  users User[]
+
+  @@map("tenant")
+}
+
+// ****************** GESTION DES USERS PERMISSIONS & ROLES ******************
+
+// implicite relation between Permission and Role
+model Permission {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  resource    String
+  action      Action
+  description String?
+
+  roles Role[]
+
+  @@unique([resource, action])
+  @@map("permission")
+}
+
+enum Action {
+  create
+  read
+  update
+  delete
+}
+
+model Role {
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  permissions Permission[]
+  users       User[]
+
+  @@unique([name])
+  @@map("role")
+}
+
+model User {
+  id           String  @id @default(cuid())
+  tenantId     String?
+  name         String
+  email        String
+  password     String
+  active       Boolean @default(true)
+  isSuperAdmin Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdTenants Tenant[] @relation("TenantCreatedBy")
+
+  roles  Role[]
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, email])
+  @@map("user")
+}
+
+// ****************** GESTION DES DONNEES DE BASE ******************
+
+model Site {
+  id       String  @id @default(cuid())
+  tenantId String
+  name     String
+  active   Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, name])
+  @@map("site")
+}

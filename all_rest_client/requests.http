@@ -1,0 +1,32 @@
+@baseUrl=http://localhost:3000/api/
+
+### CREATE SUPER_ADMIN
+POST {{baseUrl}}/users/create_super_admin
+Content-Type: application/json
+
+{
+    "name":"ghalass",
+    "email":"ghalass@ghalass.com",
+    "password":"super@dmin"
+}
+
+### CREATE TENANT
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+    "name":"admin",
+    "email":"admin@entreprise2.com",
+    "password":"123456",
+    "tenantName":"entreprise 2"
+}
+
+### LOGIN
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+    "email":"admin@entreprise1.com",
+    "password":"123456",
+    "tenantName":"entreprise 1"
+}
