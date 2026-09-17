@@ -4,10 +4,11 @@ import { hasPermission, isAdmin } from "./core";
 import { getSession } from "../auth";
 import { ACTION } from "../enums";
 import { prisma } from "../prisma";
+import { getCurrentTenant } from "@/server/tenants";
 
 const checkTenant = async () => {
-  const session = await getSession();
-  if (!session?.tenant.id) {
+  const currentTenant = await getCurrentTenant()
+  if (!currentTenant?.id) {
     return NextResponse.json(
       { message: "Aucune tenant ID n'est trouvé" },
       { status: 404 }
@@ -15,7 +16,7 @@ const checkTenant = async () => {
   }
   // Vérifier si le tenant existe déjà
   const tenant = await prisma.tenant.findUnique({
-    where: { id: session?.tenant.id },
+    where: { id: currentTenant?.id },
   });
   if (!tenant) {
     return NextResponse.json(

@@ -1,49 +1,58 @@
-// components/Filters.tsx
-'use client';
+// app/(main)/[tenantId]/users/search.tsx
+"use client";
 
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, X } from 'lucide-react';
-import { useSearchParams, usePathname, useRouter } from 'next/navigation';
-import { useDebouncedCallback } from 'use-debounce';
-import { useEffect, useState } from 'react';
+import { Input } from "@/components/ui/input";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { Search, X } from "lucide-react";
+import { useSearchParams, usePathname, useRouter } from "next/navigation";
+import { useDebouncedCallback } from "use-debounce";
+import { useEffect, useState } from "react";
+import { Role } from "@/lib/generated/prisma/client";
 
-export default function Filters() {
+export default function Filters({ roles = [] }: { roles?: Role[] }) {
     const searchParams = useSearchParams();
     const pathname = usePathname();
     const { replace } = useRouter();
 
-    // État local pour l'input (nécessaire pour le bouton X)
-    const [search, setSearch] = useState(searchParams.get('name') ?? '');
+    const [search, setSearch] = useState(searchParams.get("name") ?? "");
 
-    // Sync si l'URL change (reset global, navigation retour, etc.)
     useEffect(() => {
-        setSearch(searchParams.get('name') ?? '');
+        setSearch(searchParams.get("name") ?? "");
     }, [searchParams]);
 
-    const handleFilterChange = useDebouncedCallback((key: string, value: string) => {
-        const params = new URLSearchParams(searchParams);
+    const handleFilterChange = useDebouncedCallback(
+        (key: string, value: string) => {
+            const params = new URLSearchParams(searchParams);
 
-        if (value) {
-            params.set(key, value);
-        } else {
-            params.delete(key);
-        }
+            if (value) {
+                params.set(key, value);
+            } else {
+                params.delete(key);
+            }
 
-        replace(`${pathname}?${params.toString()}`);
-    }, 300);
+            params.delete("page");
+            replace(`${pathname}?${params.toString()}`);
+        },
+        300
+    );
 
-    // Effacement immédiat (sans debounce)
     const clearSearch = () => {
-        setSearch('');
+        setSearch("");
         const params = new URLSearchParams(searchParams);
-        params.delete('name');
+        params.delete("name");
+        params.delete("page");
         replace(`${pathname}?${params.toString()}`);
     };
 
     return (
         <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:gap-4 mb-5">
-            {/* Recherche par nom */}
+            {/* Recherche par nom/email */}
             <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -53,7 +62,7 @@ export default function Filters() {
                     value={search}
                     onChange={(e) => {
                         setSearch(e.target.value);
-                        handleFilterChange('name', e.target.value);
+                        handleFilterChange("name", e.target.value);
                     }}
                 />
                 {search && (
@@ -71,9 +80,9 @@ export default function Filters() {
             {/* Filtre par statut */}
             <Select
                 onValueChange={(value) =>
-                    handleFilterChange('active', value === 'all' ? '' : value)
+                    handleFilterChange("active", value === "all" ? "" : value)
                 }
-                defaultValue={searchParams.get('active')?.toString() || 'all'}
+                defaultValue={searchParams.get("active")?.toString() || "all"}
             >
                 <SelectTrigger className="w-full sm:w-45">
                     <SelectValue placeholder="Filtrer par statut" />
@@ -84,6 +93,28 @@ export default function Filters() {
                     <SelectItem value="inactive">Inactif</SelectItem>
                 </SelectContent>
             </Select>
+
+            {/* 🔑 Filtre par rôle */}
+            {roles.length > 0 && (
+                <Select
+                    onValueChange={(value) =>
+                        handleFilterChange("roleId", value === "all" ? "" : value)
+                    }
+                    defaultValue={searchParams.get("roleId")?.toString() || "all"}
+                >
+                    <SelectTrigger className="w-full sm:w-45">
+                        <SelectValue placeholder="Filtrer par rôle" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">Tous les rôles</SelectItem>
+                        {roles.map((role) => (
+                            <SelectItem key={role.id} value={role.id}>
+                                {role.name}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            )}
         </div>
     );
 }

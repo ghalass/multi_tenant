@@ -1,6 +1,7 @@
 // lib/rbac/core.ts (version corrigée)
 import { prisma } from "@/lib/prisma";
 import { getSession } from "../auth";
+import { getCurrentTenant } from "@/server/tenants";
 
 // Types pour les permissions
 export interface PermissionCheck {
@@ -31,9 +32,10 @@ export interface UserWithPermissions {
 export async function getUserWithPermissions(
   userId: string
 ): Promise<UserWithPermissions | null> {
-  const tenantId = (await getSession()).tenant.id!;
+  // const tenantId = (await getSession()).tenant.id!;
+  const tenant = await getCurrentTenant()
   return prisma.user.findUnique({
-    where: { id: userId, tenantId },
+    where: { id: userId, tenantId: tenant?.id },
     include: {
       roles: {
         include: {
@@ -45,9 +47,10 @@ export async function getUserWithPermissions(
 }
 
 export async function getUserPermissions(userId: string): Promise<string[]> {
-  const tenantId = (await getSession()).tenant.id!;
+  // const tenantId = (await getSession()).tenant.id!;
+  const tenant = await getCurrentTenant()
   const user = await prisma.user.findUnique({
-    where: { id: userId, tenantId },
+    where: { id: userId, tenantId: tenant?.id },
     include: {
       roles: {
         include: {
@@ -65,9 +68,8 @@ export async function getUserPermissions(userId: string): Promise<string[]> {
 
   user.roles.forEach((role) => {
     role.permissions.forEach((permission) => {
-      const permissionString = `${permission.action || ""}:${
-        permission.resource
-      }`;
+      const permissionString = `${permission.action || ""}:${permission.resource
+        }`;
       if (permission.action && permission.resource) {
         permissionsSet.add(permissionString);
       }
@@ -91,9 +93,10 @@ export async function hasRole(
   userId: string,
   roleName: string
 ): Promise<boolean> {
-  const tenantId = (await getSession()).tenant.id!;
+  // const tenantId = (await getSession()).tenant.id!;
+  const tenant = await getCurrentTenant()
   const user = await prisma.user.findFirst({
-    where: { id: userId, tenantId },
+    where: { id: userId, tenantId: tenant?.id },
     include: {
       roles: {
         // Relation directe, pas besoin d'inclure `role` car `roles` sont déjà des objets Role
@@ -115,9 +118,11 @@ export async function assignRoleToUser(
   userId: string,
   roleId: string
 ): Promise<any> {
-  const tenantId = (await getSession()).tenant.id!;
+  // const tenantId = (await getSession()).tenant.id!;
+  const tenant = await getCurrentTenant()
+
   return await prisma.user.update({
-    where: { id: userId, tenantId },
+    where: { id: userId, tenantId: tenant?.id },
     data: {
       roles: {
         connect: { id: roleId },
@@ -130,9 +135,11 @@ export async function removeRoleFromUser(
   userId: string,
   roleId: string
 ): Promise<any> {
-  const tenantId = (await getSession()).tenant.id!;
+  // const tenantId = (await getSession()).tenant.id!;
+  const tenant = await getCurrentTenant()
+
   return await prisma.user.update({
-    where: { id: userId, tenantId },
+    where: { id: userId, tenantId: tenant?.id },
     data: {
       roles: {
         disconnect: { id: roleId },
@@ -145,9 +152,11 @@ export async function assignPermissionToRole(
   roleId: string,
   permissionId: string
 ): Promise<any> {
-  const tenantId = (await getSession()).tenant.id!;
+  // const tenantId = (await getSession()).tenant.id!;
+  const tenant = await getCurrentTenant()
+
   return await prisma.role.update({
-    where: { id: roleId, tenantId },
+    where: { id: roleId },
     data: {
       permissions: {
         connect: { id: permissionId },
@@ -160,9 +169,11 @@ export async function removePermissionFromRole(
   roleId: string,
   permissionId: string
 ): Promise<any> {
-  const tenantId = (await getSession()).tenant.id!;
+  // const tenantId = (await getSession()).tenant.id!;
+  const tenant = await getCurrentTenant()
+
   return await prisma.role.update({
-    where: { id: roleId, tenantId },
+    where: { id: roleId },
     data: {
       permissions: {
         disconnect: { id: permissionId },
@@ -203,9 +214,11 @@ export async function hasAnyPermission(
 }
 
 export async function getUserRoles(userId: string): Promise<string[]> {
-  const tenantId = (await getSession()).tenant.id!;
+  // const tenantId = (await getSession()).tenant.id!;
+  const tenant = await getCurrentTenant()
+
   const user = await prisma.user.findUnique({
-    where: { id: userId, tenantId },
+    where: { id: userId, tenantId: tenant?.id },
     include: {
       roles: {
         select: {

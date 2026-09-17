@@ -1,5 +1,7 @@
 "use client";
 
+import { cn } from "cn";
+
 import { Button } from "@/components/ui/button";
 import {
   Field,
@@ -12,10 +14,9 @@ import { Input } from "@/components/ui/input";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
-import { z } from "@/lib/zod-config";
-import { toast } from "sonner";
+import { z } from "@/lib/zod-config"; import { toast } from "sonner";
 import { useState, useTransition } from "react";
-import { PlusIcon } from "lucide-react";
+import { Loader2, PlusIcon } from "lucide-react";
 
 import {
   Dialog,
@@ -33,24 +34,15 @@ import { Spinner } from "@/components/ui/spinner";
 import { GlobalLoader } from "@/components/global-loader";
 import { createUser } from "@/server/users";
 import DisplayError from "@/components/display-error";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Role } from "@/lib/generated/prisma/client";
 
 const formSchema = z.object({
-  name: z.string().min(1, "Le nom est requis"),
-  email: z.email("Email invalide"),
-  password: z.string().min(6, "Le mot de passe doit contenir au moins 6 caractères"),
+  name: z.string().min(1),
+  email: z.email(),
+  password: z.string().min(6),
   active: z.boolean(),
-  roleIds: z.array(z.string()),
 });
 
-export function CreateUserForm({
-  tenantId,
-  roles,
-}: {
-  tenantId: string;
-  roles: Role[];
-}) {
+export function CreateUserForm({ tenantId }: { tenantId: string }) {
   const [isLoading, setIsLoading] = useState(false);
   const [isPending, startTransition] = useTransition();
 
@@ -58,13 +50,7 @@ export function CreateUserForm({
   const [open, setOpen] = useState(false);
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
-      name: "",
-      active: true,
-      email: "",
-      password: "",
-      roleIds: [],
-    },
+    defaultValues: { name: "", active: true, email: "", password: "" },
   });
 
   const router = useRouter();
@@ -75,14 +61,7 @@ export function CreateUserForm({
       setIsLoading(true);
       await sleep();
 
-      const { success, message } = await createUser(
-        values.name,
-        values.active,
-        values.email,
-        values.password,
-        tenantId,
-        values.roleIds
-      );
+      const { success, message } = await createUser(values.name, values.active, values.email, values.password, tenantId);
 
       if (!success) {
         setError(message);
@@ -111,11 +90,11 @@ export function CreateUserForm({
           <PlusIcon className="size-4" />
         </DialogTrigger>
 
-        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Créer un utilisateur</DialogTitle>
             <DialogDescription>
-              Créez un nouvel utilisateur et affectez-lui des rôles
+              Créez un nouveau utilisateur
             </DialogDescription>
 
             <DisplayError error={error} />
@@ -123,17 +102,19 @@ export function CreateUserForm({
 
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <FieldGroup className="gap-2">
-              {/* Nom */}
               <Controller
                 name="name"
                 control={form.control}
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel htmlFor="name">Nom</FieldLabel>
+                    <div className="flex items-center">
+                      <FieldLabel htmlFor="name">Nom</FieldLabel>
+                    </div>
                     <Input
                       {...field}
                       id="name"
                       aria-invalid={fieldState.invalid}
+                      placeholder=""
                       autoComplete="off"
                       type="text"
                       disabled={isLoading}
@@ -145,17 +126,19 @@ export function CreateUserForm({
                 )}
               />
 
-              {/* Email */}
               <Controller
                 name="email"
                 control={form.control}
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel htmlFor="email">Email</FieldLabel>
+                    <div className="flex items-center">
+                      <FieldLabel htmlFor="email">Email</FieldLabel>
+                    </div>
                     <Input
                       {...field}
                       id="email"
                       aria-invalid={fieldState.invalid}
+                      placeholder=""
                       autoComplete="off"
                       type="email"
                       disabled={isLoading}
@@ -167,17 +150,19 @@ export function CreateUserForm({
                 )}
               />
 
-              {/* Password */}
               <Controller
                 name="password"
                 control={form.control}
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel htmlFor="password">Mot de passe</FieldLabel>
+                    <div className="flex items-center">
+                      <FieldLabel htmlFor="password">password</FieldLabel>
+                    </div>
                     <Input
                       {...field}
                       id="password"
                       aria-invalid={fieldState.invalid}
+                      placeholder=""
                       autoComplete="off"
                       type="password"
                       disabled={isLoading}
@@ -189,7 +174,6 @@ export function CreateUserForm({
                 )}
               />
 
-              {/* Actif */}
               <Controller
                 name="active"
                 control={form.control}
@@ -201,6 +185,7 @@ export function CreateUserForm({
                   >
                     <FieldContent className="flex flex-row items-start space-x-2">
                       <FieldLabel htmlFor="active">Actif</FieldLabel>
+
                       <Switch
                         id="active"
                         checked={field.value}
@@ -212,67 +197,21 @@ export function CreateUserForm({
                         aria-invalid={fieldState.invalid}
                       />
                     </FieldContent>
-                    {fieldState.invalid && (
-                      <FieldError errors={[fieldState.error]} />
-                    )}
+                    {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
                   </Field>
                 )}
               />
 
-              {/* Rôles */}
-              <Controller
-                name="roleIds"
-                control={form.control}
-                render={({ field, fieldState }) => (
-                  <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel>Rôles</FieldLabel>
-                    <div className="max-h-48 overflow-y-auto rounded-md border p-2 space-y-1">
-                      {roles.length === 0 ? (
-                        <p className="text-xs text-muted-foreground p-2">
-                          Aucun rôle disponible.
-                        </p>
-                      ) : (
-                        roles.map((role) => {
-                          const checked = field.value.includes(role.id);
-                          return (
-                            <label
-                              key={role.id}
-                              className="flex items-center gap-2 rounded px-2 py-1 text-sm hover:bg-accent cursor-pointer"
-                            >
-                              <Checkbox
-                                checked={checked}
-                                onCheckedChange={(isChecked) => {
-                                  const next = isChecked
-                                    ? [...field.value, role.id]
-                                    : field.value.filter(
-                                      (id) => id !== role.id
-                                    );
-                                  field.onChange(next);
-                                }}
-                                disabled={isLoading}
-                              />
-                              <span className="font-medium">{role.name}</span>
-                              {role.description && (
-                                <span className="text-xs text-muted-foreground">
-                                  — {role.description}
-                                </span>
-                              )}
-                            </label>
-                          );
-                        })
-                      )}
-                    </div>
-                    {fieldState.invalid && (
-                      <FieldError errors={[fieldState.error]} />
-                    )}
-                  </Field>
-                )}
-              />
+
             </FieldGroup>
 
             <DialogFooter className="sm:justify-start mt-4">
               <Button variant={"outline"} type="submit" disabled={isLoading}>
-                {isLoading ? <Spinner className="size-4" /> : "Créer"}
+                {isLoading ? (
+                  <Spinner className="size-4" />
+                ) : (
+                  "Créer"
+                )}
               </Button>
             </DialogFooter>
           </form>

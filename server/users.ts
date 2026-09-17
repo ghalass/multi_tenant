@@ -1,208 +1,158 @@
-// server/site.ts
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "./auth";
-import { Site, Tenant, User } from "@/lib/generated/prisma/client";
-import { sleep } from "@/lib/utils";
-import { hashPassword } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import bcrypt from "bcryptjs";
 
-export type UserWithTenant = User & { tenant: Tenant | null };
-
-export interface SearchParams {
+export type SearchParams = {
   name?: string;
   active?: string;
-  email?: string;
-  password?: string;
-
-  // 
   page?: string;
-  perPage?: string;
-}
+  limit?: string;
+};
 
-export interface PaginatedUsers {
-  data: UserWithTenant[];
-  meta: {
-    totalItems: number;
-    totalPages: number;
-    currentPage: number;
-    itemsPerPage: number;
+const ITEMS_PER_PAGE = 10;
+
+// ================== GET ALL USERS ==================
+export async function getAllUsers(
+  tenantId: string,
+  filters: SearchParams = {}
+) {
+  const { name, active, page = "1", limit = String(ITEMS_PER_PAGE) } = filters;
+
+  const currentPage = Math.max(1, parseInt(page, 10) || 1);
+  const itemsPerPage = Math.max(1, parseInt(limit, 10) || ITEMS_PER_PAGE);
+  const skip = (currentPage - 1) * itemsPerPage;
+
+  const where: any = { tenantId };
+
+  if (name) {
+    where.OR = [
+      { name: { contains: name, mode: "insensitive" } },
+      { email: { contains: name, mode: "insensitive" } },
+    ];
+  }
+
+  if (active === "active") where.active = true;
+  if (active === "inactive") where.active = false;
+
+  const [data, totalItems] = await Promise.all([
+    prisma.user.findMany({
+      where,
+      skip,
+      take: itemsPerPage,
+      orderBy: { createdAt: "desc" },
+      include: {
+        roles: true, // 🔑 inclure les rôles
+      },
+    }),
+    prisma.user.count({ where }),
+  ]);
+
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+
+  return {
+    data,
+    meta: { currentPage, itemsPerPage, totalItems, totalPages },
   };
 }
 
-export async function getAllUsers(tenantId: string, filters: SearchParams): Promise<PaginatedUsers | null> {
-
-  const { user } = await getCurrentUser();
-
-  if (!user?.id) return null;
-
-  try {
-    await sleep();
-
-    // Configuration des variables de pagination
-    const currentPage = Math.max(1, parseInt(filters.page || "1", 10));
-    const itemsPerPage = Math.max(1, parseInt(filters.perPage || "10", 10)); const skip = (currentPage - 1) * itemsPerPage;
-
-    const whereClause: any = {
-      isSuperAdmin: false,
-      tenantId, // ✅ toujours filtré par tenant
-      ...(filters.name && { name: { contains: filters.name, mode: "insensitive" } }),
-      ...(filters.email && { email: { contains: filters.email, mode: "insensitive" } }),
-      ...(filters.active && { active: filters.active === "active" }),
-    };
-
-    // Exécution en parallèle du comptage total et de la récupération des données paginées
-    const [totalItems, users] = await prisma.$transaction([
-      prisma.user.count({ where: whereClause }),
-      prisma.user.findMany({
-        where: whereClause,
-        include: { tenant: true },
-        orderBy: { name: "asc" },
-        take: itemsPerPage, // Limite le nombre de résultats
-        skip: skip,         // Ignore les résultats des pages précédentes
-      })
-    ]);
-
-    const totalPages = Math.ceil(totalItems / itemsPerPage);
-
-    return {
-      data: users,
-      meta: {
-        totalItems,
-        totalPages,
-        currentPage,
-        itemsPerPage,
-      },
-    };
-  } catch (error) {
-    return null
-  }
+// ================== GET ALL ROLES ==================
+export async function getAllRoles() {
+  return prisma.role.findMany({
+    orderBy: { name: "asc" },
+  });
 }
 
-export async function createUser(name: string, active: boolean, email: string, password: string, tenantId: string) {
+// ================== CREATE USER ==================
+export async function createUser(
+  name: string,
+  active: boolean,
+  email: string,
+  password: string,
+  tenantId: string,
+  roleIds: string[] = []
+) {
   try {
-    await sleep();
-    const { user } = await getCurrentUser();
-
-    // check if session exist
-    if (!user?.id)
-      return {
-        success: false,
-        message: "Aucune session n'est trouvée!",
-      };
-
-    // Super-admin : seul qui peut créer un nouveau user
-    if (!user.isSuperAdmin) {
-      return {
-        success: false,
-        message: "Vous n'êtes pas authorisé pour créer un user.",
-      };
-    }
-
-    // vérifier si l'email & tenantId est déjà utilisé ensemble
-    const userExist = await prisma.user.findFirst({
-      where: { email, tenantId },
+    const existing = await prisma.user.findFirst({
+      where: { tenantId, email },
     });
-    if (userExist) {
+
+    if (existing) {
       return {
         success: false,
-        message: "L'eamil est déjà utilisé, veuillez choisir un autre.",
+        message: "Un utilisateur avec cet email existe déjà.",
       };
     }
 
-    // Hasher le mot de passe
-    const hashedPassword = await hashPassword(password);
-    // créer le user
+    const hashedPassword = await bcrypt.hash(password, 10);
+
     await prisma.user.create({
-      data: { name, active, email, tenantId, password: hashedPassword }
+      data: {
+        name,
+        active,
+        email,
+        password: hashedPassword,
+        tenantId,
+        roles: {
+          connect: roleIds.map((id) => ({ id })),
+        },
+      },
     });
-    return {
-      success: true,
-      message: "Utilisateur crée avec succès!",
-    };
+
+    revalidatePath("/[tenantId]/users", "page");
+    return { success: true, message: "Utilisateur créé avec succès." };
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return {
       success: false,
-      message: "Erreur!",
+      message: "Erreur lors de la création de l'utilisateur.",
     };
   }
 }
 
-export async function updateUser(id: string, name: string, active: boolean, tenantId: string) {
+// ================== UPDATE USER ==================
+export async function updateUser(
+  id: string,
+  name: string,
+  active: boolean,
+  tenantId: string,
+  roleIds: string[] = []
+) {
   try {
-    await sleep();
-    const { user } = await getCurrentUser();
-
-    // check if session exist
-    if (!user?.id)
-      return {
-        success: false,
-        message: "Aucune session n'est trouvée!",
-      };
-
-    // Super-admin : seul qui peut modifier un Utilisateur
-    if (!user.isSuperAdmin) {
-      return {
-        success: false,
-        message: "Vous n'êtes pas authorisé pour modifier un Utilisateur.",
-      };
-    }
-
-    // créer le Utilisateur
     await prisma.user.update({
-      where: { tenantId, id },
-      data: { name, active },
+      where: { id },
+      data: {
+        name,
+        active,
+        roles: {
+          set: roleIds.map((id) => ({ id })),
+        },
+      },
     });
 
-    return {
-      success: true,
-      message: "Utilisateur modifié avec succès!",
-    };
+    revalidatePath("/[tenantId]/users", "page");
+    return { success: true, message: "Utilisateur modifié avec succès." };
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return {
       success: false,
-      message: "Erreur!",
+      message: "Erreur lors de la modification de l'utilisateur.",
     };
   }
 }
 
+// ================== DELETE USER ==================
 export async function deleteUser(id: string) {
   try {
-    await sleep();
-    const { user } = await getCurrentUser();
-
-    // check if session exist
-    if (!user?.id)
-      return {
-        success: false,
-        message: "Aucune session n'est trouvée!",
-      };
-
-    // Super-admin : seul qui peut modifier un utilisateur
-    if (!user.isSuperAdmin) {
-      return {
-        success: false,
-        message: "Vous n'êtes pas authorisé pour supprimer un utilisateur.",
-      };
-    }
-
-    // supprimer l'utilisateur
-    await prisma.user.delete({
-      where: { id, isSuperAdmin: false },
-    });
-
-    return {
-      success: true,
-      message: "Utilisateur supprimé avec succès!",
-    };
+    await prisma.user.delete({ where: { id } });
+    revalidatePath("/[tenantId]/users", "page");
+    return { success: true, message: "Utilisateur supprimé avec succès." };
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return {
       success: false,
-      message: "Erreur!",
+      message: "Erreur lors de la suppression de l'utilisateur.",
     };
   }
 }

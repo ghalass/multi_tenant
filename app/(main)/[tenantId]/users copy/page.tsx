@@ -1,4 +1,4 @@
-// app/(main)/[tenantId]/users/page.tsx
+// app/(main)/[tenantId]/sites2/page.tsx
 import {
   Table,
   TableBody,
@@ -7,7 +7,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Users } from "lucide-react";
+import { MapPin } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { SearchParams } from "@/server/site";
 import { CreateUserForm } from "./create-user-form";
@@ -15,36 +15,32 @@ import { UpdateUserForm } from "./update-user-form";
 import { DeleteUserForm } from "./delete-user-form";
 import Search from "@/app/(main)/[tenantId]/users/search";
 import Pagination from "@/components/pagination";
-import { getAllRoles, getAllUsers } from "@/server/users";
+import DisplayData from "@/components/DisplayData";
+import { getAllUsers } from "@/server/users";
 
-export default async function UsersPage({
-  params,
-  searchParams,
-}: {
+export default async function Users2Page({ params, searchParams }: {
   params: Promise<{ tenantId: string }>;
   searchParams: Promise<SearchParams>;
 }) {
   const { tenantId } = await params;
   const filters = await searchParams;
 
+  // Récupération de l'objet contenant { data, meta }
   const result = await getAllUsers(tenantId, filters);
   const users = result?.data || [];
   const meta = result?.meta;
-
-  // 🔑 récupérer les rôles disponibles
-  const roles = await getAllRoles();
 
   return (
     <div className="container mx-auto py-2">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold flex items-center gap-2">
           <div className="flex items-center">
-            <Users className="h-8 w-8" />
+            <MapPin className="h-8 w-8" />
             Gestion des utilisateurs
             <div id="global-loader-slot" />
           </div>
         </h1>
-        <CreateUserForm tenantId={tenantId} roles={roles} />
+        <CreateUserForm tenantId={tenantId} />
       </div>
 
       <p className="text-muted-foreground mt-1">
@@ -61,62 +57,36 @@ export default async function UsersPage({
             <TableRow>
               <TableHead>Nom</TableHead>
               <TableHead>Email</TableHead>
-              <TableHead>Rôles</TableHead>
-              <TableHead>Statut</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {users.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center">
-                  Aucun utilisateur trouvé.
+                <TableCell colSpan={4} className="h-24 text-center">
+                  Aucun site trouvé.
                 </TableCell>
               </TableRow>
             ) : (
               users.map((user) => (
                 <TableRow key={user.id}>
-                  <TableCell className="font-medium">{user.name}</TableCell>
-                  <TableCell>{user?.email}</TableCell>
 
-                  {/* 🔑 Afficher les rôles */}
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {user.roles && user.roles.length > 0 ? (
-                        user.roles.map((role) => (
-                          <Badge
-                            key={role.id}
-                            variant="outline"
-                            className="text-xs"
-                          >
-                            {role.name}
-                          </Badge>
-                        ))
-                      ) : (
-                        <span className="text-xs text-muted-foreground">
-                          Aucun rôle
-                        </span>
-                      )}
-                    </div>
-                  </TableCell>
+                  <TableCell className="font-medium">{user.name}</TableCell>
+
+                  <TableCell>{user?.email}</TableCell>
 
                   <TableCell>
                     <Badge
                       variant={user.active ? "default" : "secondary"}
-                      className={
-                        user.active ? "bg-green-100 text-green-800" : ""
-                      }
+                      className={user.active ? "bg-green-100 text-green-800" : ""}
                     >
                       {user.active ? "Actif" : "Inactif"}
                     </Badge>
                   </TableCell>
 
                   <TableCell className="flex gap-4 justify-end text-center">
-                    <UpdateUserForm
-                      key={user.id}
-                      user={user}
-                      roles={roles}
-                    />
+                    <UpdateUserForm key={user.id} user={user} />
                     <DeleteUserForm user={user} />
                   </TableCell>
                 </TableRow>
@@ -126,6 +96,7 @@ export default async function UsersPage({
         </Table>
       </div>
 
+      {/* 3. Ajout de la barre de contrôle sous le tableau */}
       {meta && (
         <Pagination
           totalPages={meta.totalPages}
@@ -134,6 +105,8 @@ export default async function UsersPage({
           itemsPerPage={meta.itemsPerPage}
         />
       )}
+
+      {/* <DisplayData data={sites} /> */}
     </div>
   );
 }
