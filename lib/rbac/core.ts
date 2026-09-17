@@ -1,6 +1,5 @@
-// lib/rbac/core.ts (version corrigée)
+// lib/rbac/core.ts
 import { prisma } from "@/lib/prisma";
-import { getSession } from "../auth";
 import { getCurrentTenant } from "@/server/tenants";
 
 // Types pour les permissions
@@ -231,10 +230,14 @@ export async function getUserRoles(userId: string): Promise<string[]> {
   return user?.roles.map((role) => role.name) ?? [];
 }
 
-export async function isAdmin(userId: string): Promise<boolean> {
-  return await hasRole(userId, "admin");
-}
+import { cache } from "react";
+export const isSuperAdmin = cache(async (userId: string): Promise<boolean> => {
+  if (!userId) return false;
 
-export async function isSuperAdmin(userId: string): Promise<boolean> {
-  return await hasRole(userId, "super admin");
-}
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { isSuperAdmin: true },
+  });
+
+  return user?.isSuperAdmin ?? false;
+});

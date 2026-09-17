@@ -1,10 +1,14 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
+import { guard } from "@/lib/rbac/middleware";
+import { ACTION } from "@/lib/enums";
+import { getCurrentUser } from "./auth";
+import { Role } from "@/lib/generated/prisma/client";
+import { ActionResponse } from "./types";
 
-export type SearchParams = {
+export type UsersSearchParams = {
   name?: string;
   active?: string;
   page?: string;
@@ -13,11 +17,23 @@ export type SearchParams = {
 
 const ITEMS_PER_PAGE = 10;
 
+const the_resource = "user";
+
 // ================== GET ALL USERS ==================
 export async function getAllUsers(
   tenantId: string,
-  filters: SearchParams = {}
+  filters: UsersSearchParams = {}
 ) {
+
+  // 1. Vérifier la permission
+  const g = await guard(ACTION.READ, the_resource);
+  if (!g.success) return { data: [], success: false, message: g.message };
+
+  // 2. Continuer la logique métier
+  const { user } = await getCurrentUser();
+  if (!user?.id) return null;
+
+
   const { name, active, page = "1", limit = String(ITEMS_PER_PAGE) } = filters;
 
   const currentPage = Math.max(1, parseInt(page, 10) || 1);
@@ -58,10 +74,23 @@ export async function getAllUsers(
 }
 
 // ================== GET ALL ROLES ==================
-export async function getAllRoles() {
-  return prisma.role.findMany({
+export async function getAllRoles(): Promise<{ roles: Role[], success: boolean, message: string }> {
+  // 1. Vérifier la permission
+  const g = await guard(ACTION.READ, the_resource);
+  if (!g.success) return { roles: [], success: false, message: g.message };
+
+  // 2. Continuer la logique métier
+  const { user } = await getCurrentUser();
+  if (!user?.id) return { roles: [], success: false, message: "Utilisateur non authentifié" };
+
+  const roles = await prisma.role.findMany({
     orderBy: { name: "asc" },
   });
+  return {
+    roles: roles,
+    success: true, message: "Données récupérées avec succès!",
+  };
+  // return { data: roles, success: true, message: "" };
 }
 
 // ================== CREATE USER ==================
@@ -72,11 +101,17 @@ export async function createUser(
   password: string,
   tenantId: string,
   roleIds: string[] = []
-) {
+): Promise<ActionResponse> {
+  // 1. Vérifier la permission
+  const g = await guard(ACTION.CREATE, the_resource);
+  if (!g.success) return { success: false, message: g.message };
+
+  // 2. Continuer la logique métier
+  const { user } = await getCurrentUser();
+  if (!user?.id) return { success: false, message: "Utilisateur non authentifié" };
+
   try {
-    const existing = await prisma.user.findFirst({
-      where: { tenantId, email },
-    });
+    const existing = await prisma.user.findFirst({ where: { tenantId, email } });
 
     if (existing) {
       return {
@@ -100,7 +135,6 @@ export async function createUser(
       },
     });
 
-    revalidatePath("/[tenantId]/users", "page");
     return { success: true, message: "Utilisateur créé avec succès." };
   } catch (error) {
     console.error(error);
@@ -116,9 +150,16 @@ export async function updateUser(
   id: string,
   name: string,
   active: boolean,
-  tenantId: string,
   roleIds: string[] = []
-) {
+): Promise<ActionResponse> {
+  // 1. Vérifier la permission
+  const g = await guard(ACTION.UPDATE, the_resource);
+  if (!g.success) return { success: false, message: g.message };
+
+  // 2. Continuer la logique métier
+  const { user } = await getCurrentUser();
+  if (!user?.id) return { success: false, message: "Utilisateur non authentifié" };
+
   try {
     await prisma.user.update({
       where: { id },
@@ -131,7 +172,6 @@ export async function updateUser(
       },
     });
 
-    revalidatePath("/[tenantId]/users", "page");
     return { success: true, message: "Utilisateur modifié avec succès." };
   } catch (error) {
     console.error(error);
@@ -143,10 +183,17 @@ export async function updateUser(
 }
 
 // ================== DELETE USER ==================
-export async function deleteUser(id: string) {
+export async function deleteUser(id: string): Promise<ActionResponse> {
+  // 1. Vérifier la permission
+  const g = await guard(ACTION.DELETE, the_resource);
+  if (!g.success) return { success: false, message: g.message };
+
+  // 2. Continuer la logique métier
+  const { user } = await getCurrentUser();
+  if (!user?.id) return { success: false, message: "Utilisateur non authentifié" };
+
   try {
     await prisma.user.delete({ where: { id } });
-    revalidatePath("/[tenantId]/users", "page");
     return { success: true, message: "Utilisateur supprimé avec succès." };
   } catch (error) {
     console.error(error);

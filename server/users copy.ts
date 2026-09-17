@@ -6,7 +6,6 @@ import { getCurrentUser } from "./auth";
 import { Site, Tenant, User } from "@/lib/generated/prisma/client";
 import { sleep } from "@/lib/utils";
 import { hashPassword } from "@/lib/auth";
-import { revalidatePath } from "next/cache";
 
 export type UserWithTenant = User & { tenant: Tenant | null };
 
@@ -41,15 +40,15 @@ export async function getAllUsers(tenantId: string, filters: SearchParams): Prom
     await sleep();
 
     // Configuration des variables de pagination
-    const currentPage = Math.max(1, parseInt(filters.page || "1", 10));
-    const itemsPerPage = Math.max(1, parseInt(filters.perPage || "10", 10)); const skip = (currentPage - 1) * itemsPerPage;
+    const currentPage = Math.max(1, parseInt(filters?.page || "1", 10));
+    const itemsPerPage = Math.max(1, parseInt(filters?.perPage || "10", 10)); const skip = (currentPage - 1) * itemsPerPage;
 
     const whereClause: any = {
       isSuperAdmin: false,
       tenantId, // ✅ toujours filtré par tenant
-      ...(filters.name && { name: { contains: filters.name, mode: "insensitive" } }),
-      ...(filters.email && { email: { contains: filters.email, mode: "insensitive" } }),
-      ...(filters.active && { active: filters.active === "active" }),
+      ...(filters?.name && { name: { contains: filters?.name, mode: "insensitive" } }),
+      ...(filters?.email && { email: { contains: filters?.email, mode: "insensitive" } }),
+      ...(filters?.active && { active: filters?.active === "active" }),
     };
 
     // Exécution en parallèle du comptage total et de la récupération des données paginées

@@ -9,23 +9,24 @@ import {
 } from "@/components/ui/table";
 import { MapPin } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { getAllSite, SearchParams } from "@/server/site";
+import { getAllSites, SiteSearchParams } from "@/server/sites";
 import { CreateSiteForm } from "./create-site-form";
 import { UpdateSiteForm } from "./update-site-form";
 import { DeleteSiteForm } from "./delete-site-form";
 import Search from "@/app/(main)/[tenantId]/sites/search";
 import Pagination from "@/components/pagination";
 import DisplayData from "@/components/DisplayData";
+import DisplayError from "@/components/display-error";
 
-export default async function Sites2Page({ params, searchParams }: {
+export default async function Sites2Page({ params, SiteSearchParams }: {
   params: Promise<{ tenantId: string }>;
-  searchParams: Promise<SearchParams>;
+  SiteSearchParams: Promise<SiteSearchParams>;
 }) {
   const { tenantId } = await params;
-  const filters = await searchParams;
+  const filters = await SiteSearchParams;
 
   // Récupération de l'objet contenant { data, meta }
-  const result = await getAllSite(tenantId, filters);
+  const result = await getAllSites(tenantId, filters);
   const sites = result?.data || [];
   const meta = result?.meta;
 
@@ -49,6 +50,8 @@ export default async function Sites2Page({ params, searchParams }: {
       <div className="my-4">
         <Search />
       </div>
+
+      {!result?.success && <DisplayError error={result?.message} />}
 
       <div className="rounded-md border">
         <Table>

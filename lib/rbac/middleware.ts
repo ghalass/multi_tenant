@@ -1,8 +1,7 @@
 // lib/rbac/middleware.ts
-import { NextRequest, NextResponse } from "next/server";
-import { hasPermission, isAdmin } from "./core";
+import { NextResponse } from "next/server";
+import { hasPermission, isSuperAdmin } from "./core";
 import { getSession } from "../auth";
-import { ACTION } from "../enums";
 import { prisma } from "../prisma";
 import { getCurrentTenant } from "@/server/tenants";
 
@@ -20,14 +19,13 @@ const checkTenant = async () => {
   });
   if (!tenant) {
     return NextResponse.json(
-      { message: "Ce nom d'entreprise n'existe pas" },
+      { message: "Ce nom d'organisation n'existe pas" },
       { status: 404 }
     );
   }
 };
 
 export async function protectRoute(
-  request: NextRequest,
   action: string,
   resource: string
 ): Promise<NextResponse | null> {
@@ -38,21 +36,14 @@ export async function protectRoute(
     // check if tenantId is provided, if not throw Error
     await checkTenant();
 
-    if (!session.isLoggedIn)
+    if (!session.userId)
       return NextResponse.json(
         { error: "Unauthorized", message: "Utilisateur non authentifié" },
         { status: 401 }
       );
 
+    // Vérifier l'authentification de l'utilisateur, si ce n'est pas super-admin
     const userId = session?.userId;
-    const is_Admin = await isAdmin(userId);
-
-    // Accès automatique pour les administrateurs et super-administrateurs
-    if (is_Admin || session?.isSuperAdmin || session?.isOwner) {
-      return null; // Accès autorisé pour les administrateurs, super-admin et l'owner
-    }
-
-    // Vérifier l'authentification de l'utilisateur, si ce n'est pas un admin ou super-admin
     if (!userId) {
       return NextResponse.json(
         { error: "Unauthorized", message: "Utilisateur non authentifié" },
@@ -60,12 +51,18 @@ export async function protectRoute(
       );
     }
 
-    // Vérifier les permissions spécifiques, si ce n'est pas un admin ou super-admin
+    // Accès automatique pour les super-administrateurs
+    const checkIsSuperAdmin = await isSuperAdmin(userId);
+    if (checkIsSuperAdmin) {
+      return null; // Accès autorisé pour les administrateurs, super-admin et l'owner
+    }
+
+    // Vérifier les permissions spécifiques, si ce n'est pas super-admin
     const hasAccess = await hasPermission(userId, action, resource);
 
     if (!hasAccess) {
       return NextResponse.json(
-        { message: `Opération non autorisée ${action}-${resource}` },
+        { message: `Vous n'êtes pas autorisé ${humanizeAction(action)}` },
         { status: 403 }
       );
     }
@@ -82,37 +79,44 @@ export async function protectRoute(
   }
 }
 
-export async function protectReadRoute(
-  request: NextRequest,
+// ============================================================
+// HELPERS POUR SERVER ACTIONS
+// ============================================================
+
+type GuardResult =
+  | { success: true }
+  | { success: false; message: string };
+
+export async function guard(
+  action: string,
   resource: string
-): Promise<NextResponse | null> {
-  return protectRoute(request, ACTION.READ, resource);
+): Promise<GuardResult> {
+  const res = await protectRoute(action, resource);
+  if (!res) return { success: true };
+
+  let message = "Non autorisé";
+  try {
+    const body = await res.json();
+    message = body.message ?? body.error ?? message;
+  } catch {
+    // garde le message par défaut
+  }
+  return { success: false, message }
+  // return { allowed: false, message };
 }
 
-export async function protectWriteRoute(
-  request: NextRequest,
-  resource: string
-): Promise<NextResponse | null> {
-  return protectRoute(request, ACTION.UPDATE, resource);
-}
 
-export async function protectCreateRoute(
-  request: NextRequest,
-  resource: string
-): Promise<NextResponse | null> {
-  return protectRoute(request, ACTION.CREATE, resource);
-}
+// ============================================================
+// HELPERS POUR LES MESSAGES DE LA FONCTION protectRoute
+// ============================================================
 
-export async function protectUpdateRoute(
-  request: NextRequest,
-  resource: string
-): Promise<NextResponse | null> {
-  return protectRoute(request, ACTION.UPDATE, resource);
-}
+const ACTION_LABELS: Record<string, string> = {
+  read: "pour la consultation",
+  create: "pour la création",
+  update: "pour la modification",
+  delete: "pour la suppression",
+};
 
-export async function protectDeleteRoute(
-  request: NextRequest,
-  resource: string
-): Promise<NextResponse | null> {
-  return protectRoute(request, ACTION.DELETE, resource);
+function humanizeAction(action: string): string {
+  return ACTION_LABELS[action.toLowerCase()] ?? action;
 }

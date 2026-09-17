@@ -15,20 +15,21 @@ import Search from "./search";
 import Pagination from "@/components/pagination";
 import {
   getAllPermissions,
-  getAllRole,
-  SearchParams,
+  getAllRoles,
+  RoleSearchParams,
 } from "@/server/roles";
+import DisplayError from "@/components/display-error";
 
 export default async function RolesPage({
   params,
   searchParams,
 }: {
   params: Promise<{ tenantId: string }>;
-  searchParams: Promise<SearchParams>;
+  searchParams: Promise<RoleSearchParams>;
 }) {
   const filters = await searchParams;
 
-  const result = await getAllRole(filters);
+  const result = await getAllRoles(filters);
   const roles = result?.data || [];
   const meta = result?.meta;
 
@@ -55,6 +56,9 @@ export default async function RolesPage({
         <Search />
       </div>
 
+      {!result?.success && <DisplayError error={result?.message} />}
+
+
       <div className="rounded-md border">
         <Table>
           <TableHeader>
@@ -80,12 +84,12 @@ export default async function RolesPage({
                   <TableCell>{role.description || "—"}</TableCell>
                   <TableCell>
                     <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                      {role._count.permissions}
+                      {role?._count?.permissions}
                     </span>
                   </TableCell>
                   <TableCell>
                     <span className="inline-flex items-center rounded-full bg-secondary px-2 py-0.5 text-xs font-medium">
-                      {role._count.users}
+                      {role?._count?.users}
                     </span>
                   </TableCell>
                   <TableCell className="flex gap-4 justify-end text-center">

@@ -17,23 +17,23 @@ export async function verifyPassword(password: string, hashedPassword: string) {
 
 export type SessionData = {
   userId: string;
-  name?: string;
-  email?: string;
-  roles?: string[];
-  isLoggedIn?: boolean;
-  isSuperAdmin?: boolean;
-  isOwner?: boolean;
-  tenant?: {
-    id?: string | null;
-    name: string | null;
-  };
-  permissions?: {
-    id: string;
-    resource: string;
-    action: string | null;
-    roleId: string;
-    roleName: string;
-  }[];
+  // name?: string;
+  // email?: string;
+  // roles?: string[];
+  // isLoggedIn?: boolean;
+  // isSuperAdmin?: boolean;
+  // isOwner?: boolean;
+  // tenant?: {
+  //   id?: string | null;
+  //   name: string | null;
+  // };
+  // permissions?: {
+  //   id: string;
+  //   resource: string;
+  //   action: string | null;
+  //   roleId: string;
+  //   roleName: string;
+  // }[];
 };
 
 const sessionOptions = {

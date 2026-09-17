@@ -30,7 +30,7 @@ import {
 import { sleep } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { Switch } from "@/components/ui/switch";
-import { createSite } from "@/server/site";
+import { createSite } from "@/server/sites";
 import { Spinner } from "@/components/ui/spinner";
 import { GlobalLoader } from "@/components/global-loader";
 import DisplayError from "@/components/display-error";

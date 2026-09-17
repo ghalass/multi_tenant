@@ -5,8 +5,11 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "./auth";
 import { Action, Permission, Prisma } from "@/lib/generated/prisma/client";
 import { sleep } from "@/lib/utils";
+import { guard } from "@/lib/rbac/middleware";
+import { ACTION } from "@/lib/enums";
+import { ActionResponse } from "./types";
 
-export interface SearchParams {
+export interface PermissionsSearchParams {
   s?: string;
   action?: Action
 
@@ -15,38 +18,46 @@ export interface SearchParams {
   perPage?: string;
 }
 
-export interface PaginatedPermissions {
+interface PaginatedPermissions {
   data: Permission[];
-  meta: {
+  success?: boolean,
+  message?: string,
+  meta?: {
     totalItems: number;
     totalPages: number;
     currentPage: number;
     itemsPerPage: number;
-  };
+  }
 }
 
-export async function getAllPermission(filters: SearchParams): Promise<PaginatedPermissions | null> {
+const the_resource = "permission";
 
+export async function getAllPermission(filters: PermissionsSearchParams): Promise<PaginatedPermissions | null> {
+
+  // 1. Vérifier la permission
+  const g = await guard(ACTION.READ, the_resource);
+  if (!g.success) return { data: [], success: false, message: g.message };
+
+  // 2. Continuer la logique métier
   const { user } = await getCurrentUser();
-
-  if (!user?.id) return null;
+  if (!user?.id) return { data: [], success: false, message: "Utilisateur non authentifié." };
 
   try {
     await sleep();
 
     // Configuration des variables de pagination
-    const currentPage = Math.max(1, parseInt(filters.page || "1", 10));
-    const itemsPerPage = Math.max(1, parseInt(filters.perPage || "10", 10)); const skip = (currentPage - 1) * itemsPerPage;
+    const currentPage = Math.max(1, parseInt(filters?.page || "1", 10));
+    const itemsPerPage = Math.max(1, parseInt(filters?.perPage || "10", 10)); const skip = (currentPage - 1) * itemsPerPage;
 
     // Construction propre du where
     const whereClause: Prisma.PermissionWhereInput = {
       // AND implicite : chaque clé de premier niveau
-      ...(filters.action && { action: { equals: filters.action as Action } }),
-      ...(filters.s && {
+      ...(filters?.action && { action: { equals: filters?.action as Action } }),
+      ...(filters?.s && {
         OR: [
-          { name: { contains: filters.s, mode: "insensitive" } },
-          { resource: { contains: filters.s, mode: "insensitive" } },
-          { description: { contains: filters.s, mode: "insensitive" } },
+          { name: { contains: filters?.s, mode: "insensitive" } },
+          { resource: { contains: filters?.s, mode: "insensitive" } },
+          { description: { contains: filters?.s, mode: "insensitive" } },
         ],
       }),
     };
@@ -67,19 +78,19 @@ export async function getAllPermission(filters: SearchParams): Promise<Paginated
 
     return {
       data: permissions,
-      meta: {
-        totalItems,
-        totalPages,
-        currentPage,
-        itemsPerPage,
-      },
+      success: true, message: "Données récupérées avec succès!",
+      meta: { totalItems, totalPages, currentPage, itemsPerPage },
     };
   } catch (error) {
-    return null
+    console.error("getAllPermissions error:", error);
+    return { data: [], success: false, message: error as string };
   }
 }
 
-export async function createPermission(resource: string, action: string, description: string) {
+export async function createPermission(resource: string, action: string, description: string): Promise<ActionResponse> {
+  const g = await guard(ACTION.CREATE, the_resource);
+  if (!g.success) return g;
+
   try {
     await sleep();
     const { user } = await getCurrentUser();
@@ -130,7 +141,9 @@ export async function createPermission(resource: string, action: string, descrip
   }
 }
 
-export async function updatePermission(id: string, resource: string, action: string, description: string) {
+export async function updatePermission(id: string, resource: string, action: string, description: string): Promise<ActionResponse> {
+  const g = await guard(ACTION.UPDATE, the_resource);
+  if (!g.success) return g;
   try {
     await sleep();
     const { user } = await getCurrentUser();
@@ -186,7 +199,10 @@ export async function updatePermission(id: string, resource: string, action: str
   }
 }
 
-export async function deletePermission(id: string) {
+export async function deletePermission(id: string): Promise<ActionResponse> {
+  const g = await guard(ACTION.DELETE, the_resource);
+  if (!g.success) return g;
+
   try {
     await sleep();
     const { user } = await getCurrentUser();

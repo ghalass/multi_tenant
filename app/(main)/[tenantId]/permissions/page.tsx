@@ -8,19 +8,20 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { MapPin } from "lucide-react";
-import { SearchParams } from "@/server/permissions";
+import { PermissionsSearchParams } from "@/server/permissions";
 import { CreatePermissionForm } from "./create-permissions-form";
 import { DeletePermissionForm } from "./delete-permissions-form";
 import Search from "@/app/(main)/[tenantId]/permissions/search";
 import Pagination from "@/components/pagination";
 import { getAllPermission, getTables } from "@/server/permissions";
 import { UpdatePermissionForm } from "./update-permissions-form";
+import DisplayError from "@/components/display-error";
 
-export default async function Permissions2Page({ params, searchParams }: {
+export default async function Permissions2Page({ params, PermissionsSearchParams }: {
   params: Promise<{ tenantId: string }>;
-  searchParams: Promise<SearchParams>;
+  PermissionsSearchParams: Promise<PermissionsSearchParams>;
 }) {
-  const filters = await searchParams;
+  const filters = await PermissionsSearchParams;
 
   // Récupération de l'objet contenant { data, meta }
   const result = await getAllPermission(filters);
@@ -49,6 +50,8 @@ export default async function Permissions2Page({ params, searchParams }: {
       <div className="my-4">
         <Search />
       </div>
+
+      {!result?.success && <DisplayError error={result?.message} />}
 
       <div className="rounded-md border">
         <Table>

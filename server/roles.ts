@@ -1,52 +1,89 @@
+// server/roles.ts
 "use server";
 
+import { ACTION } from "@/lib/enums";
 import { prisma } from "@/lib/prisma";
-import { revalidatePath } from "next/cache";
+import { guard } from "@/lib/rbac/middleware";
+import { getCurrentUser } from "./auth";
+import { Permission, Role } from "@/lib/generated/prisma/client";
+import { ActionResponse } from "./types";
+import { sleep } from "@/lib/utils";
 
-export type SearchParams = {
+type RoleWithPermission =
+    Role & {
+        permissions?: Permission[]
+    } & {
+        _count?: {
+            permissions?: number;
+            users?: number;
+        };
+    };
+
+
+export type RoleSearchParams = {
     s?: string;
     page?: string;
-    limit?: string;
+    perPage?: string;
 };
 
-const ITEMS_PER_PAGE = 10;
+interface PaginatedRoles {
+    data: RoleWithPermission[];
+    success?: boolean,
+    message?: string,
+    meta?: {
+        totalItems: number;
+        totalPages: number;
+        currentPage: number;
+        itemsPerPage: number;
+    }
+}
 
-export async function getAllRole(filters: SearchParams = {}) {
-    const { s, page = "1", limit = String(ITEMS_PER_PAGE) } = filters;
+const the_resource = "role";
 
-    const currentPage = Math.max(1, parseInt(page, 10) || 1);
-    const itemsPerPage = Math.max(1, parseInt(limit, 10) || ITEMS_PER_PAGE);
-    const skip = (currentPage - 1) * itemsPerPage;
+export async function getAllRoles(filters: RoleSearchParams = {}): Promise<PaginatedRoles> {
+    // 1. Vérifier la permission
+    const g = await guard(ACTION.READ, the_resource);
+    if (!g.success) return { data: [], success: false, message: g.message };
 
-    const where = s
-        ? {
-            OR: [
-                { name: { contains: s, mode: "insensitive" as const } },
-                { description: { contains: s, mode: "insensitive" as const } },
-            ],
-        }
-        : {};
+    // 2. Continuer la logique métier
+    const { user } = await getCurrentUser();
+    if (!user?.id) return { data: [], success: false, message: "Utilisateur non authentifié." };
 
-    const [data, totalItems] = await Promise.all([
-        prisma.role.findMany({
-            where,
-            skip,
-            take: itemsPerPage,
-            orderBy: { createdAt: "desc" },
-            include: {
-                permissions: true,
-                _count: { select: { users: true, permissions: true } },
-            },
-        }),
-        prisma.role.count({ where }),
-    ]);
 
-    const totalPages = Math.ceil(totalItems / itemsPerPage);
+    try {
+        const currentPage = Math.max(1, parseInt(filters?.page || "1", 10));
+        const itemsPerPage = Math.max(1, parseInt(filters?.perPage || "10", 10));
+        const skip = (currentPage - 1) * itemsPerPage;
 
-    return {
-        data,
-        meta: { currentPage, itemsPerPage, totalItems, totalPages },
-    };
+
+        const whereClause: any = {
+            ...(filters?.s && { name: { contains: filters?.s, mode: "insensitive" } }),
+            ...(filters?.s && { description: { contains: filters?.s, mode: "insensitive" } }),
+        };
+
+        const [totalItems, roles] = await prisma.$transaction([
+            prisma.role.count({ where: whereClause }),
+            prisma.role.findMany({
+                where: whereClause,
+                include: {
+                    permissions: true,
+                    _count: { select: { users: true, permissions: true } },
+                },
+                take: itemsPerPage,
+                skip,
+                orderBy: { createdAt: "desc" },
+            }),
+        ]);
+        const totalPages = Math.ceil(totalItems / itemsPerPage);
+        return {
+            data: roles,
+            success: true, message: "Données récupérées avec succès!",
+            meta: { totalItems, totalPages, currentPage, itemsPerPage },
+        };
+    } catch (error) {
+        console.error("getAllRoles error:", error);
+        return { data: [], success: false, message: error as string };
+    }
 }
 
 export async function getAllPermissions() {
@@ -55,16 +92,19 @@ export async function getAllPermissions() {
     });
 }
 
-export async function createRole(
-    name: string,
-    description: string,
-    permissionIds: string[]
-) {
+export async function createRole(name: string, description: string, permissionIds: string[]): Promise<ActionResponse> {
+    const g = await guard(ACTION.CREATE, the_resource);
+    if (!g.success) return g;
+
     try {
+        await sleep();
+        const { user } = await getCurrentUser();
+
+        if (!user?.id)
+            return { success: false, message: "Aucune session n'est trouvée!" };
+
         const existing = await prisma.role.findUnique({ where: { name } });
-        if (existing) {
-            return { success: false, message: "Un rôle avec ce nom existe déjà." };
-        }
+        if (existing) { return { success: false, message: "Un rôle avec ce nom existe déjà." }; }
 
         await prisma.role.create({
             data: {
@@ -75,8 +115,6 @@ export async function createRole(
                 },
             },
         });
-
-        revalidatePath("/[tenantId]/roles", "page");
         return { success: true, message: "Rôle créé avec succès." };
     } catch (error) {
         console.error(error);
@@ -84,13 +122,17 @@ export async function createRole(
     }
 }
 
-export async function updateRole(
-    id: string,
-    name: string,
-    description: string,
-    permissionIds: string[]
-) {
+export async function updateRole(id: string, name: string, description: string, permissionIds: string[]): Promise<ActionResponse> {
+    const g = await guard(ACTION.UPDATE, the_resource);
+    if (!g.success) return g;
+
     try {
+        await sleep();
+        const { user } = await getCurrentUser();
+
+        if (!user?.id)
+            return { success: false, message: "Aucune session n'est trouvée!" };
+
         const existing = await prisma.role.findFirst({
             where: { name, NOT: { id } },
         });
@@ -109,7 +151,6 @@ export async function updateRole(
             },
         });
 
-        revalidatePath("/[tenantId]/roles", "page");
         return { success: true, message: "Rôle modifié avec succès." };
     } catch (error) {
         console.error(error);
@@ -117,10 +158,17 @@ export async function updateRole(
     }
 }
 
-export async function deleteRole(id: string) {
+export async function deleteRole(id: string): Promise<ActionResponse> {
+    const g = await guard(ACTION.DELETE, the_resource);
+    if (!g.success) return g;
+
     try {
+        await sleep();
+        const { user } = await getCurrentUser();
+        if (!user?.id)
+            return { success: false, message: "Aucune session n'est trouvée!" };
+
         await prisma.role.delete({ where: { id } });
-        revalidatePath("/[tenantId]/roles", "page");
         return { success: true, message: "Rôle supprimé avec succès." };
     } catch (error) {
         console.error(error);

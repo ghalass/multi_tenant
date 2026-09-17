@@ -9,30 +9,32 @@ import {
 } from "@/components/ui/table";
 import { Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { SearchParams } from "@/server/site";
+import { UsersSearchParams } from "@/server/users";
 import { CreateUserForm } from "./create-user-form";
 import { UpdateUserForm } from "./update-user-form";
 import { DeleteUserForm } from "./delete-user-form";
 import Search from "@/app/(main)/[tenantId]/users/search";
 import Pagination from "@/components/pagination";
 import { getAllRoles, getAllUsers } from "@/server/users";
+import DisplayData from "@/components/DisplayData";
+import DisplayError from "@/components/display-error";
 
 export default async function UsersPage({
   params,
-  searchParams,
+  UsersSearchParams,
 }: {
   params: Promise<{ tenantId: string }>;
-  searchParams: Promise<SearchParams>;
+  UsersSearchParams: Promise<UsersSearchParams>;
 }) {
   const { tenantId } = await params;
-  const filters = await searchParams;
+  const filters = await UsersSearchParams;
 
   const result = await getAllUsers(tenantId, filters);
   const users = result?.data || [];
   const meta = result?.meta;
 
   // 🔑 récupérer les rôles disponibles
-  const roles = await getAllRoles();
+  const { roles } = await getAllRoles();
 
   return (
     <div className="container mx-auto py-2">
@@ -54,6 +56,8 @@ export default async function UsersPage({
       <div className="my-4">
         <Search />
       </div>
+
+      {!result?.success && <DisplayError error={result?.message} />}
 
       <div className="rounded-md border">
         <Table>
