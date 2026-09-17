@@ -93,7 +93,7 @@ export function CreateRoleForm({ permissions }: { permissions: Permission[] }) {
                     <PlusIcon className="size-4" />
                 </DialogTrigger>
 
-                <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+                <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                         <DialogTitle>Créer un rôle</DialogTitle>
                         <DialogDescription>Créez un nouveau rôle</DialogDescription>
@@ -149,50 +149,83 @@ export function CreateRoleForm({ permissions }: { permissions: Permission[] }) {
                             <Controller
                                 name="permissionIds"
                                 control={form.control}
-                                render={({ field, fieldState }) => (
-                                    <Field data-invalid={fieldState.invalid}>
-                                        <FieldLabel>Permissions</FieldLabel>
-                                        <div className="max-h-56 overflow-y-auto rounded-md border p-2 space-y-1">
-                                            {permissions.length === 0 ? (
-                                                <p className="text-xs text-muted-foreground p-2">
-                                                    Aucune permission disponible.
-                                                </p>
-                                            ) : (
-                                                permissions.map((perm) => {
-                                                    const checked = field.value.includes(perm.id);
-                                                    return (
-                                                        <label
-                                                            key={perm.id}
-                                                            className="flex items-center gap-2 rounded px-2 py-1 text-sm hover:bg-accent cursor-pointer"
-                                                        >
-                                                            <Checkbox
-                                                                checked={checked}
-                                                                onCheckedChange={(isChecked) => {
-                                                                    const next = isChecked
-                                                                        ? [...field.value, perm.id]
-                                                                        : field.value.filter(
-                                                                            (id) => id !== perm.id
-                                                                        );
-                                                                    field.onChange(next);
-                                                                }}
-                                                                disabled={isLoading}
-                                                            />
-                                                            <span className="font-medium">
-                                                                {perm.name}
-                                                            </span>
-                                                            <span className="text-xs text-muted-foreground">
-                                                                ({perm.resource} · {perm.action})
-                                                            </span>
-                                                        </label>
-                                                    );
-                                                })
+                                render={({ field, fieldState }) => {
+                                    const allSelected =
+                                        permissions.length > 0 &&
+                                        permissions.every((p) => field.value.includes(p.id));
+                                    const someSelected =
+                                        permissions.some((p) => field.value.includes(p.id)) && !allSelected;
+
+                                    return (
+                                        <Field data-invalid={fieldState.invalid}>
+                                            <FieldLabel>Permissions</FieldLabel>
+
+                                            <div className="rounded-md border">
+                                                {/* Tout sélectionner — HORS du scroll */}
+                                                <label className="flex items-center gap-2 border-b bg-muted/50 px-2 py-2 text-sm font-semibold hover:bg-accent cursor-pointer">
+                                                    <Checkbox
+                                                        checked={
+                                                            allSelected
+                                                                ? true
+                                                                : someSelected
+                                                                    ? "indeterminate"
+                                                                    : false
+                                                        }
+                                                        onCheckedChange={(isChecked) => {
+                                                            field.onChange(
+                                                                isChecked ? permissions.map((p) => p.id) : []
+                                                            );
+                                                        }}
+                                                        disabled={isLoading}
+                                                    />
+                                                    <span>Tout sélectionner</span>
+                                                </label>
+
+                                                {/* Liste scrollable — le scroll ne concerne QUE cette zone */}
+                                                <div className="max-h-48 overflow-y-auto p-2 space-y-1">
+                                                    {permissions.length === 0 ? (
+                                                        <p className="text-xs text-muted-foreground p-2">
+                                                            Aucune permission disponible.
+                                                        </p>
+                                                    ) : (
+                                                        permissions.map((perm) => {
+                                                            const checked = field.value.includes(perm.id);
+                                                            return (
+                                                                <label
+                                                                    key={perm.id}
+                                                                    className="flex items-center gap-2 rounded px-2 py-1 text-sm hover:bg-accent cursor-pointer"
+                                                                >
+                                                                    <Checkbox
+                                                                        checked={checked}
+                                                                        onCheckedChange={(isChecked) => {
+                                                                            const next = isChecked
+                                                                                ? [...field.value, perm.id]
+                                                                                : field.value.filter(
+                                                                                    (id) => id !== perm.id
+                                                                                );
+                                                                            field.onChange(next);
+                                                                        }}
+                                                                        disabled={isLoading}
+                                                                    />
+                                                                    <span className="font-medium">
+                                                                        {perm.name}
+                                                                    </span>
+                                                                    <span className="text-xs text-muted-foreground">
+                                                                        ({perm.resource} · {perm.action})
+                                                                    </span>
+                                                                </label>
+                                                            );
+                                                        })
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {fieldState.invalid && (
+                                                <FieldError errors={[fieldState.error]} />
                                             )}
-                                        </div>
-                                        {fieldState.invalid && (
-                                            <FieldError errors={[fieldState.error]} />
-                                        )}
-                                    </Field>
-                                )}
+                                        </Field>
+                                    );
+                                }}
                             />
                         </FieldGroup>
 
