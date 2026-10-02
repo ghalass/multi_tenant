@@ -1,9 +1,9 @@
 module.exports = {
   apps: [{
-    name: 'gmao-app',
-    script: 'npm',          // Utilisez npm directement
-    args: 'start',          // Avec l'argument 'start'
-    cwd: '/var/www/gmao_nextjs',
+    name: 'multi_tenant',
+    script: 'pnpm',          // Utilisez npm directement
+    args: "exec next start -p 3001",        // Avec l'argument 'start'
+    cwd: "/home/ghalass/actions-runner/_work/multi_tenant/multi_tenant",
     instances: 1,           // Commencez avec 1 instance
     exec_mode: 'fork',      // Fork mode pour éviter les problèmes
     env: {
