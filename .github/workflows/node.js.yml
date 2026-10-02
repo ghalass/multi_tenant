@@ -1,0 +1,27 @@
+name: Node.js CI
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build:
+
+    runs-on: self-hosted
+
+    strategy:
+      matrix:
+        node-version: [24.21.0]
+    env:
+      DATABASE_URL: ${{secrets.DATABASE_URL}}
+      SESSION_MAX_AGE: ${{secrets.SESSION_MAX_AGE}}
+      SESSION_PASSWORD: ${{secrets.SESSION_PASSWORD}}
+    steps:
+    - uses: actions/checkout@v4
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+    - run: npm ci
+    - run: npm run build --if-present
