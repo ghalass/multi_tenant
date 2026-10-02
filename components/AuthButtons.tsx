@@ -1,6 +1,5 @@
 // components/AuthButtons.tsx
 
-import { UserDetail } from "@/lib/types";
 import Link from "next/link";
 import { User } from "lucide-react";
 import {
@@ -11,9 +10,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
+// import { Badge } from "@/components/ui/badge";
 import LogoutButton from "./LogoutButton";
 import { getCurrentUser } from "@/server/auth";
+import { Badge } from "./ui/badge";
 
 export default async function AuthButtons() {
   const { user } = await getCurrentUser();
@@ -29,40 +29,24 @@ export default async function AuthButtons() {
         >
           Connexion
         </Link>
-        <Link
-          href="/register"
-          className="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors rounded-md shadow-sm"
-        >
-          {"S'inscrire"}
-        </Link>
+
       </div>
     );
   }
 
-  // Type assertion sécurisée maintenant qu'on sait que l'utilisateur est connecté
-  const userDetail = user as unknown as UserDetail;
-
-  const userRoles = userDetail.roles || [];
-  const roleNames = userDetail.roleNames || [];
-  const userPermissions = userDetail.permissions || [];
-
-  // Extraire les noms de rôles selon la structure disponible
-  let displayRoleNames: string;
-
-  if (roleNames.length > 0) {
-    displayRoleNames = roleNames.join(", ");
-  } else if (userRoles.length > 0) {
-    displayRoleNames = userRoles
-      .map((role) => {
-        if (typeof role === "object" && role !== null && "name" in role) {
-          return (role as { name: string }).name;
-        }
-        return typeof role === "string" ? role : "";
-      })
+  let roleNames = "";
+  if (user.isSuperAdmin) {
+    roleNames = "SuperAdmin";
+  }
+  else if (user?.roles && Array.isArray(user.roles)) {
+    roleNames = user.roles.map((role) => {
+      if (typeof role === "object" && role !== null && "name" in role) {
+        return (role as { name: string }).name;
+      }
+      return typeof role === "string" ? role : "";
+    })
       .filter(Boolean)
       .join(", ");
-  } else {
-    displayRoleNames = "";
   }
 
   return (
@@ -80,17 +64,12 @@ export default async function AuthButtons() {
                 {user?.name}
               </div>
               <div className="text-xs text-muted-foreground">
-                {displayRoleNames ? (
-                  <Badge variant="secondary" className="text-xs capitalize">
-                    {displayRoleNames}
-                  </Badge>
-                ) : (
-                  <div className="text-muted-foreground flex gap-1">
-                    <span> {userDetail?.isOwner && "Owner"}</span>
-                    <span>{userDetail?.isSuperAdmin && "SuperAdmin"}</span>
-                  </div>
-                )}
+
+                <Badge variant="secondary" className="text-xs capitalize">
+                  {roleNames}
+                </Badge>
               </div>
+
             </div>
           </button>
         </DropdownMenuTrigger>
@@ -101,16 +80,6 @@ export default async function AuthButtons() {
             <div className="flex flex-col space-y-1">
               <p className="text-sm font-medium">{user?.name}</p>
               <p className="text-xs text-muted-foreground">{user?.email}</p>
-              {displayRoleNames && (
-                <p className="text-xs text-muted-foreground capitalize">
-                  Rôles: {displayRoleNames}
-                </p>
-              )}
-              {userPermissions.length > 0 && (
-                <p className="text-xs text-muted-foreground">
-                  {userPermissions.length} permission(s)
-                </p>
-              )}
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />

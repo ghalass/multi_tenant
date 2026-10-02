@@ -133,7 +133,7 @@ export async function createPermission(resource: string, action: string, descrip
       message: "Permission crée avec succès!",
     };
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return {
       success: false,
       message: "Erreur!",
@@ -179,7 +179,6 @@ export async function updatePermission(id: string, resource: string, action: str
         message: "Cette permission est déjà utilisé, veuillez choisir un autre.",
       };
     }
-    console.log("description:", description);
 
     // créer le permission
     await prisma.permission.update({
@@ -191,7 +190,7 @@ export async function updatePermission(id: string, resource: string, action: str
       message: "Permission modifié avec succès!",
     };
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return {
       success: false,
       message: "Erreur!",
@@ -231,7 +230,7 @@ export async function deletePermission(id: string): Promise<ActionResponse> {
       message: "Permission supprimé avec succès!",
     };
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return {
       success: false,
       message: "Erreur!",
@@ -264,7 +263,7 @@ export async function getTables() {
 
     return filteredTables;
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return []
   }
 }

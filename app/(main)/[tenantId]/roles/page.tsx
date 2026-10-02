@@ -28,8 +28,9 @@ export default async function RolesPage({
   searchParams: Promise<RoleSearchParams>;
 }) {
   const filters = await searchParams;
+  const { tenantId } = await params;
 
-  const result = await getAllRoles(filters);
+  const result = await getAllRoles(tenantId, filters);
   const roles = result?.data || [];
   const meta = result?.meta;
 

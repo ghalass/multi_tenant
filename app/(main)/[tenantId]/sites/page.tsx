@@ -15,15 +15,14 @@ import { UpdateSiteForm } from "./update-site-form";
 import { DeleteSiteForm } from "./delete-site-form";
 import Search from "@/app/(main)/[tenantId]/sites/search";
 import Pagination from "@/components/pagination";
-import DisplayData from "@/components/DisplayData";
 import DisplayError from "@/components/display-error";
 
-export default async function Sites2Page({ params, SiteSearchParams }: {
+export default async function Sites2Page({ params, searchParams }: {
   params: Promise<{ tenantId: string }>;
-  SiteSearchParams: Promise<SiteSearchParams>;
+  searchParams: Promise<SiteSearchParams>;
 }) {
   const { tenantId } = await params;
-  const filters = await SiteSearchParams;
+  const filters = await searchParams;
 
   // Récupération de l'objet contenant { data, meta }
   const result = await getAllSites(tenantId, filters);

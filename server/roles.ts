@@ -40,7 +40,7 @@ interface PaginatedRoles {
 
 const the_resource = "role";
 
-export async function getAllRoles(filters: RoleSearchParams = {}): Promise<PaginatedRoles> {
+export async function getAllRoles(tenantId: string, filters: RoleSearchParams = {}): Promise<PaginatedRoles> {
     // 1. Vérifier la permission
     const g = await guard(ACTION.READ, the_resource);
     if (!g.success) return { data: [], success: false, message: g.message };
@@ -55,10 +55,23 @@ export async function getAllRoles(filters: RoleSearchParams = {}): Promise<Pagin
         const itemsPerPage = Math.max(1, parseInt(filters?.perPage || "10", 10));
         const skip = (currentPage - 1) * itemsPerPage;
 
-
         const whereClause: any = {
-            ...(filters?.s && { name: { contains: filters?.s, mode: "insensitive" } }),
-            ...(filters?.s && { description: { contains: filters?.s, mode: "insensitive" } }),
+            ...(filters?.s && {
+                OR: [
+                    {
+                        name: {
+                            contains: filters.s,
+                            mode: "insensitive",
+                        },
+                    },
+                    {
+                        description: {
+                            contains: filters.s,
+                            mode: "insensitive",
+                        },
+                    },
+                ],
+            }),
         };
 
         const [totalItems, roles] = await prisma.$transaction([
@@ -67,7 +80,13 @@ export async function getAllRoles(filters: RoleSearchParams = {}): Promise<Pagin
                 where: whereClause,
                 include: {
                     permissions: true,
-                    _count: { select: { users: true, permissions: true } },
+                    _count: {
+                        select: {
+                            users: {
+                                where: { tenantId }
+                            }, permissions: true
+                        }
+                    },
                 },
                 take: itemsPerPage,
                 skip,

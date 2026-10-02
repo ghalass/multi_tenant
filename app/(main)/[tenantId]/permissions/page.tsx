@@ -17,11 +17,11 @@ import { getAllPermission, getTables } from "@/server/permissions";
 import { UpdatePermissionForm } from "./update-permissions-form";
 import DisplayError from "@/components/display-error";
 
-export default async function Permissions2Page({ params, PermissionsSearchParams }: {
+export default async function Permissions2Page({ params, searchParams }: {
   params: Promise<{ tenantId: string }>;
-  PermissionsSearchParams: Promise<PermissionsSearchParams>;
+  searchParams: Promise<PermissionsSearchParams>;
 }) {
-  const filters = await PermissionsSearchParams;
+  const filters = await searchParams;
 
   // Récupération de l'objet contenant { data, meta }
   const result = await getAllPermission(filters);

@@ -91,7 +91,7 @@ export async function createTenant(name: string) {
       message: "Tenant crée avec succès!",
     };
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return {
       success: false,
       message: "Erreur!",

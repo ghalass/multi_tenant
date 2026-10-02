@@ -16,18 +16,17 @@ import { DeleteUserForm } from "./delete-user-form";
 import Search from "@/app/(main)/[tenantId]/users/search";
 import Pagination from "@/components/pagination";
 import { getAllRoles, getAllUsers } from "@/server/users";
-import DisplayData from "@/components/DisplayData";
 import DisplayError from "@/components/display-error";
 
 export default async function UsersPage({
   params,
-  UsersSearchParams,
+  searchParams,
 }: {
   params: Promise<{ tenantId: string }>;
-  UsersSearchParams: Promise<UsersSearchParams>;
+  searchParams: Promise<UsersSearchParams>;
 }) {
   const { tenantId } = await params;
-  const filters = await UsersSearchParams;
+  const filters = await searchParams;
 
   const result = await getAllUsers(tenantId, filters);
   const users = result?.data || [];

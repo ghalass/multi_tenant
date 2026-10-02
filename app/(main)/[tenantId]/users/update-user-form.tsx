@@ -69,7 +69,6 @@ export function UpdateUserForm({
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
-      console.log(values.roleIds);
 
       setError("");
       setIsLoading(true);

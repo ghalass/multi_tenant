@@ -8,7 +8,7 @@ export default async function TenantMainPage() {
   if (!tenant) return null;
   return (
     <div>
-      <h1>Main</h1>
+      <h1 className="text-2xl font-bold">Organisation : {tenant.name}</h1>
     </div>
   );
 }
