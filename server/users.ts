@@ -31,7 +31,8 @@ export async function getAllUsers(
 
   // 2. Continuer la logique métier
   const { user } = await getCurrentUser();
-  if (!user?.id) return null;
+  if (!user?.id) return { data: [], success: false, message: "Utilisateur non authentifié." };
+
 
 
   const { name, active, page = "1", limit = String(ITEMS_PER_PAGE) } = filters;
@@ -52,7 +53,7 @@ export async function getAllUsers(
   if (active === "active") where.active = true;
   if (active === "inactive") where.active = false;
 
-  const [data, totalItems] = await Promise.all([
+  const [users, totalItems] = await Promise.all([
     prisma.user.findMany({
       where,
       skip,
@@ -68,7 +69,8 @@ export async function getAllUsers(
   const totalPages = Math.ceil(totalItems / itemsPerPage);
 
   return {
-    data,
+    data: users,
+    success: true, message: "Données récupérées avec succès!",
     meta: { currentPage, itemsPerPage, totalItems, totalPages },
   };
 }

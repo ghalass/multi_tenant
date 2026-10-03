@@ -40,13 +40,13 @@ export async function login(email: string, password: string) {
 
     return {
       success: true,
-      message: "Signed In successfully",
+      message: "Connexion réussie",
     };
   } catch (error) {
     const e = error as Error;
     return {
       success: false,
-      message: e.message || "An unkown error occured",
+      message: e.message || "Une erreur inconnue s'est produite",
     };
   }
 }
@@ -93,7 +93,7 @@ export async function getCurrentUser() {
     const e = error as Error;
     return {
       success: false,
-      message: e.message || "An unkown error occured",
+      message: e.message || "Une erreur inconnue s'est produite",
     };
   }
 }

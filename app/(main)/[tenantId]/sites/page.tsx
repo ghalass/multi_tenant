@@ -16,18 +16,21 @@ import { DeleteSiteForm } from "./delete-site-form";
 import Search from "@/app/(main)/[tenantId]/sites/search";
 import Pagination from "@/components/pagination";
 import DisplayError from "@/components/display-error";
+import CanAccess from "@/components/can-access";
+import { ACTION } from "@/lib/enums";
 
-export default async function Sites2Page({ params, searchParams }: {
+export default async function SitesPage({ params, searchParams }: {
   params: Promise<{ tenantId: string }>;
   searchParams: Promise<SiteSearchParams>;
 }) {
   const { tenantId } = await params;
   const filters = await searchParams;
 
-  // Récupération de l'objet contenant { data, meta }
   const result = await getAllSites(tenantId, filters);
   const sites = result?.data || [];
   const meta = result?.meta;
+
+  const resource = "site"
 
   return (
     <div className="container mx-auto py-2">
@@ -39,69 +42,77 @@ export default async function Sites2Page({ params, searchParams }: {
             <div id="global-loader-slot" />
           </div>
         </h1>
-        <CreateSiteForm tenantId={tenantId} />
+        <CanAccess resource={resource} action={ACTION.CREATE}>
+          <CreateSiteForm tenantId={tenantId} />
+        </CanAccess>
       </div>
 
       <p className="text-muted-foreground mt-1">
         Créez et gérez les sites de votre application
       </p>
 
-      <div className="my-4">
-        <Search />
-      </div>
+      {!result?.success && <DisplayError className="mt-4" error={result?.message} />}
 
-      {!result?.success && <DisplayError error={result?.message} />}
+      <CanAccess resource={resource} action={ACTION.READ}>
+        <div className="my-4">
+          <Search />
+        </div>
 
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Site</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {sites.length === 0 ? (
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={4} className="h-24 text-center">
-                  Aucun site trouvé.
-                </TableCell>
+                <TableHead>Site</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
-            ) : (
-              sites.map((site) => (
-                <TableRow key={site.id}>
-                  <TableCell className="font-medium">{site.name}</TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={site.active ? "default" : "secondary"}
-                      className={site.active ? "bg-green-100 text-green-800" : ""}
-                    >
-                      {site.active ? "Actif" : "Inactif"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="flex gap-4 justify-end text-center">
-                    <UpdateSiteForm site={site} />
-                    <DeleteSiteForm site={site} />
+            </TableHeader>
+            <TableBody>
+              {sites.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="h-24 text-center">
+                    Aucun site trouvé.
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+              ) : (
+                sites.map((site) => (
+                  <TableRow key={site.id}>
+                    <TableCell className="font-medium">{site.name}</TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={site.active ? "default" : "secondary"}
+                        className={site.active ? "bg-green-100 text-green-800" : ""}
+                      >
+                        {site.active ? "Actif" : "Inactif"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="flex gap-4 justify-end text-center">
+                      <CanAccess resource={resource} action={ACTION.UPDATE}>
+                        <UpdateSiteForm site={site} />
+                      </CanAccess>
+                      <CanAccess resource={resource} action={ACTION.DELETE}>
+                        <DeleteSiteForm site={site} />
+                      </CanAccess>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
 
-      {/* 3. Ajout de la barre de contrôle sous le tableau */}
-      {meta && (
-        <Pagination
-          totalPages={meta.totalPages}
-          currentPage={meta.currentPage}
-          totalItems={meta.totalItems}
-          itemsPerPage={meta.itemsPerPage}
-        />
-      )}
+        {/* 3. Ajout de la barre de contrôle sous le tableau */}
+        {meta && (
+          <Pagination
+            totalPages={meta.totalPages}
+            currentPage={meta.currentPage}
+            totalItems={meta.totalItems}
+            itemsPerPage={meta.itemsPerPage}
+          />
+        )}
+      </CanAccess>
 
-      {/* <DisplayData data={sites} /> */}
+
     </div>
   );
 }

@@ -16,6 +16,8 @@ import Pagination from "@/components/pagination";
 import { getAllPermission, getTables } from "@/server/permissions";
 import { UpdatePermissionForm } from "./update-permissions-form";
 import DisplayError from "@/components/display-error";
+import CanAccess from "@/components/can-access";
+import { ACTION } from "@/lib/enums";
 
 export default async function Permissions2Page({ params, searchParams }: {
   params: Promise<{ tenantId: string }>;
@@ -30,6 +32,8 @@ export default async function Permissions2Page({ params, searchParams }: {
 
   const tables = await getTables()
 
+  const resource = "permission"
+
   return (
     <div className="container mx-auto py-2">
       <div className="flex justify-between items-center">
@@ -40,7 +44,9 @@ export default async function Permissions2Page({ params, searchParams }: {
             <div id="global-loader-slot" />
           </div>
         </h1>
-        <CreatePermissionForm tables={tables} />
+        <CanAccess resource={resource} action={ACTION.CREATE}>
+          <CreatePermissionForm tables={tables} />
+        </CanAccess>
       </div>
 
       <p className="text-muted-foreground mt-1">
@@ -51,7 +57,7 @@ export default async function Permissions2Page({ params, searchParams }: {
         <Search />
       </div>
 
-      {!result?.success && <DisplayError error={result?.message} />}
+      {!result?.success && <DisplayError className="mt-4" error={result?.message} />}
 
       <div className="rounded-md border">
         <Table>
@@ -82,8 +88,12 @@ export default async function Permissions2Page({ params, searchParams }: {
                   <TableCell>{permission?.description}</TableCell>
 
                   <TableCell className="flex gap-4 justify-end text-center">
-                    <UpdatePermissionForm key={permission.id} permission={permission} tables={tables} />
-                    <DeletePermissionForm permission={permission} />
+                    <CanAccess resource={resource} action={ACTION.UPDATE}>
+                      <UpdatePermissionForm key={permission.id} permission={permission} tables={tables} />
+                    </CanAccess>
+                    <CanAccess resource={resource} action={ACTION.DELETE}>
+                      <DeletePermissionForm permission={permission} />
+                    </CanAccess>
                   </TableCell>
                 </TableRow>
               ))

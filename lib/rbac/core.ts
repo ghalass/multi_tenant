@@ -1,5 +1,6 @@
 // lib/rbac/core.ts
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/server/auth";
 import { getCurrentTenant } from "@/server/tenants";
 
 // Types pour les permissions
@@ -28,21 +29,21 @@ export interface UserWithPermissions {
   }>;
 }
 
-export async function getUserWithPermissions(
-  userId: string
-): Promise<UserWithPermissions | null> {
-  // const tenantId = (await getSession()).tenant.id!;
-  const tenant = await getCurrentTenant()
-  return prisma.user.findUnique({
-    where: { id: userId, tenantId: tenant?.id },
-    include: {
-      roles: {
-        include: {
-          permissions: true, // Relation directe avec Permission
-        },
-      },
-    },
-  }) as Promise<UserWithPermissions | null>;
+export async function hasPermission(
+  action: ACTION,
+  resourceName: string
+): Promise<boolean> {
+  // get currentUser
+  const currentUser = await getCurrentUser()
+  const userId = currentUser.user?.id || "";
+  if (userId === "") return false
+  // check if super-admin
+  const is_super_admin = await isSuperAdmin(userId)
+  if (is_super_admin) return true
+  // check permissions
+  const userPermissions = await getUserPermissions(userId);
+  const requiredPermission = `${action}:${resourceName}`;
+  return userPermissions.includes(requiredPermission);
 }
 
 export async function getUserPermissions(userId: string): Promise<string[]> {
@@ -78,14 +79,36 @@ export async function getUserPermissions(userId: string): Promise<string[]> {
   return Array.from(permissionsSet);
 }
 
-export async function hasPermission(
-  userId: string,
-  action: string,
-  resourceName: string
-): Promise<boolean> {
-  const userPermissions = await getUserPermissions(userId);
-  const requiredPermission = `${action}:${resourceName}`;
-  return userPermissions.includes(requiredPermission);
+import { cache } from "react";
+import { ACTION } from "../enums";
+export const isSuperAdmin = cache(async (userId: string): Promise<boolean> => {
+  if (!userId) return false;
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { isSuperAdmin: true },
+  });
+
+  return user?.isSuperAdmin ?? false;
+});
+
+/* UNUSED FUNCTIONS
+
+export async function getUserWithPermissions(
+  userId: string
+): Promise<UserWithPermissions | null> {
+  // const tenantId = (await getSession()).tenant.id!;
+  const tenant = await getCurrentTenant()
+  return prisma.user.findUnique({
+    where: { id: userId, tenantId: tenant?.id },
+    include: {
+      roles: {
+        include: {
+          permissions: true, // Relation directe avec Permission
+        },
+      },
+    },
+  }) as Promise<UserWithPermissions | null>;
 }
 
 export async function hasRole(
@@ -230,14 +253,4 @@ export async function getUserRoles(userId: string): Promise<string[]> {
   return user?.roles.map((role) => role.name) ?? [];
 }
 
-import { cache } from "react";
-export const isSuperAdmin = cache(async (userId: string): Promise<boolean> => {
-  if (!userId) return false;
-
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { isSuperAdmin: true },
-  });
-
-  return user?.isSuperAdmin ?? false;
-});
+*/

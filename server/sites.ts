@@ -8,8 +8,7 @@ import { sleep } from "@/lib/utils";
 import { ACTION } from "@/lib/enums";
 import { guard } from "@/lib/rbac/middleware";
 import { ActionResponse } from "./types";
-
-type SiteWithTenant = Site & { tenant: Tenant };
+import { SiteWithTenant } from "@/lib/types";
 
 export interface SiteSearchParams {
   name?: string;

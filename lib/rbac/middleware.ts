@@ -4,6 +4,7 @@ import { hasPermission, isSuperAdmin } from "./core";
 import { getSession } from "../auth";
 import { prisma } from "../prisma";
 import { getCurrentTenant } from "@/server/tenants";
+import { ACTION } from "../enums";
 
 const checkTenant = async () => {
   const currentTenant = await getCurrentTenant()
@@ -26,7 +27,7 @@ const checkTenant = async () => {
 };
 
 export async function protectRoute(
-  action: string,
+  action: ACTION,
   resource: string
 ): Promise<NextResponse | null> {
   try {
@@ -58,7 +59,7 @@ export async function protectRoute(
     }
 
     // Vérifier les permissions spécifiques, si ce n'est pas super-admin
-    const hasAccess = await hasPermission(userId, action, resource);
+    const hasAccess = await hasPermission(action, resource);
 
     if (!hasAccess) {
       return NextResponse.json(
@@ -88,7 +89,7 @@ type GuardResult =
   | { success: false; message: string };
 
 export async function guard(
-  action: string,
+  action: ACTION,
   resource: string
 ): Promise<GuardResult> {
   const res = await protectRoute(action, resource);

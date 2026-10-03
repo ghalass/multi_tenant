@@ -44,6 +44,7 @@ export default function LoginForm() {
   });
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setisSubmitting(true);
+    setError(null);
     try {
       const { success, message } = await login(values.email, values.password);
 
@@ -51,7 +52,8 @@ export default function LoginForm() {
         toast.success(message);
         router.push("/");
       } else {
-        toast.error(message);
+        setError(message);
+        // toast.error(message);
       }
     } catch (error) {
     } finally {
@@ -126,11 +128,11 @@ export default function LoginForm() {
           </FieldGroup>
         </form>
 
-        {/* {error && (
-            <div className="mt-2 p-3 bg-destructive/10 border border-destructive rounded-md">
-              <p className="text-sm text-destructive text-center">{error}</p>
-            </div>
-          )} */}
+        {error && (
+          <div className="mt-2 p-3 bg-destructive/10 border border-destructive rounded-md">
+            <p className="text-sm text-destructive text-center">{error}</p>
+          </div>
+        )}
       </CardContent>
 
       <CardFooter className="flex flex-col gap-4">

@@ -19,6 +19,8 @@ import {
   RoleSearchParams,
 } from "@/server/roles";
 import DisplayError from "@/components/display-error";
+import CanAccess from "@/components/can-access";
+import { ACTION } from "@/lib/enums";
 
 export default async function RolesPage({
   params,
@@ -36,6 +38,8 @@ export default async function RolesPage({
 
   const permissions = await getAllPermissions();
 
+  const resource = "role"
+
   return (
     <div className="container mx-auto py-2">
       <div className="flex justify-between items-center">
@@ -46,7 +50,9 @@ export default async function RolesPage({
             <div id="global-loader-slot" />
           </div>
         </h1>
-        <CreateRoleForm permissions={permissions} />
+        <CanAccess resource={resource} action={ACTION.CREATE}>
+          <CreateRoleForm permissions={permissions} />
+        </CanAccess>
       </div>
 
       <p className="text-muted-foreground mt-1">
@@ -57,8 +63,7 @@ export default async function RolesPage({
         <Search />
       </div>
 
-      {!result?.success && <DisplayError error={result?.message} />}
-
+      {!result?.success && <DisplayError className="mt-4" error={result?.message} />}
 
       <div className="rounded-md border">
         <Table>
@@ -94,11 +99,14 @@ export default async function RolesPage({
                     </span>
                   </TableCell>
                   <TableCell className="flex gap-4 justify-end text-center">
-                    <UpdateRoleForm
-                      role={role}
-                      permissions={permissions}
-                    />
-                    <DeleteRoleForm role={role} />
+                    <CanAccess resource={resource} action={ACTION.UPDATE}>
+                      <UpdateRoleForm
+                        role={role}
+                        permissions={permissions}
+                      /></CanAccess>
+                    <CanAccess resource={resource} action={ACTION.UPDATE}>
+                      <DeleteRoleForm role={role} />
+                    </CanAccess>
                   </TableCell>
                 </TableRow>
               ))
