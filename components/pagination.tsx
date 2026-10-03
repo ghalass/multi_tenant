@@ -1,4 +1,4 @@
-// app/(main)/[tenantId]/sites2/pagination.tsx
+// app/(main)/[tenantId]/sites/pagination.tsx
 'use client';
 
 import { useSearchParams, usePathname, useRouter } from 'next/navigation';

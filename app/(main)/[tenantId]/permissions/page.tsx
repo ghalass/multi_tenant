@@ -41,7 +41,6 @@ export default async function Permissions2Page({ params, searchParams }: {
           <div className="flex items-center">
             <MapPin className="h-8 w-8" />
             Gestion des permissions
-            <div id="global-loader-slot" />
           </div>
         </h1>
         <CanAccess resource={resource} action={ACTION.CREATE}>
@@ -60,46 +59,48 @@ export default async function Permissions2Page({ params, searchParams }: {
       {!result?.success && <DisplayError className="mt-4" error={result?.message} />}
 
       <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nom</TableHead>
-              <TableHead>Ressource</TableHead>
-              <TableHead>Action</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {permissions.length === 0 ? (
+        <div id="global-loader-slot" className="relative w-full">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={4} className="h-24 text-center">
-                  Aucune permission trouvé.
-                </TableCell>
+                <TableHead>Nom</TableHead>
+                <TableHead>Ressource</TableHead>
+                <TableHead>Action</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
-            ) : (
-              permissions.map((permission) => (
-                <TableRow key={permission.id}>
-
-                  <TableCell className="font-medium">{permission.name}</TableCell>
-
-                  <TableCell>{permission?.resource}</TableCell>
-                  <TableCell>{permission?.action}</TableCell>
-                  <TableCell>{permission?.description}</TableCell>
-
-                  <TableCell className="flex gap-4 justify-end text-center">
-                    <CanAccess resource={resource} action={ACTION.UPDATE}>
-                      <UpdatePermissionForm key={permission.id} permission={permission} tables={tables} />
-                    </CanAccess>
-                    <CanAccess resource={resource} action={ACTION.DELETE}>
-                      <DeletePermissionForm permission={permission} />
-                    </CanAccess>
+            </TableHeader>
+            <TableBody>
+              {permissions.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="h-24 text-center">
+                    Aucune permission trouvé.
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+              ) : (
+                permissions.map((permission) => (
+                  <TableRow key={permission.id}>
+
+                    <TableCell className="font-medium">{permission.name}</TableCell>
+
+                    <TableCell>{permission?.resource}</TableCell>
+                    <TableCell>{permission?.action}</TableCell>
+                    <TableCell>{permission?.description}</TableCell>
+
+                    <TableCell className="flex gap-4 justify-end text-center">
+                      <CanAccess resource={resource} action={ACTION.UPDATE}>
+                        <UpdatePermissionForm key={permission.id} permission={permission} tables={tables} />
+                      </CanAccess>
+                      <CanAccess resource={resource} action={ACTION.DELETE}>
+                        <DeletePermissionForm permission={permission} />
+                      </CanAccess>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </div>
 
       {/* 3. Ajout de la barre de contrôle sous le tableau */}

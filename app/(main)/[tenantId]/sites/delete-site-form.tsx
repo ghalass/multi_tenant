@@ -21,7 +21,7 @@ import {
 import { sleep } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { deleteSite } from "@/server/sites";
-import { Site } from "@/lib/generated/prisma/client";
+import type { Site } from "@/lib/generated/prisma/client";
 import { Spinner } from "@/components/ui/spinner";
 import { GlobalLoader } from "@/components/global-loader";
 import DisplayError from "@/components/display-error";

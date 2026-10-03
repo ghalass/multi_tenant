@@ -1,4 +1,5 @@
 import { getCurrentTenant } from "@/server/tenants";
+import { redirect } from "next/navigation";
 import { Building2 } from "lucide-react";
 import { BackButton } from "@/components/back-button";
 import { TenantBreadcrumb } from "@/components/tenant-breadcrumb";
@@ -9,7 +10,7 @@ export default async function TenantLayout({
   children: React.ReactNode;
 }>) {
   const tenant = await getCurrentTenant();
-  if (!tenant) return null;
+  if (!tenant) redirect("/");
 
   return (
     <div>

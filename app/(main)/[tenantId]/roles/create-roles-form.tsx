@@ -13,7 +13,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "@/lib/zod-config";
 import { toast } from "sonner";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { Loader2, PlusIcon } from "lucide-react";
 
 import {
@@ -84,6 +84,13 @@ export function CreateRoleForm({ permissions }: { permissions: Permission[] }) {
             setIsLoading(false);
         }
     }
+
+    useEffect(() => {
+        if (!open) {
+            form.reset();
+            setError("");
+        }
+    }, [open, form]);
 
     return (
         <div>

@@ -10,7 +10,7 @@ datasource db {
 // ****************** TENANT ******************
 
 model Tenant {
-  id     String  @id @default(cuid())
+  id     String  @id @default(cuid(2))
   name   String  @unique
   active Boolean @default(true)
 
@@ -30,7 +30,7 @@ model Tenant {
 
 // implicite relation between Permission and Role
 model Permission {
-  id          String  @id @default(cuid())
+  id          String  @id @default(cuid(2))
   name        String  @unique
   resource    String
   action      Action
@@ -50,7 +50,7 @@ enum Action {
 }
 
 model Role {
-  id          String  @id @default(cuid())
+  id          String  @id @default(cuid(2))
   name        String
   description String?
 
@@ -65,7 +65,7 @@ model Role {
 }
 
 model User {
-  id           String  @id @default(cuid())
+  id           String  @id @default(cuid(2))
   tenantId     String?
   name         String
   email        String
@@ -88,7 +88,7 @@ model User {
 // ****************** GESTION DES DONNEES DE BASE ******************
 
 model Site {
-  id       String  @id @default(cuid())
+  id       String  @id @default(cuid(2))
   tenantId String
   name     String
   active   Boolean @default(true)

@@ -16,7 +16,9 @@ export function GlobalLoader({ show }: { show: boolean }) {
     if (!mounted || !slot || !show) return null;
 
     return createPortal(
-        <Spinner className="size-4 text-primary mt-2 mx-2" />,
+        <div className="absolute inset-0 z-50 flex h-full w-full items-center justify-center bg-background/60">
+            <Spinner className="size-7 text-primary" />
+        </div>,
         slot
     );
 }

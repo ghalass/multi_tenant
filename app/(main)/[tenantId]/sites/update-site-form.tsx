@@ -1,6 +1,5 @@
 "use client";
 
-
 import { Button } from "@/components/ui/button";
 import {
   Field,
@@ -11,10 +10,9 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 
-import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
-import { z } from "@/lib/zod-config"; import { toast } from "sonner";
-import { useState, useTransition } from "react";
+import { toast } from "sonner";
+import { useEffect, useState, useTransition } from "react";
 import { PenIcon } from "lucide-react";
 
 import {
@@ -30,14 +28,16 @@ import { sleep } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { Switch } from "@/components/ui/switch";
 import { updateSite } from "@/server/sites";
-import { Site } from "@/lib/generated/prisma/client";
+import type { Site } from "@/lib/generated/prisma/client";
 import { Spinner } from "@/components/ui/spinner";
 import { GlobalLoader } from "@/components/global-loader";
 import DisplayError from "@/components/display-error";
+import yup from "@/lib/yupFr";
+import { yupResolver } from "@hookform/resolvers/yup";
 
-const formSchema = z.object({
-  name: z.string().min(1),
-  active: z.boolean(),
+const formSchema = yup.object({
+  name: yup.string().min(2).max(10).required().label("Le nom du site"),
+  active: yup.boolean().required(),
 });
 
 export function UpdateSiteForm({ site }: { site: Site }) {
@@ -46,14 +46,14 @@ export function UpdateSiteForm({ site }: { site: Site }) {
   const [isPending, startTransition] = useTransition();
 
   const [open, setOpen] = useState(false);
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
+  const form = useForm<yup.InferType<typeof formSchema>>({
+    resolver: yupResolver(formSchema),
     values: { name: site?.name, active: site?.active },
   });
 
   const router = useRouter();
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: yup.InferType<typeof formSchema>) {
     try {
       setError("");
       setIsLoading(true);
@@ -81,6 +81,13 @@ export function UpdateSiteForm({ site }: { site: Site }) {
       setIsLoading(false);
     }
   }
+
+  useEffect(() => {
+    if (!open) {
+      form.reset();
+      setError("");
+    }
+  }, [open, form]);
 
   return (
     <>

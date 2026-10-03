@@ -17,7 +17,6 @@ import Search from "@/app/(main)/[tenantId]/users/search";
 import Pagination from "@/components/pagination";
 import { getAllRoles, getAllUsers } from "@/server/users";
 import DisplayError from "@/components/display-error";
-import DisplayData from "@/components/DisplayData";
 import CanAccess from "@/components/can-access";
 import { ACTION } from "@/lib/enums";
 
@@ -43,7 +42,6 @@ export default async function UsersPage({ params, searchParams }: {
           <div className="flex items-center">
             <Users className="h-8 w-8" />
             Gestion des utilisateurs
-            <div id="global-loader-slot" />
           </div>
         </h1>
         <CanAccess resource={resource} action={ACTION.CREATE}>
@@ -63,78 +61,80 @@ export default async function UsersPage({ params, searchParams }: {
         </div>
 
         <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nom</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Rôles</TableHead>
-                <TableHead>Statut</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {users.length === 0 ? (
+          <div id="global-loader-slot" className="relative w-full">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center">
-                    Aucun utilisateur trouvé.
-                  </TableCell>
+                  <TableHead>Nom</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Rôles</TableHead>
+                  <TableHead>Statut</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ) : (
-                users.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell className="font-medium">{user.name}</TableCell>
-                    <TableCell>{user?.email}</TableCell>
-
-                    {/* 🔑 Afficher les rôles */}
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {user.roles && user.roles.length > 0 ? (
-                          user.roles.map((role) => (
-                            <Badge
-                              key={role.id}
-                              variant="outline"
-                              className="text-xs"
-                            >
-                              {role.name}
-                            </Badge>
-                          ))
-                        ) : (
-                          <span className="text-xs text-muted-foreground">
-                            Aucun rôle
-                          </span>
-                        )}
-                      </div>
-                    </TableCell>
-
-                    <TableCell>
-                      <Badge
-                        variant={user.active ? "default" : "secondary"}
-                        className={
-                          user.active ? "bg-green-100 text-green-800" : ""
-                        }
-                      >
-                        {user.active ? "Actif" : "Inactif"}
-                      </Badge>
-                    </TableCell>
-
-                    <TableCell className="flex gap-4 justify-end text-center">
-                      <CanAccess resource={resource} action={ACTION.UPDATE}>
-                        <UpdateUserForm
-                          key={user.id}
-                          user={user}
-                          roles={roles}
-                        />
-                      </CanAccess>
-                      <CanAccess resource={resource} action={ACTION.DELETE}>
-                        <DeleteUserForm user={user} />
-                      </CanAccess>
+              </TableHeader>
+              <TableBody>
+                {users.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="h-24 text-center">
+                      Aucun utilisateur trouvé.
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ) : (
+                  users.map((user) => (
+                    <TableRow key={user.id}>
+                      <TableCell className="font-medium">{user.name}</TableCell>
+                      <TableCell>{user?.email}</TableCell>
+
+                      {/* 🔑 Afficher les rôles */}
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {user.roles && user.roles.length > 0 ? (
+                            user.roles.map((role) => (
+                              <Badge
+                                key={role.id}
+                                variant="outline"
+                                className="text-xs"
+                              >
+                                {role.name}
+                              </Badge>
+                            ))
+                          ) : (
+                            <span className="text-xs text-muted-foreground">
+                              Aucun rôle
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
+
+                      <TableCell>
+                        <Badge
+                          variant={user.active ? "default" : "secondary"}
+                          className={
+                            user.active ? "bg-green-100 text-green-800" : ""
+                          }
+                        >
+                          {user.active ? "Actif" : "Inactif"}
+                        </Badge>
+                      </TableCell>
+
+                      <TableCell className="flex gap-4 justify-end text-center">
+                        <CanAccess resource={resource} action={ACTION.UPDATE}>
+                          <UpdateUserForm
+                            key={user.id}
+                            user={user}
+                            roles={roles}
+                          />
+                        </CanAccess>
+                        <CanAccess resource={resource} action={ACTION.DELETE}>
+                          <DeleteUserForm user={user} />
+                        </CanAccess>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </div>
 
         {meta && (

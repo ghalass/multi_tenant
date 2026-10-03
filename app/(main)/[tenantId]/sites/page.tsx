@@ -1,4 +1,4 @@
-// app/(main)/[tenantId]/sites2/page.tsx
+// app/(main)/[tenantId]/sites/page.tsx
 import {
   Table,
   TableBody,
@@ -39,7 +39,6 @@ export default async function SitesPage({ params, searchParams }: {
           <div className="flex items-center">
             <MapPin className="h-8 w-8" />
             Gestion des sites
-            <div id="global-loader-slot" />
           </div>
         </h1>
         <CanAccess resource={resource} action={ACTION.CREATE}>
@@ -59,46 +58,48 @@ export default async function SitesPage({ params, searchParams }: {
         </div>
 
         <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Site</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {sites.length === 0 ? (
+          <div id="global-loader-slot" className="relative w-full">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={4} className="h-24 text-center">
-                    Aucun site trouvé.
-                  </TableCell>
+                  <TableHead>Site</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ) : (
-                sites.map((site) => (
-                  <TableRow key={site.id}>
-                    <TableCell className="font-medium">{site.name}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={site.active ? "default" : "secondary"}
-                        className={site.active ? "bg-green-100 text-green-800" : ""}
-                      >
-                        {site.active ? "Actif" : "Inactif"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="flex gap-4 justify-end text-center">
-                      <CanAccess resource={resource} action={ACTION.UPDATE}>
-                        <UpdateSiteForm site={site} />
-                      </CanAccess>
-                      <CanAccess resource={resource} action={ACTION.DELETE}>
-                        <DeleteSiteForm site={site} />
-                      </CanAccess>
+              </TableHeader>
+              <TableBody>
+                {sites.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="h-24 text-center">
+                      Aucun site trouvé.
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ) : (
+                  sites.map((site) => (
+                    <TableRow key={site.id}>
+                      <TableCell className="font-medium">{site.name}</TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={site.active ? "default" : "secondary"}
+                          className={site.active ? "bg-green-100 text-green-800" : ""}
+                        >
+                          {site.active ? "Actif" : "Inactif"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="flex gap-4 justify-end text-center">
+                        <CanAccess resource={resource} action={ACTION.UPDATE}>
+                          <UpdateSiteForm site={site} />
+                        </CanAccess>
+                        <CanAccess resource={resource} action={ACTION.DELETE}>
+                          <DeleteSiteForm site={site} />
+                        </CanAccess>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </div>
 
         {/* 3. Ajout de la barre de contrôle sous le tableau */}

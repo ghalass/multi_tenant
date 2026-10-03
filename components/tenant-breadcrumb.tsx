@@ -14,7 +14,6 @@ import {
 // Labels custom pour les segments non triviaux
 const SEGMENT_LABELS: Record<string, string> = {
     sites: "Sites",
-    sites2: "Sites 2",
     users: "Utilisateurs",
     roles: "Rôles",
     permissions: "Permissions",
@@ -35,7 +34,7 @@ export function TenantBreadcrumb({ tenantName }: { tenantName: string }) {
     const params = useParams<{ tenantId: string }>();
     const tenantId = params?.tenantId;
 
-    // Découpe : ["acme", "sites2"] par exemple
+    // Découpe : ["acme", "site"] par exemple
     const segments = pathname.split("/").filter(Boolean);
 
     // On retire le premier segment (tenantId) car on l'affiche à part

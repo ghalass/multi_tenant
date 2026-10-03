@@ -10,11 +10,9 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 
-import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
-import { z } from "@/lib/zod-config";
 import { toast } from "sonner";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { PenIcon } from "lucide-react";
 
 import {
@@ -35,11 +33,13 @@ import { updateUser } from "@/server/users";
 import DisplayError from "@/components/display-error";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Role, User } from "@/lib/generated/prisma/client";
+import yup from "@/lib/yupFr";
+import { yupResolver } from "@hookform/resolvers/yup";
 
-const formSchema = z.object({
-  name: z.string().min(1, "Le nom est requis"),
-  active: z.boolean(),
-  roleIds: z.array(z.string()),
+const formSchema = yup.object({
+  name: yup.string().min(2).required(),
+  active: yup.boolean().default(true),
+  roleIds: yup.array().of(yup.string()).default([]),
 });
 
 type UserWithRoles = User & { roles?: Role[] };
@@ -56,8 +56,8 @@ export function UpdateUserForm({
   const [isPending, startTransition] = useTransition();
 
   const [open, setOpen] = useState(false);
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
+  const form = useForm<yup.InferType<typeof formSchema>>({
+    resolver: yupResolver(formSchema),
     values: {
       name: user?.name,
       active: user?.active,
@@ -67,18 +67,23 @@ export function UpdateUserForm({
 
   const router = useRouter();
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: yup.InferType<typeof formSchema>) {
     try {
 
       setError("");
       setIsLoading(true);
       await sleep();
 
+      const roleIds = (values.roleIds ?? []).filter(
+        (id): id is string => typeof id === "string" && id.length > 0
+      );
+
+
       const { success, message } = await updateUser(
         user?.id,
         values.name,
         values.active,
-        values.roleIds
+        roleIds
       );
 
       if (!success) {
@@ -98,6 +103,13 @@ export function UpdateUserForm({
       setIsLoading(false);
     }
   }
+
+  useEffect(() => {
+    if (!open) {
+      form.reset();
+      setError("");
+    }
+  }, [open, form]);
 
   return (
     <>

@@ -10,11 +10,9 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 
-import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
-import { z } from "@/lib/zod-config";
 import { toast } from "sonner";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { PlusIcon } from "lucide-react";
 
 import {
@@ -35,29 +33,25 @@ import { createUser } from "@/server/users";
 import DisplayError from "@/components/display-error";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Role } from "@/lib/generated/prisma/client";
+import yup from "@/lib/yupFr";
+import { yupResolver } from "@hookform/resolvers/yup";
 
-const formSchema = z.object({
-  name: z.string().min(1, "Le nom est requis"),
-  email: z.email("Email invalide"),
-  password: z.string().min(6, "Le mot de passe doit contenir au moins 6 caractères"),
-  active: z.boolean(),
-  roleIds: z.array(z.string()),
+const formSchema = yup.object({
+  name: yup.string().min(2).required(),
+  email: yup.string().email().required(),
+  password: yup.string().min(6).required(),
+  active: yup.boolean().default(true),
+  roleIds: yup.array().of(yup.string()).default([]),
 });
 
-export function CreateUserForm({
-  tenantId,
-  roles,
-}: {
-  tenantId: string;
-  roles: Role[];
-}) {
+export function CreateUserForm({ tenantId, roles }: { tenantId: string; roles: Role[] }) {
   const [isLoading, setIsLoading] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   const [error, setError] = useState("");
   const [open, setOpen] = useState(false);
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
+  const form = useForm<yup.InferType<typeof formSchema>>({
+    resolver: yupResolver(formSchema),
     defaultValues: {
       name: "",
       active: true,
@@ -69,11 +63,15 @@ export function CreateUserForm({
 
   const router = useRouter();
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: yup.InferType<typeof formSchema>) {
     try {
       setError("");
       setIsLoading(true);
       await sleep();
+
+      const roleIds = (values.roleIds ?? []).filter(
+        (id): id is string => typeof id === "string" && id.length > 0
+      );
 
       const { success, message } = await createUser(
         values.name,
@@ -81,7 +79,7 @@ export function CreateUserForm({
         values.email,
         values.password,
         tenantId,
-        values.roleIds
+        roleIds
       );
 
       if (!success) {
@@ -102,6 +100,13 @@ export function CreateUserForm({
       setIsLoading(false);
     }
   }
+
+  useEffect(() => {
+    if (!open) {
+      form.reset();
+      setError("");
+    }
+  }, [open, form]);
 
   return (
     <div>

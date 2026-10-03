@@ -1,7 +1,5 @@
 "use client";
 
-import { cn } from "cn";
-
 import { Button } from "@/components/ui/button";
 import {
   Field,
@@ -12,11 +10,11 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 
-import { zodResolver } from "@hookform/resolvers/zod";
+import { yupResolver } from "@hookform/resolvers/yup";
 import { Controller, useForm } from "react-hook-form";
-import { z } from "@/lib/zod-config"; import { toast } from "sonner";
-import { useState, useTransition } from "react";
-import { Loader2, PlusIcon } from "lucide-react";
+import { toast } from "sonner";
+import { useEffect, useState, useTransition } from "react";
+import { PlusIcon } from "lucide-react";
 
 import {
   Dialog,
@@ -34,10 +32,11 @@ import { createSite } from "@/server/sites";
 import { Spinner } from "@/components/ui/spinner";
 import { GlobalLoader } from "@/components/global-loader";
 import DisplayError from "@/components/display-error";
+import yup from "@/lib/yupFr";
 
-const formSchema = z.object({
-  name: z.string().min(1),
-  active: z.boolean(),
+const formSchema = yup.object({
+  name: yup.string().min(2).max(10).required().label("Le nom du site"),
+  active: yup.boolean().required(),
 });
 
 export function CreateSiteForm({ tenantId }: { tenantId: string }) {
@@ -46,14 +45,14 @@ export function CreateSiteForm({ tenantId }: { tenantId: string }) {
 
   const [error, setError] = useState("");
   const [open, setOpen] = useState(false);
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
+  const form = useForm<yup.InferType<typeof formSchema>>({
+    resolver: yupResolver(formSchema),
     defaultValues: { name: "", active: true },
   });
 
   const router = useRouter();
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: yup.InferType<typeof formSchema>) {
     try {
       setError("");
       setIsLoading(true);
@@ -79,6 +78,14 @@ export function CreateSiteForm({ tenantId }: { tenantId: string }) {
       setIsLoading(false);
     }
   }
+
+  useEffect(() => {
+    if (!open) {
+      form.reset();
+      setError("");
+    }
+  }, [open, form]);
+
 
   return (
     <div>

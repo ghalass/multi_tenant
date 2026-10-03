@@ -23,3 +23,5 @@ npx prisma db push
 pnpm install
 pnpm prisma generate
 pnpm prisma db push
+
+rm -rf .next

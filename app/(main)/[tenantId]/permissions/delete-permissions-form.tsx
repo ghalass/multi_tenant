@@ -1,9 +1,6 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import {
-  FieldGroup,
-} from "@/components/ui/field";
 
 import { toast } from "sonner";
 import { useState, useTransition } from "react";
@@ -20,11 +17,9 @@ import {
 } from "@/components/ui/dialog";
 import { sleep } from "@/lib/utils";
 import { useRouter } from "next/navigation";
-import { deleteSite } from "@/server/sites";
-import { Permission, Site, User } from "@/lib/generated/prisma/client";
+import { Permission } from "@/lib/generated/prisma/client";
 import { Spinner } from "@/components/ui/spinner";
 import { GlobalLoader } from "@/components/global-loader";
-import { deleteUser } from "@/server/users";
 import { deletePermission } from "@/server/permissions";
 import DisplayError from "@/components/display-error";
 
