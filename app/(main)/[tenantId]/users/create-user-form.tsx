@@ -126,7 +126,7 @@ export function CreateUserForm({ tenantId, roles }: { tenantId: string; roles: R
             <DisplayError error={error} />
           </DialogHeader>
 
-          <form onSubmit={form.handleSubmit(onSubmit)}>
+          <form onSubmit={form.handleSubmit(onSubmit)} autoComplete="off">
             <FieldGroup className="gap-2">
               {/* Nom */}
               <Controller
@@ -183,7 +183,7 @@ export function CreateUserForm({ tenantId, roles }: { tenantId: string; roles: R
                       {...field}
                       id="password"
                       aria-invalid={fieldState.invalid}
-                      autoComplete="off"
+                      autoComplete="new-password"
                       type="password"
                       disabled={isLoading}
                     />

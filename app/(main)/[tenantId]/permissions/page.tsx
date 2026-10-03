@@ -13,7 +13,7 @@ import { CreatePermissionForm } from "./create-permissions-form";
 import { DeletePermissionForm } from "./delete-permissions-form";
 import Search from "@/app/(main)/[tenantId]/permissions/search";
 import Pagination from "@/components/pagination";
-import { getAllPermission, getTables } from "@/server/permissions";
+import { getAllPermission } from "@/server/permissions";
 import { UpdatePermissionForm } from "./update-permissions-form";
 import DisplayError from "@/components/display-error";
 import CanAccess from "@/components/can-access";
@@ -30,8 +30,6 @@ export default async function Permissions2Page({ params, searchParams }: {
   const permissions = result?.data || [];
   const meta = result?.meta;
 
-  const tables = await getTables()
-
   const resource = "permission"
 
   return (
@@ -44,7 +42,7 @@ export default async function Permissions2Page({ params, searchParams }: {
           </div>
         </h1>
         <CanAccess resource={resource} action={ACTION.CREATE}>
-          <CreatePermissionForm tables={tables} />
+          <CreatePermissionForm />
         </CanAccess>
       </div>
 
@@ -89,7 +87,7 @@ export default async function Permissions2Page({ params, searchParams }: {
 
                     <TableCell className="flex gap-4 justify-end text-center">
                       <CanAccess resource={resource} action={ACTION.UPDATE}>
-                        <UpdatePermissionForm key={permission.id} permission={permission} tables={tables} />
+                        <UpdatePermissionForm key={permission.id} permission={permission} />
                       </CanAccess>
                       <CanAccess resource={resource} action={ACTION.DELETE}>
                         <DeletePermissionForm permission={permission} />

@@ -37,6 +37,13 @@ import DisplayError from "@/components/display-error";
 
 type RoleWithPermissions = Role & { permissions?: Permission[] };
 
+const formSchema = z.object({
+    name: z.string().min(1, "Le nom est requis"),
+    description: z.string().optional(),
+    permissionIds: z.array(z.string()),
+});
+
+
 export function UpdateRoleForm({
     role,
     permissions,
@@ -48,11 +55,6 @@ export function UpdateRoleForm({
     const [error, setError] = useState("");
     const [isPending, startTransition] = useTransition();
 
-    const formSchema = z.object({
-        name: z.string().min(1, "Le nom est requis"),
-        description: z.string().optional(),
-        permissionIds: z.array(z.string()),
-    });
 
     const [open, setOpen] = useState(false);
     const form = useForm<z.infer<typeof formSchema>>({
@@ -100,10 +102,9 @@ export function UpdateRoleForm({
 
     useEffect(() => {
         if (!open) {
-            form.reset();
             setError("");
         }
-    }, [open, form]);
+    }, [open]);
 
     return (
         <>

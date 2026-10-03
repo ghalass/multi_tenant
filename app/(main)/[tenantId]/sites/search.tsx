@@ -1,4 +1,3 @@
-// components/filters?.tsx
 'use client';
 
 import { Input } from '@/components/ui/input';
@@ -6,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Search, X } from 'lucide-react';
 import { useSearchParams, usePathname, useRouter } from 'next/navigation';
 import { useDebouncedCallback } from 'use-debounce';
-import { useEffect, useState, useTransition } from 'react';
+import { useRef, useState, useTransition } from 'react';
 import { GlobalLoader } from '@/components/global-loader';
 
 export default function Filters() {
@@ -16,15 +15,11 @@ export default function Filters() {
 
     const [isPending, startTransition] = useTransition();
 
-    // État local pour l'input (nécessaire pour le bouton X)
+    // État local pour l'input
     const [search, setSearch] = useState(searchParams.get('name') ?? '');
 
-    // Sync si l'URL change (reset global, navigation retour, etc.)
-    useEffect(() => {
-        startTransition(() => {
-            setSearch(searchParams.get("name") ?? "");
-        });
-    }, [searchParams]);
+    // ✅ Évite la boucle : on ne resync depuis l'URL que si le changement vient de l'extérieur
+    const isTypingRef = useRef(false);
 
     const handleFilterChange = useDebouncedCallback((key: string, value: string) => {
         const params = new URLSearchParams(searchParams);
@@ -35,16 +30,18 @@ export default function Filters() {
             params.delete(key);
         }
 
+        params.delete('page'); // ✅ reset pagination
+
         startTransition(() => {
             replace(`${pathname}?${params.toString()}`);
         });
     }, 300);
 
-    // Effacement immédiat (sans debounce)
     const clearSearch = () => {
         setSearch('');
         const params = new URLSearchParams(searchParams);
         params.delete('name');
+        params.delete('page');
         startTransition(() => {
             replace(`${pathname}?${params.toString()}`);
         });
@@ -97,6 +94,5 @@ export default function Filters() {
                 </Select>
             </div>
         </>
-
     );
 }

@@ -12,9 +12,9 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 
-import { zodResolver } from "@hookform/resolvers/zod";
+import { yupResolver } from "@hookform/resolvers/yup";
 import { Controller, useForm } from "react-hook-form";
-import { z } from "@/lib/zod-config"; import { toast } from "sonner";
+import { toast } from "sonner";
 import { useEffect, useState, useTransition } from "react";
 import { Loader2, PlusIcon } from "lucide-react";
 
@@ -38,34 +38,43 @@ import { createPermission } from "@/server/permissions";
 import { Textarea } from "@/components/ui/textarea";
 import { Action } from "@/lib/generated/prisma/enums";
 import DisplayError from "@/components/display-error";
+import { TABLES } from "@/lib/tables";
+import yup from "@/lib/yupFr";
 
+const formSchema = yup.object({
+  resource: yup.string().oneOf(TABLES).required("Veuillez choisir une ressource"),
+  action: yup.mixed<Action>().oneOf(Object.values(Action)).required("Veuillez choisir une action"),
+  description: yup.string().max(255, "La description ne peut pas dépasser 255 caractères"),
+});
 
-export function CreatePermissionForm({ tables }: { tables: string[] }) {
+export function CreatePermissionForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [isPending, startTransition] = useTransition();
 
-  const formSchema = z.object({
-    resource: z.enum(tables as [string, ...string[]], "Veuillez choisir une ressource"),
-    action: z.enum(Action),
-    description: z.string(),
-  });
-
   const [error, setError] = useState("");
   const [open, setOpen] = useState(false);
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: { resource: "", action: Action.read, description: "" },
+  const form = useForm<yup.InferType<typeof formSchema>>({
+    resolver: yupResolver(formSchema),
+    defaultValues: {
+      resource: TABLES[0] ?? "user",
+      action: Action.read,
+      description: "",
+    },
   });
 
   const router = useRouter();
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: yup.InferType<typeof formSchema>) {
     try {
       setError("");
       setIsLoading(true);
       await sleep();
 
-      const { success, message } = await createPermission(values.resource, values.action, values.description);
+      const { success, message } = await createPermission(
+        values.resource,
+        values.action,
+        values.description ?? ""
+      );
 
       if (!success) {
         setError(message);
@@ -122,7 +131,7 @@ export function CreatePermissionForm({ tables }: { tables: string[] }) {
                     <Field data-invalid={fieldState.invalid}>
                       <FieldLabel htmlFor="resource">Ressource</FieldLabel>
                       <Select
-                        value={field.value}
+                        value={field.value ?? ""}
                         onValueChange={field.onChange}
                         disabled={isLoading}
                       >
@@ -134,7 +143,7 @@ export function CreatePermissionForm({ tables }: { tables: string[] }) {
                           <SelectValue placeholder="Ressource" />
                         </SelectTrigger>
                         <SelectContent>
-                          {tables?.map((resource, index) => (
+                          {TABLES.map((resource, index) => (
                             <SelectItem key={index} value={resource}>{resource}</SelectItem>
                           ))}
                         </SelectContent>
@@ -154,7 +163,7 @@ export function CreatePermissionForm({ tables }: { tables: string[] }) {
                     <Field data-invalid={fieldState.invalid}>
                       <FieldLabel htmlFor="action">Action</FieldLabel>
                       <Select
-                        value={field.value}
+                        value={field.value ?? ""}
                         onValueChange={field.onChange}
                         disabled={isLoading}
                       >

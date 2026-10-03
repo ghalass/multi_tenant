@@ -23,11 +23,12 @@ export default function Filters({ roles = [] }: { roles?: Role[] }) {
 
     const [isPending, startTransition] = useTransition();
 
-    const [search, setSearch] = useState(searchParams.get("q") ?? "");
+    // ✅ Utiliser la même clé "name" partout
+    const [search, setSearch] = useState(searchParams.get("name") ?? "");
 
     useEffect(() => {
         startTransition(() => {
-            setSearch(searchParams.get("q") ?? "");
+            setSearch(searchParams.get("name") ?? "");
         });
     }, [searchParams]);
 
@@ -46,7 +47,6 @@ export default function Filters({ roles = [] }: { roles?: Role[] }) {
             startTransition(() => {
                 replace(`${pathname}?${params.toString()}`);
             });
-
         },
         300
     );

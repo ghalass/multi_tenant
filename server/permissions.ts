@@ -239,31 +239,31 @@ export async function deletePermission(id: string): Promise<ActionResponse> {
 }
 
 
-interface TableInfo {
-  table_name: string;
-}
+// interface TableInfo {
+//   table_name: string;
+// }
 
-export async function getTables() {
-  try {
-    const tables = await prisma.$queryRaw<TableInfo[]>`
-      SELECT table_name::text as table_name 
-      FROM information_schema.tables 
-      WHERE table_schema = 'public'
-      AND table_type = 'BASE TABLE'
-      ORDER BY table_name
-    `;
+// export async function getTables() {
+//   try {
+//     const tables = await prisma.$queryRaw<TableInfo[]>`
+//       SELECT table_name::text as table_name
+//       FROM information_schema.tables
+//       WHERE table_schema = 'public'
+//       AND table_type = 'BASE TABLE'
+//       ORDER BY table_name
+//     `;
 
-    // Filtrer les tables qui ne commencent pas par "prisma_" ou "_"
-    const filteredTables = tables
-      .map((table) => table.table_name)
-      .filter(
-        (tableName) =>
-          !tableName.startsWith("prisma_") && !tableName.startsWith("_")
-      );
+//     // Filtrer les tables qui ne commencent pas par "prisma_" ou "_"
+//     const filteredTables = tables
+//       .map((table) => table.table_name)
+//       .filter(
+//         (tableName) =>
+//           !tableName.startsWith("prisma_") && !tableName.startsWith("_")
+//       );
 
-    return filteredTables;
-  } catch (error) {
-    console.error(error);
-    return []
-  }
-}
+//     return filteredTables;
+//   } catch (error) {
+//     console.error(error);
+//     return []
+//   }
+// }

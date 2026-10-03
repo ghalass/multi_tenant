@@ -55,9 +55,9 @@ export default async function UsersPage({ params, searchParams }: {
 
       {!result?.success && <DisplayError className="mt-4" error={result?.message} />}
 
-      <CanAccess resource="user" action={ACTION.READ}>
+      <CanAccess resource={resource} action={ACTION.READ}>
         <div className="my-4">
-          <Search />
+          <Search roles={roles} />
         </div>
 
         <div className="rounded-md border">

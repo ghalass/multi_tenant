@@ -104,7 +104,7 @@ export default async function RolesPage({
                           role={role}
                           permissions={permissions}
                         /></CanAccess>
-                      <CanAccess resource={resource} action={ACTION.UPDATE}>
+                      <CanAccess resource={resource} action={ACTION.DELETE}>
                         <DeleteRoleForm role={role} />
                       </CanAccess>
                     </TableCell>

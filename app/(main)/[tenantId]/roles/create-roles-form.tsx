@@ -35,15 +35,17 @@ import { createRole } from "@/server/roles";
 import DisplayError from "@/components/display-error";
 import { Checkbox } from "@/components/ui/checkbox";
 
+const formSchema = z.object({
+    name: z.string().min(1, "Le nom est requis"),
+    description: z.string().optional(),
+    permissionIds: z.array(z.string()),
+});
+
 export function CreateRoleForm({ permissions }: { permissions: Permission[] }) {
     const [isLoading, setIsLoading] = useState(false);
     const [isPending, startTransition] = useTransition();
 
-    const formSchema = z.object({
-        name: z.string().min(1, "Le nom est requis"),
-        description: z.string().optional(),
-        permissionIds: z.array(z.string()),
-    });
+
 
     const [error, setError] = useState("");
     const [open, setOpen] = useState(false);

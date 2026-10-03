@@ -9,9 +9,9 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 
-import { zodResolver } from "@hookform/resolvers/zod";
+import { yupResolver } from "@hookform/resolvers/yup";
 import { Controller, useForm } from "react-hook-form";
-import { z } from "@/lib/zod-config"; import { toast } from "sonner";
+import { toast } from "sonner";
 import { useEffect, useState, useTransition } from "react";
 import { PenIcon } from "lucide-react";
 
@@ -34,35 +34,50 @@ import { Textarea } from "@/components/ui/textarea";
 import { Permission } from "@/lib/generated/prisma/client";
 import { Action } from "@/lib/generated/prisma/enums";
 import DisplayError from "@/components/display-error";
+import { TABLES } from "@/lib/tables";
+import yup from "@/lib/yupFr";
 
 
-export function UpdatePermissionForm({ permission, tables }: { permission: Permission, tables: string[] }) {
+const formSchema = yup.object({
+  resource: yup.string().oneOf(TABLES).required("Veuillez choisir une ressource"),
+  action: yup.mixed<Action>().oneOf(Object.values(Action)).required("Veuillez choisir une action"),
+  description: yup.string().max(255, "La description ne peut pas dépasser 255 caractères"),
+});
+
+export function UpdatePermissionForm({ permission }: { permission: Permission }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [isPending, startTransition] = useTransition();
 
-  const formSchema = z.object({
-    resource: z.enum(tables as [string, ...string[]], "Veuillez choisir une ressource"),
-    action: z.enum(Action),
-    description: z.string(),
-  });
-
-
   const [open, setOpen] = useState(false);
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    values: { resource: permission?.resource, action: permission?.action, description: permission?.description || "" },
+  const form = useForm<yup.InferType<typeof formSchema>>({
+    resolver: yupResolver(formSchema),
+    values: {
+      resource: permission?.resource as (typeof TABLES)[number],
+      action: permission?.action,
+      description: permission?.description || "",
+    },
   });
 
   const router = useRouter();
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: yup.InferType<typeof formSchema>) {
+    if (!permission?.id) {
+      setError("Permission introuvable");
+      return;
+    }
+
     try {
       setError("");
       setIsLoading(true);
       await sleep();
 
-      const { success, message } = await updatePermission(permission?.id, values.resource, values.action, values?.description);
+      const { success, message } = await updatePermission(
+        permission.id,
+        values.resource,
+        values.action,
+        values.description ?? ""
+      );
 
       if (!success) {
         setError(message);
@@ -87,10 +102,9 @@ export function UpdatePermissionForm({ permission, tables }: { permission: Permi
 
   useEffect(() => {
     if (!open) {
-      form.reset();
       setError("");
     }
-  }, [open, form]);
+  }, [open]);
 
   return (
     <>
@@ -134,7 +148,7 @@ export function UpdatePermissionForm({ permission, tables }: { permission: Permi
                           <SelectValue placeholder="Ressource" />
                         </SelectTrigger>
                         <SelectContent>
-                          {tables?.map((resource, index) => (
+                          {TABLES?.map((resource, index) => (
                             <SelectItem key={index} value={resource}>{resource}</SelectItem>
                           ))}
                         </SelectContent>

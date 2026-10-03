@@ -21,7 +21,7 @@ type RoleWithPermission =
 
 
 export type RoleSearchParams = {
-    s?: string;
+    name?: string;
     page?: string;
     perPage?: string;
 };
@@ -56,17 +56,17 @@ export async function getAllRoles(tenantId: string, filters: RoleSearchParams = 
         const skip = (currentPage - 1) * itemsPerPage;
 
         const whereClause: any = {
-            ...(filters?.s && {
+            ...(filters?.name && {
                 OR: [
                     {
                         name: {
-                            contains: filters.s,
+                            contains: filters.name,
                             mode: "insensitive",
                         },
                     },
                     {
                         description: {
-                            contains: filters.s,
+                            contains: filters.name,
                             mode: "insensitive",
                         },
                     },

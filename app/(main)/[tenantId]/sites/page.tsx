@@ -70,7 +70,7 @@ export default async function SitesPage({ params, searchParams }: {
               <TableBody>
                 {sites.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="h-24 text-center">
+                    <TableCell colSpan={3} className="h-24 text-center">
                       Aucun site trouvé.
                     </TableCell>
                   </TableRow>
