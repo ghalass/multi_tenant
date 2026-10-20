@@ -1,4 +1,4 @@
-// app/(main)/[tenantId]/sites/page.tsx
+// app/(main)/sites/page.tsx
 import {
   Table,
   TableBody,
@@ -13,24 +13,52 @@ import { getAllSites, SiteSearchParams } from "@/server/sites";
 import { CreateSiteForm } from "./create-site-form";
 import { UpdateSiteForm } from "./update-site-form";
 import { DeleteSiteForm } from "./delete-site-form";
-import Search from "@/app/(main)/[tenantId]/sites/search";
+import Search from "@/app/(main)/sites/search";
 import Pagination from "@/components/pagination";
 import DisplayError from "@/components/display-error";
 import CanAccess from "@/components/can-access";
 import { ACTION } from "@/lib/enums";
 
+
+function parseSiteSearchParams(
+  filters: SiteSearchParams
+) {
+  return {
+    name: filters.name,
+
+    active:
+      filters.active === "true"
+        ? true
+        : filters.active === "false"
+          ? false
+          : undefined,
+
+    currentPage: Math.max(
+      Number(filters.currentPage) || 1,
+      1
+    ),
+
+    itemsPerPage: Math.max(
+      Number(filters.itemsPerPage) || 10,
+      1
+    ),
+  };
+}
+
 export default async function SitesPage({ params, searchParams }: {
   params: Promise<{ tenantId: string }>;
   searchParams: Promise<SiteSearchParams>;
 }) {
-  const { tenantId } = await params;
+  // const { tenantId } = await params;
   const filters = await searchParams;
 
-  const result = await getAllSites(tenantId, filters);
+  const result = await getAllSites(parseSiteSearchParams(filters));
+
   const sites = result?.data || [];
   const meta = result?.meta;
 
   const resource = "site"
+
 
   return (
     <div className="container mx-auto py-2">
@@ -42,7 +70,7 @@ export default async function SitesPage({ params, searchParams }: {
           </div>
         </h1>
         <CanAccess resource={resource} action={ACTION.CREATE}>
-          <CreateSiteForm tenantId={tenantId} />
+          <CreateSiteForm />
         </CanAccess>
       </div>
 
@@ -64,13 +92,14 @@ export default async function SitesPage({ params, searchParams }: {
                 <TableRow>
                   <TableHead>Site</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Tenant</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {sites.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={3} className="h-24 text-center">
+                    <TableCell colSpan={4} className="h-24 text-center">
                       Aucun site trouvé.
                     </TableCell>
                   </TableRow>
@@ -85,6 +114,9 @@ export default async function SitesPage({ params, searchParams }: {
                         >
                           {site.active ? "Actif" : "Inactif"}
                         </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {site.tenant?.name || "N/A"}
                       </TableCell>
                       <TableCell className="flex gap-4 justify-end text-center">
                         <CanAccess resource={resource} action={ACTION.UPDATE}>
@@ -112,7 +144,6 @@ export default async function SitesPage({ params, searchParams }: {
           />
         )}
       </CanAccess>
-
 
     </div>
   );

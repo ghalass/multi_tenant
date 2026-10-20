@@ -1,4 +1,4 @@
-// app/(main)/[tenantId]/roles/search.tsx
+// app/(main)/roles/search.tsx
 "use client";
 
 import { Input } from "@/components/ui/input";

@@ -1,4 +1,4 @@
-// app/(main)/[tenantId]/users/page.tsx
+// app/(main)/users/page.tsx
 import {
   Table,
   TableBody,
@@ -13,7 +13,7 @@ import { UsersSearchParams } from "@/server/users";
 import { CreateUserForm } from "./create-user-form";
 import { UpdateUserForm } from "./update-user-form";
 import { DeleteUserForm } from "./delete-user-form";
-import Search from "@/app/(main)/[tenantId]/users/search";
+import Search from "@/app/(main)/users/search";
 import Pagination from "@/components/pagination";
 import { getAllRoles, getAllUsers } from "@/server/users";
 import DisplayError from "@/components/display-error";
@@ -69,6 +69,7 @@ export default async function UsersPage({ params, searchParams }: {
                   <TableHead>Email</TableHead>
                   <TableHead>Rôles</TableHead>
                   <TableHead>Statut</TableHead>
+                  <TableHead>Tenant</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -115,6 +116,10 @@ export default async function UsersPage({ params, searchParams }: {
                         >
                           {user.active ? "Actif" : "Inactif"}
                         </Badge>
+                      </TableCell>
+
+                      <TableCell>
+                        {user.tenant?.name || "N/A"}
                       </TableCell>
 
                       <TableCell className="flex gap-4 justify-end text-center">

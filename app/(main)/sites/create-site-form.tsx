@@ -35,11 +35,11 @@ import DisplayError from "@/components/display-error";
 import yup from "@/lib/yupFr";
 
 const formSchema = yup.object({
-  name: yup.string().min(2).max(10).required().label("Le nom du site"),
+  name: yup.string().min(2).required().label("Le nom du site"),
   active: yup.boolean().required(),
 });
 
-export function CreateSiteForm({ tenantId }: { tenantId: string }) {
+export function CreateSiteForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [isPending, startTransition] = useTransition();
 
@@ -58,7 +58,7 @@ export function CreateSiteForm({ tenantId }: { tenantId: string }) {
       setIsLoading(true);
       await sleep();
 
-      const { success, message } = await createSite(values.name, values.active, tenantId);
+      const { success, message } = await createSite({ name: values.name, active: values.active });
 
       if (!success) {
         setError(message);

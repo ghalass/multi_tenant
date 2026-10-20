@@ -1,4 +1,4 @@
-// app/(main)/[tenantId]/permissions/page.tsx
+// app/(main)/roles/page.tsx
 import {
   Table,
   TableBody,
@@ -7,47 +7,55 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { MapPin } from "lucide-react";
-import { PermissionsSearchParams } from "@/server/permissions";
-import { CreatePermissionForm } from "./create-permissions-form";
-import { DeletePermissionForm } from "./delete-permissions-form";
-import Search from "@/app/(main)/[tenantId]/permissions/search";
+import { ShieldCheck } from "lucide-react";
+import { CreateRoleForm } from "./create-roles-form";
+import { DeleteRoleForm } from "./delete-roles-form";
+import { UpdateRoleForm } from "./update-roles-form";
+import Search from "./search";
 import Pagination from "@/components/pagination";
-import { getAllPermission } from "@/server/permissions";
-import { UpdatePermissionForm } from "./update-permissions-form";
+import {
+  getAllPermissions,
+  getAllRoles,
+  RoleSearchParams,
+} from "@/server/roles";
 import DisplayError from "@/components/display-error";
 import CanAccess from "@/components/can-access";
 import { ACTION } from "@/lib/enums";
 
-export default async function Permissions2Page({ params, searchParams }: {
+export default async function RolesPage({
+  params,
+  searchParams,
+}: {
   params: Promise<{ tenantId: string }>;
-  searchParams: Promise<PermissionsSearchParams>;
+  searchParams: Promise<RoleSearchParams>;
 }) {
   const filters = await searchParams;
+  const { tenantId } = await params;
 
-  // Récupération de l'objet contenant { data, meta }
-  const result = await getAllPermission(filters);
-  const permissions = result?.data || [];
+  const result = await getAllRoles(tenantId, filters);
+  const roles = result?.data || [];
   const meta = result?.meta;
 
-  const resource = "permission"
+  const permissions = await getAllPermissions();
+
+  const resource = "role"
 
   return (
     <div className="container mx-auto py-2">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold flex items-center gap-2">
           <div className="flex items-center">
-            <MapPin className="h-8 w-8" />
-            Gestion des permissions
+            <ShieldCheck className="h-8 w-8" />
+            Gestion des rôles
           </div>
         </h1>
         <CanAccess resource={resource} action={ACTION.CREATE}>
-          <CreatePermissionForm />
+          <CreateRoleForm permissions={permissions} />
         </CanAccess>
       </div>
 
       <p className="text-muted-foreground mt-1">
-        Créez et gérez les permissions de votre application
+        Créez et gérez les rôles de votre application
       </p>
 
       <div className="my-4">
@@ -62,35 +70,42 @@ export default async function Permissions2Page({ params, searchParams }: {
             <TableHeader>
               <TableRow>
                 <TableHead>Nom</TableHead>
-                <TableHead>Ressource</TableHead>
-                <TableHead>Action</TableHead>
                 <TableHead>Description</TableHead>
+                <TableHead>Permissions</TableHead>
+                <TableHead>Utilisateurs</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {permissions.length === 0 ? (
+              {roles.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="h-24 text-center">
-                    Aucune permission trouvé.
+                  <TableCell colSpan={5} className="h-24 text-center">
+                    Aucun rôle trouvé.
                   </TableCell>
                 </TableRow>
               ) : (
-                permissions.map((permission) => (
-                  <TableRow key={permission.id}>
-
-                    <TableCell className="font-medium">{permission.name}</TableCell>
-
-                    <TableCell>{permission?.resource}</TableCell>
-                    <TableCell>{permission?.action}</TableCell>
-                    <TableCell>{permission?.description}</TableCell>
-
+                roles.map((role) => (
+                  <TableRow key={role.id}>
+                    <TableCell className="font-medium">{role.name}</TableCell>
+                    <TableCell>{role.description || "—"}</TableCell>
+                    <TableCell>
+                      <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                        {role?._count?.permissions}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <span className="inline-flex items-center rounded-full bg-secondary px-2 py-0.5 text-xs font-medium">
+                        {role?._count?.users}
+                      </span>
+                    </TableCell>
                     <TableCell className="flex gap-4 justify-end text-center">
                       <CanAccess resource={resource} action={ACTION.UPDATE}>
-                        <UpdatePermissionForm key={permission.id} permission={permission} />
-                      </CanAccess>
+                        <UpdateRoleForm
+                          role={role}
+                          permissions={permissions}
+                        /></CanAccess>
                       <CanAccess resource={resource} action={ACTION.DELETE}>
-                        <DeletePermissionForm permission={permission} />
+                        <DeleteRoleForm role={role} />
                       </CanAccess>
                     </TableCell>
                   </TableRow>
@@ -101,7 +116,6 @@ export default async function Permissions2Page({ params, searchParams }: {
         </div>
       </div>
 
-      {/* 3. Ajout de la barre de contrôle sous le tableau */}
       {meta && (
         <Pagination
           totalPages={meta.totalPages}
@@ -110,8 +124,6 @@ export default async function Permissions2Page({ params, searchParams }: {
           itemsPerPage={meta.itemsPerPage}
         />
       )}
-
-      {/* <DisplayData data={permissions} /> */}
     </div>
   );
 }

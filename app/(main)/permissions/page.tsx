@@ -1,4 +1,4 @@
-// app/(main)/[tenantId]/roles/page.tsx
+// app/(main)/permissions/page.tsx
 import {
   Table,
   TableBody,
@@ -7,55 +7,47 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ShieldCheck } from "lucide-react";
-import { CreateRoleForm } from "./create-roles-form";
-import { DeleteRoleForm } from "./delete-roles-form";
-import { UpdateRoleForm } from "./update-roles-form";
-import Search from "./search";
+import { MapPin } from "lucide-react";
+import { PermissionsSearchParams } from "@/server/permissions";
+import { CreatePermissionForm } from "./create-permissions-form";
+import { DeletePermissionForm } from "./delete-permissions-form";
+import Search from "@/app/(main)/permissions/search";
 import Pagination from "@/components/pagination";
-import {
-  getAllPermissions,
-  getAllRoles,
-  RoleSearchParams,
-} from "@/server/roles";
+import { getAllPermission } from "@/server/permissions";
+import { UpdatePermissionForm } from "./update-permissions-form";
 import DisplayError from "@/components/display-error";
 import CanAccess from "@/components/can-access";
 import { ACTION } from "@/lib/enums";
 
-export default async function RolesPage({
-  params,
-  searchParams,
-}: {
+export default async function Permissions2Page({ params, searchParams }: {
   params: Promise<{ tenantId: string }>;
-  searchParams: Promise<RoleSearchParams>;
+  searchParams: Promise<PermissionsSearchParams>;
 }) {
   const filters = await searchParams;
-  const { tenantId } = await params;
 
-  const result = await getAllRoles(tenantId, filters);
-  const roles = result?.data || [];
+  // Récupération de l'objet contenant { data, meta }
+  const result = await getAllPermission(filters);
+  const permissions = result?.data || [];
   const meta = result?.meta;
 
-  const permissions = await getAllPermissions();
-
-  const resource = "role"
+  const resource = "permission"
 
   return (
     <div className="container mx-auto py-2">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold flex items-center gap-2">
           <div className="flex items-center">
-            <ShieldCheck className="h-8 w-8" />
-            Gestion des rôles
+            <MapPin className="h-8 w-8" />
+            Gestion des permissions
           </div>
         </h1>
         <CanAccess resource={resource} action={ACTION.CREATE}>
-          <CreateRoleForm permissions={permissions} />
+          <CreatePermissionForm />
         </CanAccess>
       </div>
 
       <p className="text-muted-foreground mt-1">
-        Créez et gérez les rôles de votre application
+        Créez et gérez les permissions de votre application
       </p>
 
       <div className="my-4">
@@ -70,42 +62,35 @@ export default async function RolesPage({
             <TableHeader>
               <TableRow>
                 <TableHead>Nom</TableHead>
+                <TableHead>Ressource</TableHead>
+                <TableHead>Action</TableHead>
                 <TableHead>Description</TableHead>
-                <TableHead>Permissions</TableHead>
-                <TableHead>Utilisateurs</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {roles.length === 0 ? (
+              {permissions.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center">
-                    Aucun rôle trouvé.
+                  <TableCell colSpan={4} className="h-24 text-center">
+                    Aucune permission trouvé.
                   </TableCell>
                 </TableRow>
               ) : (
-                roles.map((role) => (
-                  <TableRow key={role.id}>
-                    <TableCell className="font-medium">{role.name}</TableCell>
-                    <TableCell>{role.description || "—"}</TableCell>
-                    <TableCell>
-                      <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                        {role?._count?.permissions}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <span className="inline-flex items-center rounded-full bg-secondary px-2 py-0.5 text-xs font-medium">
-                        {role?._count?.users}
-                      </span>
-                    </TableCell>
+                permissions.map((permission) => (
+                  <TableRow key={permission.id}>
+
+                    <TableCell className="font-medium">{permission.name}</TableCell>
+
+                    <TableCell>{permission?.resource}</TableCell>
+                    <TableCell>{permission?.action}</TableCell>
+                    <TableCell>{permission?.description}</TableCell>
+
                     <TableCell className="flex gap-4 justify-end text-center">
                       <CanAccess resource={resource} action={ACTION.UPDATE}>
-                        <UpdateRoleForm
-                          role={role}
-                          permissions={permissions}
-                        /></CanAccess>
+                        <UpdatePermissionForm key={permission.id} permission={permission} />
+                      </CanAccess>
                       <CanAccess resource={resource} action={ACTION.DELETE}>
-                        <DeleteRoleForm role={role} />
+                        <DeletePermissionForm permission={permission} />
                       </CanAccess>
                     </TableCell>
                   </TableRow>
@@ -116,6 +101,7 @@ export default async function RolesPage({
         </div>
       </div>
 
+      {/* 3. Ajout de la barre de contrôle sous le tableau */}
       {meta && (
         <Pagination
           totalPages={meta.totalPages}
@@ -124,6 +110,8 @@ export default async function RolesPage({
           itemsPerPage={meta.itemsPerPage}
         />
       )}
+
+      {/* <DisplayData data={permissions} /> */}
     </div>
   );
 }

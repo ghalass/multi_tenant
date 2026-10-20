@@ -30,57 +30,65 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
-import { useParams, usePathname } from "next/navigation";
 import { useEffect } from "react";
 
-export function AppSidebar() {
+
+// Hook personnalisé pour la navigation active
+import { usePathname } from "next/navigation";
+
+function useActivePath() {
   const pathname = usePathname();
-  const pathParam = useParams<{ tenantId: string }>();
-  const tenantId = pathParam.tenantId;
 
-  // Récupère isMobile et setOpenMobile depuis le contexte
+  return (url: string) => {
+    if (url === "/") {
+      return pathname === "/";
+    }
+    return pathname === url;
+  };
+}
+
+// ========================= // Menu items // =========================
+const mainItems = [
+  {
+    title: "Accueil",
+    url: "/",
+    icon: Home,
+    description: "Tableau de bord principal",
+  },
+];
+
+const configItems = {
+  title: "Configurations",
+  icon: Settings,
+  list: [
+    { title: "Sites", url: `/sites`, icon: MapPin, description: "Gérer les sites" },
+    { title: "Utilisateurs", url: `/users`, icon: Users, description: "Gérer les utilisateurs" },
+  ],
+};
+
+const AccessControl = {
+  title: "Contrôle d'accès",
+  icon: LockKeyhole,
+  list: [
+    { title: "Rôles", url: `/roles`, icon: Shield, description: "Gérer les rôles" },
+    { title: "Permissions", url: `/permissions`, icon: ShieldUser, description: "Gérer les permissions" },
+  ],
+};
+
+export function AppSidebar() {
   const { isMobile, setOpenMobile } = useSidebar();
-
   // ⬇️ LE SEUL useEffect : ferme la sidebar mobile quand la route change
   useEffect(() => {
     if (isMobile) {
       setOpenMobile(false);
     }
-  }, [pathname, isMobile, setOpenMobile]);
+  }, [isMobile, setOpenMobile]);
 
-  // ========================= // Menu items // =========================
-  const mainItems = [
-    {
-      title: "Accueil",
-      url: "/",
-      icon: Home,
-      description: "Tableau de bord principal",
-    },
-  ];
 
-  const configItems = {
-    title: "Configurations",
-    icon: Settings,
-    list: [
-      { title: "Sites", url: `/sites`, icon: MapPin, description: "Gérer les sites" },
-      { title: "Utilisateurs", url: `/users`, icon: Users, description: "Gérer les utilisateurs" },
-    ],
-  };
 
-  const AccessControl = {
-    title: "Contrôle d'accès",
-    icon: LockKeyhole,
-    list: [
-      { title: "Rôles", url: `/roles`, icon: Shield, description: "Gérer les rôles" },
-      { title: "Permissions", url: `/permissions`, icon: ShieldUser, description: "Gérer les permissions" },
-    ],
-  };
+  const isActivePath = useActivePath();
 
   const allItems = [configItems, AccessControl];
-
-  // ========================= // Active path // =========================
-  const getFullUrl = (url: string) => (url === "/" ? "/" : `/${tenantId}${url}`);
-  const isActivePath = (url: string) => pathname === getFullUrl(url);
 
   return (
     <Sidebar variant="floating" collapsible="icon">
@@ -157,7 +165,7 @@ export function AppSidebar() {
                                 )}
                                 tooltip={item.description}
                               >
-                                <Link href={`/${pathParam?.tenantId}` + item.url}>
+                                <Link href={item.url}>
                                   <item.icon className="w-4 h-4 shrink-0" />
                                   <span>{item.title}</span>
                                   {isActive && (

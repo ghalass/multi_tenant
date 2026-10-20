@@ -36,7 +36,7 @@ export const metadata: Metadata = {
     url: "ghalass.com",
   },
   icons: {
-    icon: "/images/wrench.png",
+    icon: "/images/wrench0.png",
   },
 };
 

@@ -17,6 +17,7 @@ export async function verifyPassword(password: string, hashedPassword: string) {
 
 export type SessionData = {
   userId: string;
+  currentTenantId?: string;
   // name?: string;
   // email?: string;
   // roles?: string[];
@@ -70,4 +71,17 @@ export async function logoutAction() {
 
   // Optionnel : redirige immédiatement l'utilisateur après déconnexion
   redirect("/");
+}
+
+
+export async function saveSession({ userId, currentTenantId }: { userId?: string, currentTenantId?: string }) {
+  const session = await getSession();
+  session.userId = userId || "";
+  session.currentTenantId = currentTenantId || "";
+  await session.save();
+}
+export async function switchCurrentTenant({ currentTenantId }: { currentTenantId?: string }) {
+  const session = await getSession();
+  session.currentTenantId = currentTenantId || "";
+  await session.save();
 }

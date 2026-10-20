@@ -59,7 +59,7 @@ export function UpdateSiteForm({ site }: { site: Site }) {
       setIsLoading(true);
       await sleep();
 
-      const { success, message } = await updateSite(site?.id, values.name, values.active, site?.tenantId);
+      const { success, message } = await updateSite({ id: site?.id, name: values.name, active: values.active });
 
       if (!success) {
         setError(message);

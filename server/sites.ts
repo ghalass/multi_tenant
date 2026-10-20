@@ -1,148 +1,400 @@
-// server/sites.ts
 "use server";
 
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "./auth";
-import { Site, Tenant } from "@/lib/generated/prisma/client";
-import { sleep } from "@/lib/utils";
-import { ACTION } from "@/lib/enums";
 import { guard } from "@/lib/rbac/middleware";
-import { ActionResponse } from "./types";
-import { SiteWithTenant } from "@/lib/types";
+import { ACTION } from "@/lib/enums";
+import { ActionResponse } from "@/server/types";
 
 export interface SiteSearchParams {
   name?: string;
   active?: string;
-  page?: string;
-  perPage?: string;
+  currentPage?: string;
+  itemsPerPage?: string;
 }
-
-interface PaginatedSites {
-  data: SiteWithTenant[];
-  success?: boolean,
-  message?: string,
-  meta?: {
-    totalItems: number;
-    totalPages: number;
-    currentPage: number;
-    itemsPerPage: number;
-  }
-}
-
-const the_resource = "site";
 
 export async function getAllSites(
-  tenantId: string,
-  filters: SiteSearchParams
-): Promise<PaginatedSites | null> {
+  filters?: {
+    name?: string;
+    active?: boolean;
+    currentPage?: number;
+    itemsPerPage?: number;
+  }
+) {
+  const auth = await getCurrentUser();
 
-  // 1. Vérifier la permission
-  const g = await guard(ACTION.READ, the_resource);
-  if (!g.success) return { data: [], success: false, message: g.message };
+  if (!auth.user) {
+    throw new Error(
+      "Utilisateur non authentifié."
+    );
+  }
 
-  // 2. Continuer la logique métier
-  const { user } = await getCurrentUser();
-  if (!user?.id) return { data: [], success: false, message: "Utilisateur non authentifié." };
+  const guardResult = await guard(
+    ACTION.READ,
+    "site"
+  );
 
-  try {
-    await sleep();
+  if (!guardResult.success) {
+    throw new Error(
+      guardResult.message
+    );
+  }
 
-    const currentPage = Math.max(1, parseInt(filters?.page || "1", 10));
-    const itemsPerPage = Math.max(1, parseInt(filters?.perPage || "10", 10));
-    const skip = (currentPage - 1) * itemsPerPage;
+  const currentPage = Math.max(
+    filters?.currentPage ?? 1,
+    1
+  );
 
-    const whereClause: any = {
-      tenantId,
-      ...(filters?.name && { name: { contains: filters?.name, mode: "insensitive" } }),
-      ...(filters?.active && { active: filters?.active === "active" }),
-    };
+  const itemsPerPage = Math.max(
+    filters?.itemsPerPage ?? 10,
+    1
+  );
 
-    const [totalItems, sites] = await prisma.$transaction([
-      prisma.site.count({ where: whereClause }),
+  const search =
+    filters?.name?.trim();
+
+  const currentUser = await getCurrentUser();
+  const currentTenantId = currentUser.user?.currentTenantId;
+
+  const where = {
+    tenantId: currentTenantId,
+
+    ...(search
+      ? {
+        OR: [
+          {
+            name: {
+              contains: search,
+              mode: "insensitive" as const,
+            },
+          },
+        ],
+      }
+      : {}),
+
+    ...(filters?.active !== undefined
+      ? {
+        active: filters.active,
+      }
+      : {}),
+  };
+
+  const [sites, totalItems] =
+    await Promise.all([
       prisma.site.findMany({
-        where: whereClause,
-        include: { tenant: true },
-        orderBy: { name: "asc" },
+        where,
+        orderBy: {
+          name: "asc",
+        },
+        skip:
+          (currentPage - 1) *
+          itemsPerPage,
         take: itemsPerPage,
-        skip,
+        include: {
+          tenant: true, // 🔑 inclure le tenant
+        },
+      }),
+
+      prisma.site.count({
+        where,
       }),
     ]);
-    const totalPages = Math.ceil(totalItems / itemsPerPage);
+
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  return {
+    data: sites,
+    success: true, message: "Données récupérées avec succès!",
+    meta: { totalItems, totalPages, currentPage, itemsPerPage },
+  };
+}
+
+export async function createSite({ name, active }: { name: string; active: boolean }): Promise<ActionResponse> {
+  const guardResult = await guard(
+    ACTION.CREATE,
+    "site"
+  );
+
+  if (!guardResult.success) {
     return {
-      data: sites,
-      success: true, message: "Données récupérées avec succès!",
-      meta: { totalItems, totalPages, currentPage, itemsPerPage },
+      success: false,
+      message:
+        guardResult.message,
+    };
+  }
+
+  const auth = await getCurrentUser();
+
+  if (!auth.user) {
+    return {
+      success: false,
+      message:
+        "Utilisateur non authentifié.",
+    };
+  }
+
+  const currentUser = await getCurrentUser();
+  const currentTenantId = currentUser.user?.currentTenantId;
+
+  if (!currentTenantId) {
+    return {
+      success: false,
+      message:
+        "L'utilisateur n'est associé à aucun tenant.",
+    };
+  }
+
+  const trimmedName = name.trim();
+
+  if (!trimmedName) {
+    return {
+      success: false,
+      message:
+        "Le nom du site est obligatoire.",
+    };
+  }
+
+  try {
+    const existing =
+      await prisma.site.findFirst({
+        where: {
+          id: undefined,
+          tenantId:
+            currentTenantId,
+          name: {
+            equals: trimmedName,
+            mode: "insensitive",
+          },
+        },
+      });
+
+    if (existing) {
+      return {
+        success: false,
+        message:
+          "Ce site existe déjà.",
+      };
+    }
+
+    await prisma.site.create({
+      data: {
+        name: trimmedName,
+        active,
+        tenantId:
+          currentTenantId,
+      },
+    });
+
+    return {
+      success: true,
+      message:
+        "Site créé avec succès.",
     };
   } catch (error) {
-    console.error("getAllSite error:", error);
-    return { data: [], success: false, message: error as string };
+    console.error(
+      "createSite error:",
+      error
+    );
+
+    return {
+      success: false,
+      message:
+        "Une erreur est survenue lors de la création du site.",
+    };
   }
 }
 
-export async function createSite(name: string, active: boolean, tenantId: string): Promise<ActionResponse> {
-  const g = await guard(ACTION.CREATE, the_resource);
-  if (!g.success) return g;
+export async function updateSite(
+  { id, name, active }: { id: string; name: string; active: boolean }): Promise<ActionResponse> {
+  const guardResult = await guard(
+    ACTION.UPDATE,
+    "site"
+  );
 
-  try {
-    await sleep();
-    const { user } = await getCurrentUser();
-
-    if (!user?.id)
-      return { success: false, message: "Aucune session n'est trouvée!" };
-
-    const nameUsed = await prisma.site.findFirst({ where: { name, tenantId } });
-    if (nameUsed)
-      return { success: false, message: "Nom du site est déjà utilisé." };
-
-    await prisma.site.create({ data: { name, active, tenantId } });
-    return { success: true, message: "Site crée avec succès!" };
-  } catch (error) {
-    console.error(error);
-    return { success: false, message: "Erreur!" };
+  if (!guardResult.success) {
+    return {
+      success: false,
+      message:
+        guardResult.message,
+    };
   }
-}
 
-export async function updateSite(id: string, name: string, active: boolean, tenantId: string): Promise<ActionResponse> {
-  const g = await guard(ACTION.UPDATE, the_resource);
-  if (!g.success) return g;
+  const auth = await getCurrentUser();
+
+  if (!auth.user) {
+    return {
+      success: false,
+      message:
+        "Utilisateur non authentifié.",
+    };
+  }
+
+  const currentUser = await getCurrentUser();
+  const currentTenantId = currentUser.user?.currentTenantId;
+
+  if (!currentTenantId) {
+    return {
+      success: false,
+      message:
+        "L'utilisateur n'est associé à aucun tenant.",
+    };
+  }
+
+  if (!name) {
+    return {
+      success: false,
+      message:
+        "Le nom du site est obligatoire.",
+    };
+  }
 
   try {
-    await sleep();
-    const { user } = await getCurrentUser();
-    if (!user?.id)
-      return { success: false, message: "Aucune session n'est trouvée!" };
+    const site =
+      await prisma.site.findFirst({
+        where: {
+          id,
+          tenantId:
+            currentTenantId,
+        },
+      });
 
-    const nameUsed = await prisma.site.findFirst({
-      where: { AND: { name, tenantId }, NOT: { id } },
-    });
-    if (nameUsed)
-      return { success: false, message: "Nom du site est déjà utilisé." };
+    if (!site) {
+      return {
+        success: false,
+        message:
+          "Site introuvable.",
+      };
+    }
+
+    const duplicate =
+      await prisma.site.findFirst({
+        where: {
+          tenantId:
+            currentTenantId,
+          name: {
+            equals: name,
+            mode: "insensitive",
+          },
+          NOT: {
+            id,
+          },
+        },
+      });
+
+    if (duplicate) {
+      return {
+        success: false,
+        message:
+          "Un autre site porte déjà ce nom.",
+      };
+    }
 
     await prisma.site.update({
-      where: { tenantId, id },
-      data: { name, active },
+      where: {
+        id,
+      },
+      data: {
+        name,
+        active,
+      },
     });
-    return { success: true, message: "Site modifié avec succès!" };
+
+    return {
+      success: true,
+      message:
+        "Site modifié avec succès.",
+    };
   } catch (error) {
-    console.error(error);
-    return { success: false, message: "Erreur!" };
+    console.error(
+      "updateSite error:",
+      error
+    );
+
+    return {
+      success: false,
+      message:
+        "Une erreur est survenue lors de la modification du site.",
+    };
   }
 }
 
-export async function deleteSite(id: string): Promise<ActionResponse> {
-  const g = await guard(ACTION.DELETE, the_resource);
-  if (!g.success) return g;
+export async function deleteSite(
+  id: string
+): Promise<ActionResponse> {
+  const guardResult = await guard(
+    ACTION.DELETE,
+    "site"
+  );
+
+  if (!guardResult.success) {
+    return {
+      success: false,
+      message:
+        guardResult.message,
+    };
+  }
+
+  const auth = await getCurrentUser();
+
+  if (!auth.user) {
+    return {
+      success: false,
+      message:
+        "Utilisateur non authentifié.",
+    };
+  }
+
+  const currentUser = await getCurrentUser();
+  const currentTenantId = currentUser.user?.currentTenantId;
+
+  if (!currentTenantId) {
+    return {
+      success: false,
+      message:
+        "L'utilisateur n'est associé à aucun tenant.",
+    };
+  }
 
   try {
-    await sleep();
-    const { user } = await getCurrentUser();
-    if (!user?.id)
-      return { success: false, message: "Aucune session n'est trouvée!" };
 
-    await prisma.site.delete({ where: { id } });
-    return { success: true, message: "Site supprimé avec succès!" };
+
+    const site =
+      await prisma.site.findFirst({
+        where: {
+          id,
+          tenantId:
+            currentTenantId,
+        },
+      });
+
+    if (!site) {
+      return {
+        success: false,
+        message:
+          "Site introuvable.",
+      };
+    }
+
+    await prisma.site.delete({
+      where: {
+        id,
+      },
+    });
+
+    return {
+      success: true,
+      message:
+        "Site supprimé avec succès.",
+    };
   } catch (error) {
-    console.error(error);
-    return { success: false, message: "Erreur!" };
+    console.error(
+      "deleteSite error:",
+      error
+    );
+
+    return {
+      success: false,
+      message:
+        "Une erreur est survenue lors de la suppression du site.",
+    };
   }
 }

@@ -3,12 +3,15 @@ import ModeToggle from "@/components/ModeToggle";
 import AuthButtons from "./AuthButtons";
 import { APP_NAME } from "@/lib/constantes";
 import Link from "next/link";
+import { getCurrentTenant } from "@/server/tenants";
 
 export default async function Navbar({
   showSidebarTrigger = true,
 }: {
   showSidebarTrigger?: boolean;
 }) {
+
+  const currentTenant = await getCurrentTenant();
 
   return (
     <header className="flex items-center justify-between px-4 border-l border-r border-t rounded-t-md bg-background/95 backdrop-blur">
@@ -19,7 +22,7 @@ export default async function Navbar({
         <div className="hidden sm:block">
           <h1 className="text-lg font-semibold text-primary">
             <Link href={"/"}>
-              {APP_NAME}{" "}
+              {APP_NAME}{" "}{currentTenant?.name}{" "}
               <span className="text-xs text-foreground">by GHALASS</span>{" "}
             </Link>
           </h1>

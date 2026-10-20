@@ -1,14 +1,8 @@
 // server/auth.ts
 "use server";
-import { getSession, verifyPassword } from "@/lib/auth";
+import { getSession, saveSession, verifyPassword } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sleep } from "@/lib/utils";
-import z from "zod";
-
-const formSchema = z.object({
-  email: z.string().min(8).describe("Email"),
-  password: z.string().min(60).describe("Mot de passe"),
-});
 
 export async function login(email: string, password: string) {
   try {
@@ -34,9 +28,10 @@ export async function login(email: string, password: string) {
       };
 
     // SESSION
-    const session = await getSession();
-    session.userId = user?.id || "";
-    await session.save();
+    // const session = await getSession();
+    // session.userId = user?.id || "";
+    // await session.save();
+    await saveSession({ userId: user?.id });
 
     return {
       success: true,
@@ -87,7 +82,7 @@ export async function getCurrentUser() {
     return {
       success: true,
       message: "OK",
-      user: user || [],
+      user: user && session ? { ...user, currentTenantId: session.currentTenantId } : null,
     };
   } catch (error) {
     const e = error as Error;

@@ -114,7 +114,10 @@ async function getTenantIdFromUrl(): Promise<string | null> {
  * Mémoïsé avec React.cache → un seul appel DB par requête.
  */
 export const getCurrentTenant = cache(async () => {
-  const tenantId = await getTenantIdFromUrl();
-  if (!tenantId) return null;
-  return getTenantById(tenantId);
+  // const tenantId = await getTenantIdFromUrl();
+  // if (!tenantId) return null;
+
+  const currentUser = await getCurrentUser();
+  const currentTenantId = currentUser.user?.currentTenantId;
+  return getTenantById(currentTenantId || "");
 });

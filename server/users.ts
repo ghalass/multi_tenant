@@ -41,7 +41,10 @@ export async function getAllUsers(
   const itemsPerPage = Math.max(1, parseInt(limit, 10) || ITEMS_PER_PAGE);
   const skip = (currentPage - 1) * itemsPerPage;
 
-  const where: any = { tenantId };
+  const currentUser = await getCurrentUser();
+  const currentTenantId = currentUser.user?.currentTenantId;
+
+  const where: any = { tenantId: currentTenantId };
 
   if (name) {
     where.OR = [
@@ -61,6 +64,7 @@ export async function getAllUsers(
       orderBy: { createdAt: "desc" },
       include: {
         roles: true, // 🔑 inclure les rôles
+        tenant: true, // 🔑 inclure le tenant
       },
     }),
     prisma.user.count({ where }),
