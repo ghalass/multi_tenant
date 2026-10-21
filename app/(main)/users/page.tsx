@@ -19,6 +19,7 @@ import { getAllRoles, getAllUsers } from "@/server/users";
 import DisplayError from "@/components/display-error";
 import CanAccess from "@/components/can-access";
 import { ACTION } from "@/lib/enums";
+import { ACTIVE } from "@/lib/constantes";
 
 export default async function UsersPage({ params, searchParams }: {
   params: Promise<{ tenantId: string }>;
@@ -76,7 +77,7 @@ export default async function UsersPage({ params, searchParams }: {
               <TableBody>
                 {users.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center">
+                    <TableCell colSpan={6} className="h-24 text-center">
                       Aucun utilisateur trouvé.
                     </TableCell>
                   </TableRow>
@@ -90,7 +91,7 @@ export default async function UsersPage({ params, searchParams }: {
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
                           {user.roles && user.roles.length > 0 ? (
-                            user.roles.map((role) => (
+                            user.roles.map((role: any) => (
                               <Badge
                                 key={role.id}
                                 variant="outline"
@@ -114,7 +115,7 @@ export default async function UsersPage({ params, searchParams }: {
                             user.active ? "bg-green-100 text-green-800" : ""
                           }
                         >
-                          {user.active ? "Actif" : "Inactif"}
+                          {user.active ? ACTIVE.YES : ACTIVE.NO}
                         </Badge>
                       </TableCell>
 

@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/table";
 import { MapPin } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { getAllSites, SiteSearchParams } from "@/server/sites";
+import { getAllSites, searchParams } from "@/server/sites";
 import { CreateSiteForm } from "./create-site-form";
 import { UpdateSiteForm } from "./update-site-form";
 import { DeleteSiteForm } from "./delete-site-form";
@@ -18,47 +18,18 @@ import Pagination from "@/components/pagination";
 import DisplayError from "@/components/display-error";
 import CanAccess from "@/components/can-access";
 import { ACTION } from "@/lib/enums";
+import { ACTIVE, RESOURCE } from "@/lib/constantes";
+import DisplayData from "@/components/DisplayData";
 
-
-function parseSiteSearchParams(
-  filters: SiteSearchParams
-) {
-  return {
-    name: filters.name,
-
-    active:
-      filters.active === "true"
-        ? true
-        : filters.active === "false"
-          ? false
-          : undefined,
-
-    currentPage: Math.max(
-      Number(filters.currentPage) || 1,
-      1
-    ),
-
-    itemsPerPage: Math.max(
-      Number(filters.itemsPerPage) || 10,
-      1
-    ),
-  };
-}
-
-export default async function SitesPage({ params, searchParams }: {
-  params: Promise<{ tenantId: string }>;
-  searchParams: Promise<SiteSearchParams>;
+export default async function SitesPage({ searchParams }: {
+  searchParams: Promise<searchParams>;
 }) {
-  // const { tenantId } = await params;
   const filters = await searchParams;
 
-  const result = await getAllSites(parseSiteSearchParams(filters));
+  const result = await getAllSites(filters);
 
   const sites = result?.data || [];
   const meta = result?.meta;
-
-  const resource = "site"
-
 
   return (
     <div className="container mx-auto py-2">
@@ -69,7 +40,7 @@ export default async function SitesPage({ params, searchParams }: {
             Gestion des sites
           </div>
         </h1>
-        <CanAccess resource={resource} action={ACTION.CREATE}>
+        <CanAccess resource={RESOURCE.SITE} action={ACTION.CREATE}>
           <CreateSiteForm />
         </CanAccess>
       </div>
@@ -80,7 +51,7 @@ export default async function SitesPage({ params, searchParams }: {
 
       {!result?.success && <DisplayError className="mt-4" error={result?.message} />}
 
-      <CanAccess resource={resource} action={ACTION.READ}>
+      <CanAccess resource={RESOURCE.SITE} action={ACTION.READ}>
         <div className="my-4">
           <Search />
         </div>
@@ -112,17 +83,17 @@ export default async function SitesPage({ params, searchParams }: {
                           variant={site.active ? "default" : "secondary"}
                           className={site.active ? "bg-green-100 text-green-800" : ""}
                         >
-                          {site.active ? "Actif" : "Inactif"}
+                          {site.active ? ACTIVE.YES : ACTIVE.NO}
                         </Badge>
                       </TableCell>
                       <TableCell>
                         {site.tenant?.name || "N/A"}
                       </TableCell>
                       <TableCell className="flex gap-4 justify-end text-center">
-                        <CanAccess resource={resource} action={ACTION.UPDATE}>
+                        <CanAccess resource={RESOURCE.SITE} action={ACTION.UPDATE}>
                           <UpdateSiteForm site={site} />
                         </CanAccess>
-                        <CanAccess resource={resource} action={ACTION.DELETE}>
+                        <CanAccess resource={RESOURCE.SITE} action={ACTION.DELETE}>
                           <DeleteSiteForm site={site} />
                         </CanAccess>
                       </TableCell>
@@ -144,7 +115,6 @@ export default async function SitesPage({ params, searchParams }: {
           />
         )}
       </CanAccess>
-
     </div>
   );
 }

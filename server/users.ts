@@ -7,41 +7,30 @@ import { ACTION } from "@/lib/enums";
 import { Role } from "@/lib/generated/prisma/client";
 import { ActionResponse } from "./types";
 import { getSession } from "@/lib/auth";
+import { ACTIVE, PAGINATION_SETTINGS, RESOURCE } from "@/lib/constantes";
 
 export type UsersSearchParams = {
   name?: string;
   active?: string;
-  page?: string;
-  limit?: string;
+  role?: string;
+  currentPage?: number;
+  itemsPerPage?: number;
 };
 
-const ITEMS_PER_PAGE = 10;
 
-const the_resource = "user";
+export async function getAllUsers(filters: UsersSearchParams): Promise<ActionResponse> {
+  const { userId, currentTenantId } = await getSession();
 
-// ================== GET ALL USERS ==================
-export async function getAllUsers(
-  filters: UsersSearchParams = {}
-) {
-
-  // 1. Vérifier la permission
-  const g = await guard(ACTION.READ, the_resource);
+  const g = await guard(ACTION.READ, RESOURCE.USER);
   if (!g.success) return { data: [], success: false, message: g.message };
 
-  // 2. Continuer la logique métier
-  const { userId } = await getSession();
+  // Pagination
+  const currentPage = Math.max(filters?.currentPage ?? 1, 1);
+  const itemsPerPage = Math.max(filters?.itemsPerPage ?? PAGINATION_SETTINGS.itemsPerPage, 1);
 
-  if (!userId) return { data: [], success: false, message: "Utilisateur non authentifié." };
-
-
-
-  const { name, active, page = "1", limit = String(ITEMS_PER_PAGE) } = filters;
-
-  const currentPage = Math.max(1, parseInt(page, 10) || 1);
-  const itemsPerPage = Math.max(1, parseInt(limit, 10) || ITEMS_PER_PAGE);
-  const skip = (currentPage - 1) * itemsPerPage;
-
-  const { currentTenantId } = await getSession();
+  const name = filters?.name;
+  const active = filters?.active;
+  const role = filters?.role;
 
   const where: any = { tenantId: currentTenantId };
 
@@ -52,20 +41,32 @@ export async function getAllUsers(
     ];
   }
 
-  if (active === "active") where.active = true;
-  if (active === "inactive") where.active = false;
+  if (role) {
+    where.roles = {
+      some: {
+        name: role,
+      },
+    };
+  }
+
+  if (active === ACTIVE.YES) where.active = true;
+  if (active === ACTIVE.NO) where.active = false;
+
+  const skip = (currentPage - 1) * itemsPerPage
 
   const [users, totalItems] = await Promise.all([
+    // 1. Récupérer les users de la page actuelle
     prisma.user.findMany({
       where,
+      orderBy: { name: "asc" },
       skip,
       take: itemsPerPage,
-      orderBy: { createdAt: "desc" },
       include: {
-        roles: true, // 🔑 inclure les rôles
-        tenant: true, // 🔑 inclure le tenant
+        roles: true,
+        tenant: true,
       },
     }),
+    // 2. Compter tous les users correspondant aux filtres
     prisma.user.count({ where }),
   ]);
 
@@ -81,7 +82,7 @@ export async function getAllUsers(
 // ================== GET USER BY ID ==================
 export async function getUserById(id: string) {
   // 1. Vérifier la permission
-  const g = await guard(ACTION.READ, the_resource);
+  const g = await guard(ACTION.READ, RESOURCE.USER);
   if (!g.success) return { data: [], success: false, message: g.message };
 
   // 2. Continuer la logique métier
@@ -101,7 +102,7 @@ export async function getUserById(id: string) {
 // ================== GET ALL ROLES ==================
 export async function getAllRoles(): Promise<{ roles: Role[], success: boolean, message: string }> {
   // 1. Vérifier la permission
-  const g = await guard(ACTION.READ, the_resource);
+  const g = await guard(ACTION.READ, RESOURCE.USER);
   if (!g.success) return { roles: [], success: false, message: g.message };
 
   // 2. Continuer la logique métier
@@ -125,19 +126,16 @@ export async function createUser(
   active: boolean,
   email: string,
   password: string,
-  tenantId: string,
   roleIds: string[] = []
 ): Promise<ActionResponse> {
-  // 1. Vérifier la permission
-  const g = await guard(ACTION.CREATE, the_resource);
+  const g = await guard(ACTION.CREATE, RESOURCE.USER);
   if (!g.success) return { success: false, message: g.message };
 
-  // 2. Continuer la logique métier
-  const { userId } = await getSession();
+  const { userId, currentTenantId } = await getSession();
   if (!userId) return { success: false, message: "Utilisateur non authentifié" };
 
   try {
-    const existing = await prisma.user.findFirst({ where: { tenantId, email } });
+    const existing = await prisma.user.findFirst({ where: { tenantId: currentTenantId, email } });
 
     if (existing) {
       return {
@@ -154,7 +152,7 @@ export async function createUser(
         active,
         email,
         password: hashedPassword,
-        tenantId,
+        tenantId: currentTenantId,
         roles: {
           connect: roleIds.map((id) => ({ id })),
         },
@@ -179,7 +177,7 @@ export async function updateUser(
   roleIds: string[] = []
 ): Promise<ActionResponse> {
   // 1. Vérifier la permission
-  const g = await guard(ACTION.UPDATE, the_resource);
+  const g = await guard(ACTION.UPDATE, RESOURCE.USER);
   if (!g.success) return { success: false, message: g.message };
 
   // 2. Continuer la logique métier
@@ -211,7 +209,7 @@ export async function updateUser(
 // ================== DELETE USER ==================
 export async function deleteUser(id: string): Promise<ActionResponse> {
   // 1. Vérifier la permission
-  const g = await guard(ACTION.DELETE, the_resource);
+  const g = await guard(ACTION.DELETE, RESOURCE.USER);
   if (!g.success) return { success: false, message: g.message };
 
   // 2. Continuer la logique métier

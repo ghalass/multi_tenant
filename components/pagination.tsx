@@ -11,21 +11,22 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { PAGINATION_SETTINGS } from '@/lib/constantes';
 
 interface PaginationProps {
     totalPages: number;
     currentPage: number;
-    totalItems?: number;      // 👈 optionnel mais utile pour l'affichage
-    itemsPerPage?: number;    // 👈 valeur actuelle
-    perPageOptions?: number[]; // 👈 options proposées
+    totalItems?: number;
+    itemsPerPage?: number;
+    perPageOptions?: number[];
 }
 
 export default function Pagination({
     totalPages,
     currentPage,
     totalItems,
-    itemsPerPage = 10,
-    perPageOptions = [5, 10, 20, 50, 100],
+    itemsPerPage = PAGINATION_SETTINGS.itemsPerPage,
+    perPageOptions = PAGINATION_SETTINGS.perPageOptions,
 }: PaginationProps) {
     const searchParams = useSearchParams();
     const pathname = usePathname();
@@ -33,14 +34,14 @@ export default function Pagination({
 
     const handlePageChange = (pageNumber: number) => {
         const params = new URLSearchParams(searchParams);
-        params.set('page', pageNumber.toString());
+        params.set('currentPage', pageNumber.toString());
         replace(`${pathname}?${params.toString()}`);
     };
 
     const handlePerPageChange = (value: string) => {
         const params = new URLSearchParams(searchParams);
-        params.set('perPage', value);
-        params.set('page', '1'); // 👈 reset à la page 1 quand on change le nombre
+        params.set('itemsPerPage', value);
+        params.set('currentPage', '1'); // 👈 reset à la page 1 quand on change le nombre
         replace(`${pathname}?${params.toString()}`);
     };
 

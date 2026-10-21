@@ -16,7 +16,7 @@ export default async function MainLayout({
       <div className="flex h-dvh w-full overflow-hidden bg-muted/40 p-2">
 
         {/* Sidebar */}
-        {<AppSidebar />}
+        {/* {<AppSidebar />} */}
         {session?.currentTenantId && <AppSidebar />}
 
         {/* Zone principale */}

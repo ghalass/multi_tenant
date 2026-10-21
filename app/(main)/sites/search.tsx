@@ -7,6 +7,7 @@ import { useSearchParams, usePathname, useRouter } from 'next/navigation';
 import { useDebouncedCallback } from 'use-debounce';
 import { useRef, useState, useTransition } from 'react';
 import { GlobalLoader } from '@/components/global-loader';
+import { ACTIVE } from '@/lib/constantes';
 
 export default function Filters() {
     const searchParams = useSearchParams();
@@ -30,7 +31,7 @@ export default function Filters() {
             params.delete(key);
         }
 
-        params.delete('page'); // ✅ reset pagination
+        params.delete('currentPage'); // ✅ reset pagination
 
         startTransition(() => {
             replace(`${pathname}?${params.toString()}`);
@@ -41,7 +42,7 @@ export default function Filters() {
         setSearch('');
         const params = new URLSearchParams(searchParams);
         params.delete('name');
-        params.delete('page');
+        params.delete('currentPage');
         startTransition(() => {
             replace(`${pathname}?${params.toString()}`);
         });
@@ -62,7 +63,7 @@ export default function Filters() {
                         onChange={(e) => {
                             setSearch(e.target.value);
                             handleFilterChange('name', e.target.value);
-                        }}
+                        }} disabled={isPending}
                     />
                     {search && (
                         <button
@@ -79,17 +80,17 @@ export default function Filters() {
                 {/* Filtre par statut */}
                 <Select
                     onValueChange={(value) =>
-                        handleFilterChange('active', value === 'all' ? '' : value)
+                        handleFilterChange(ACTIVE.YES, value === 'all' ? '' : value)
                     }
-                    defaultValue={searchParams.get('active')?.toString() || 'all'}
+                    defaultValue={searchParams.get(ACTIVE.YES)?.toString() || 'all'} disabled={isPending}
                 >
                     <SelectTrigger className="w-full sm:w-45">
                         <SelectValue placeholder="Filtrer par statut" />
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem value="all">Tous</SelectItem>
-                        <SelectItem value="active">Actif</SelectItem>
-                        <SelectItem value="inactive">Inactif</SelectItem>
+                        <SelectItem value={ACTIVE.YES}>Actif</SelectItem>
+                        <SelectItem value={ACTIVE.NO}>Inactif</SelectItem>
                     </SelectContent>
                 </Select>
             </div>

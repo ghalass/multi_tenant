@@ -5,99 +5,56 @@ import { guard } from "@/lib/rbac/middleware";
 import { ACTION } from "@/lib/enums";
 import { ActionResponse } from "@/server/types";
 import { getSession } from "@/lib/auth";
+import { ACTIVE, PAGINATION_SETTINGS, RESOURCE } from "@/lib/constantes";
 
-export interface SiteSearchParams {
+export interface searchParams {
   name?: string;
   active?: string;
-  currentPage?: string;
-  itemsPerPage?: string;
+  currentPage?: number;
+  itemsPerPage?: number;
 }
 
-export async function getAllSites(
-  filters?: {
-    name?: string;
-    active?: boolean;
-    currentPage?: number;
-    itemsPerPage?: number;
-  }
-) {
+export async function getAllSites(filters?: searchParams): Promise<ActionResponse> {
+  const g = await guard(ACTION.READ, RESOURCE.SITE);
+  if (!g.success) return { data: [], success: false, message: g.message };
 
-  const { userId } = await getSession();
+  const { userId, currentTenantId } = await getSession();
 
-  if (!userId) {
-    throw new Error(
-      "Utilisateur non authentifié."
-    );
-  }
+  // Pagination
+  const currentPage = Math.max(filters?.currentPage ?? 1, 1);
+  const itemsPerPage = Math.max(filters?.itemsPerPage ?? PAGINATION_SETTINGS.itemsPerPage, 1);
 
-  const guardResult = await guard(
-    ACTION.READ,
-    "site"
-  );
+  const name = filters?.name;
+  const active = filters?.active;
 
-  if (!guardResult.success) {
-    throw new Error(
-      guardResult.message
-    );
+  const where: any = { tenantId: currentTenantId };
+
+  if (name) {
+    where.OR = [
+      { name: { contains: name, mode: "insensitive" } },
+    ];
   }
 
-  const currentPage = Math.max(
-    filters?.currentPage ?? 1,
-    1
-  );
+  if (active === ACTIVE.YES) where.active = true;
+  if (active === ACTIVE.NO) where.active = false;
 
-  const itemsPerPage = Math.max(
-    filters?.itemsPerPage ?? 10,
-    1
-  );
 
-  const search =
-    filters?.name?.trim();
-
-  const { currentTenantId } = await getSession();
-
-  const where = {
-    tenantId: currentTenantId,
-
-    ...(search
-      ? {
-        OR: [
-          {
-            name: {
-              contains: search,
-              mode: "insensitive" as const,
-            },
-          },
-        ],
-      }
-      : {}),
-
-    ...(filters?.active !== undefined
-      ? {
-        active: filters.active,
-      }
-      : {}),
-  };
+  const skip = (currentPage - 1) * itemsPerPage
 
   const [sites, totalItems] =
     await Promise.all([
+      // 1. Récupérer les sites de la page actuelle
       prisma.site.findMany({
         where,
-        orderBy: {
-          name: "asc",
-        },
-        skip:
-          (currentPage - 1) *
-          itemsPerPage,
+        orderBy: { name: "asc" },
+        skip,
         take: itemsPerPage,
         include: {
-          tenant: true, // 🔑 inclure le tenant
+          tenant: true,
         },
       }),
-
-      prisma.site.count({
-        where,
-      }),
+      // 2. Compter tous les sites correspondant aux filtres
+      prisma.site.count({ where }),
     ]);
 
   const totalPages = Math.ceil(totalItems / itemsPerPage);
@@ -109,30 +66,24 @@ export async function getAllSites(
 }
 
 export async function createSite({ name, active }: { name: string; active: boolean }): Promise<ActionResponse> {
-  const guardResult = await guard(
-    ACTION.CREATE,
-    "site"
-  );
+  const guardResult = await guard(ACTION.CREATE, RESOURCE.SITE);
 
   if (!guardResult.success) {
     return {
       success: false,
-      message:
-        guardResult.message,
+      message: guardResult.message,
     };
   }
 
-  const { userId } = await getSession();
+  const { userId, currentTenantId } = await getSession();
 
-  if (!userId) {
-    return {
-      success: false,
-      message:
-        "Utilisateur non authentifié.",
-    };
-  }
-
-  const { currentTenantId } = await getSession();
+  // if (!userId) {
+  //   return {
+  //     success: false,
+  //     message:
+  //       "Utilisateur non authentifié.",
+  //   };
+  // }
 
   if (!currentTenantId) {
     return {
@@ -206,7 +157,7 @@ export async function updateSite(
   { id, name, active }: { id: string; name: string; active: boolean }): Promise<ActionResponse> {
   const guardResult = await guard(
     ACTION.UPDATE,
-    "site"
+    RESOURCE.SITE
   );
 
   if (!guardResult.success) {
@@ -217,8 +168,7 @@ export async function updateSite(
     };
   }
 
-  const { userId } = await getSession();
-
+  const { userId, currentTenantId } = await getSession();
   if (!userId) {
     return {
       success: false,
@@ -227,7 +177,6 @@ export async function updateSite(
     };
   }
 
-  const { currentTenantId } = await getSession();
 
   if (!currentTenantId) {
     return {
@@ -320,7 +269,7 @@ export async function deleteSite(
 ): Promise<ActionResponse> {
   const guardResult = await guard(
     ACTION.DELETE,
-    "site"
+    RESOURCE.SITE
   );
 
   if (!guardResult.success) {
@@ -331,8 +280,7 @@ export async function deleteSite(
     };
   }
 
-  const { userId } = await getSession();
-  if (!userId) {
+  const { userId, currentTenantId } = await getSession(); if (!userId) {
     return {
       success: false,
       message:
@@ -340,7 +288,6 @@ export async function deleteSite(
     };
   }
 
-  const { currentTenantId } = await getSession();
 
   if (!currentTenantId) {
     return {

@@ -8,6 +8,7 @@ import { Permission, Role } from "@/lib/generated/prisma/client";
 import { ActionResponse } from "./types";
 import { sleep } from "@/lib/utils";
 import { getSession } from "@/lib/auth";
+import { PAGINATION_SETTINGS } from "@/lib/constantes";
 
 type RoleWithPermission =
     Role & {
@@ -52,7 +53,7 @@ export async function getAllRoles(tenantId: string, filters: RoleSearchParams = 
 
     try {
         const currentPage = Math.max(1, parseInt(filters?.page || "1", 10));
-        const itemsPerPage = Math.max(1, parseInt(filters?.perPage || "10", 10));
+        const itemsPerPage = Math.max(1, parseInt(filters?.perPage || "10", PAGINATION_SETTINGS.itemsPerPage));
         const skip = (currentPage - 1) * itemsPerPage;
 
         const whereClause: any = {

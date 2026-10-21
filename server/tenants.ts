@@ -106,12 +106,12 @@ export async function createTenant(name: string) {
   }
 }
 
-export async function getTenantById(tenantId?: string) {
+export async function getTenantById(tenantId: string) {
   return prisma.tenant.findUnique({ where: { id: tenantId } });
 }
 
 export const getCurrentTenant = cache(async () => {
-  const session = await getSession();
-  const currentTenantId = session.currentTenantId;
+  const { currentTenantId } = await getSession();
+  if (!currentTenantId) return null;
   return getTenantById(currentTenantId);
 });

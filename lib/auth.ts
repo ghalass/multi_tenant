@@ -37,6 +37,7 @@ const sessionOptions = {
 };
 
 export async function getSession() {
+  await sleep()
   const cookieStore = await cookies();
   const session = await getIronSession<SessionData>(
     cookieStore,
@@ -48,15 +49,6 @@ export async function getSession() {
   } */
 
   return session;
-}
-
-export async function logoutAction() {
-  const session = await getSession();
-
-  session.destroy();
-
-  // Optionnel : redirige immédiatement l'utilisateur après déconnexion
-  redirect("/");
 }
 
 export async function saveSession({ userId, currentTenantId }: { userId?: string, currentTenantId?: string }) {
@@ -114,6 +106,15 @@ export async function login(email: string, password: string) {
   }
 }
 
+export async function logout() {
+  const session = await getSession();
+
+  session.destroy();
+
+  // Optionnel : redirige immédiatement l'utilisateur après déconnexion
+  redirect("/");
+}
+
 // export async function getCurrentUser() {
 //   try {
 //     await sleep();
@@ -153,7 +154,6 @@ export async function login(email: string, password: string) {
 //       user
 //       // user: user && session ? { ...user, currentTenantId: session.currentTenantId } : null,
 //     };
-//     console.log(res);
 
 //     return res
 //   } catch (error) {

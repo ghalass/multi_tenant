@@ -8,6 +8,7 @@ import { guard } from "@/lib/rbac/middleware";
 import { ACTION } from "@/lib/enums";
 import { ActionResponse } from "./types";
 import { getSession } from "@/lib/auth";
+import { PAGINATION_SETTINGS } from "@/lib/constantes";
 
 export interface PermissionsSearchParams {
   s?: string;
@@ -47,7 +48,7 @@ export async function getAllPermission(filters: PermissionsSearchParams): Promis
 
     // Configuration des variables de pagination
     const currentPage = Math.max(1, parseInt(filters?.page || "1", 10));
-    const itemsPerPage = Math.max(1, parseInt(filters?.perPage || "10", 10)); const skip = (currentPage - 1) * itemsPerPage;
+    const itemsPerPage = Math.max(1, parseInt(filters?.perPage || "10", PAGINATION_SETTINGS.itemsPerPage)); const skip = (currentPage - 1) * itemsPerPage;
 
     // Construction propre du where
     const whereClause: Prisma.PermissionWhereInput = {

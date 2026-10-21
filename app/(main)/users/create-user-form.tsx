@@ -78,7 +78,6 @@ export function CreateUserForm({ tenantId, roles }: { tenantId: string; roles: R
         values.active,
         values.email,
         values.password,
-        tenantId,
         roleIds
       );
 
@@ -111,11 +110,10 @@ export function CreateUserForm({ tenantId, roles }: { tenantId: string; roles: R
   return (
     <div>
       <GlobalLoader show={isPending} />
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogTrigger className="mx-auto inline-flex items-center justify-center rounded-full bg-primary p-1 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 hover:cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50">
+      <Dialog open={open} onOpenChange={setOpen} >
+        <DialogTrigger disabled={isPending} className="mx-auto inline-flex items-center justify-center rounded-full bg-primary p-1 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 hover:cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50">
           <PlusIcon className="size-4" />
         </DialogTrigger>
-
         <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Créer un utilisateur</DialogTitle>

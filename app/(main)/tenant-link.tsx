@@ -7,9 +7,9 @@ async function switchTenant({ tenantId }: { tenantId: string }) {
     await switchCurrentTenant({ currentTenantId: tenantId });
 }
 
-export default function TenantSwitcher({ tenantName, tenantId }: { tenantName: string, tenantId: string }) {
+export default function TenantSwitcher({ tenantName, tenantId, currentTenantId }: { tenantName: string, tenantId: string, currentTenantId: string }) {
     return (
-        <Button onClick={() => { switchTenant({ tenantId }); }} variant="outline" size="sm" >
+        <Button onClick={() => { switchTenant({ tenantId }); }} size="sm" variant={`${currentTenantId === tenantId ? "default" : "outline"}`} >
             {tenantName}
         </Button>
     )

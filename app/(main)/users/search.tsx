@@ -77,6 +77,7 @@ export default function Filters({ roles = [] }: { roles?: Role[] }) {
                             setSearch(e.target.value);
                             handleFilterChange("name", e.target.value);
                         }}
+                        disabled={isPending}
                     />
                     {search && (
                         <button
@@ -84,6 +85,7 @@ export default function Filters({ roles = [] }: { roles?: Role[] }) {
                             onClick={clearSearch}
                             aria-label="Effacer la recherche"
                             className="absolute right-2 top-1/2 -translate-y-1/2 rounded-sm p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                            disabled={isPending}
                         >
                             <X className="h-4 w-4" />
                         </button>
@@ -96,6 +98,7 @@ export default function Filters({ roles = [] }: { roles?: Role[] }) {
                         handleFilterChange("active", value === "all" ? "" : value)
                     }
                     defaultValue={searchParams.get("active")?.toString() || "all"}
+                    disabled={isPending}
                 >
                     <SelectTrigger className="w-full sm:w-45">
                         <SelectValue placeholder="Filtrer par statut" />
@@ -111,9 +114,10 @@ export default function Filters({ roles = [] }: { roles?: Role[] }) {
                 {roles.length > 0 && (
                     <Select
                         onValueChange={(value) =>
-                            handleFilterChange("roleId", value === "all" ? "" : value)
+                            handleFilterChange("role", value === "all" ? "" : value)
                         }
-                        defaultValue={searchParams.get("roleId")?.toString() || "all"}
+                        defaultValue={searchParams.get("role")?.toString() || "all"}
+                        disabled={isPending}
                     >
                         <SelectTrigger className="w-full sm:w-45">
                             <SelectValue placeholder="Filtrer par rôle" />
@@ -121,7 +125,7 @@ export default function Filters({ roles = [] }: { roles?: Role[] }) {
                         <SelectContent>
                             <SelectItem value="all">Tous les rôles</SelectItem>
                             {roles.map((role) => (
-                                <SelectItem key={role.id} value={role.id}>
+                                <SelectItem key={role.name} value={role.name}>
                                     {role.name}
                                 </SelectItem>
                             ))}
