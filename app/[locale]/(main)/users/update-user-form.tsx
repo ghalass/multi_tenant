@@ -38,6 +38,8 @@ import { yupResolver } from "@hookform/resolvers/yup";
 
 const formSchema = yup.object({
   name: yup.string().min(2).required(),
+  email: yup.string().email().required(),
+  password: yup.string(),
   active: yup.boolean().default(true),
   roleIds: yup.array().of(yup.string()).default([]),
 });
@@ -60,6 +62,8 @@ export function UpdateUserForm({
     resolver: yupResolver(formSchema),
     values: {
       name: user?.name,
+      email: user?.email,
+      password: "",
       active: user?.active,
       roleIds: user?.roles?.map((r) => r.id) || [],
     },
@@ -82,6 +86,8 @@ export function UpdateUserForm({
       const { success, message } = await updateUser(
         user?.id,
         values.name,
+        values.email,
+        values.password,
         values.active,
         roleIds
       );
@@ -153,6 +159,51 @@ export function UpdateUserForm({
                   </Field>
                 )}
               />
+
+              {/* Email */}
+              <Controller
+                name="email"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor="email">Email</FieldLabel>
+                    <Input
+                      {...field}
+                      id="email"
+                      aria-invalid={fieldState.invalid}
+                      autoComplete="off"
+                      type="email"
+                      disabled={isLoading}
+                    />
+                    {fieldState.invalid && (
+                      <FieldError errors={[fieldState.error]} />
+                    )}
+                  </Field>
+                )}
+              />
+
+              {/* Password */}
+              <Controller
+                name="password"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor="password">Mot de passe</FieldLabel>
+                    <Input
+                      {...field}
+                      id="password"
+                      aria-invalid={fieldState.invalid}
+                      autoComplete="new-password"
+                      type="password"
+                      disabled={isLoading}
+                    />
+                    {fieldState.invalid && (
+                      <FieldError errors={[fieldState.error]} />
+                    )}
+                  </Field>
+                )}
+              />
+
 
               {/* Actif */}
               <Controller

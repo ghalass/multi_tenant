@@ -116,6 +116,7 @@ const ACTION_LABELS: Record<string, string> = {
   create: "pour la création",
   update: "pour la modification",
   delete: "pour la suppression",
+  export: "pour exportation"
 };
 
 function humanizeAction(action: string): string {

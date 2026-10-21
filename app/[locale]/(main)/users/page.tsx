@@ -13,7 +13,7 @@ import { UsersSearchParams } from "@/server/users";
 import { CreateUserForm } from "./create-user-form";
 import { UpdateUserForm } from "./update-user-form";
 import { DeleteUserForm } from "./delete-user-form";
-import Search from "@/app/(main)/users/search";
+import Search from "./search";
 import Pagination from "@/components/pagination";
 import { getAllRoles, getAllUsers } from "@/server/users";
 import DisplayError from "@/components/display-error";
@@ -28,9 +28,9 @@ export default async function UsersPage({ params, searchParams }: {
   const { tenantId } = await params;
   const filters = await searchParams;
 
-  const result = await getAllUsers(filters);
-  const users = result?.data || [];
-  const meta = result?.meta;
+  const response = await getAllUsers(filters);
+  const users = response?.data || [];
+  const meta = response?.meta;
 
   const { roles } = await getAllRoles();
 
@@ -54,7 +54,7 @@ export default async function UsersPage({ params, searchParams }: {
         Créez et gérez les utilisateurs de votre application
       </p>
 
-      {!result?.success && <DisplayError className="mt-4" error={result?.message} />}
+      {!response?.success && <DisplayError className="mt-4" error={response?.message} />}
 
       <CanAccess resource={resource} action={ACTION.READ}>
         <div className="my-4">

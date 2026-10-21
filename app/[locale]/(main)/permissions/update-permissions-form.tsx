@@ -1,22 +1,19 @@
 "use client";
 
-import { cn } from "cn";
 
 import { Button } from "@/components/ui/button";
 import {
   Field,
-  FieldContent,
   FieldError,
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 
 import { yupResolver } from "@hookform/resolvers/yup";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { useEffect, useState, useTransition } from "react";
-import { Loader2, PlusIcon } from "lucide-react";
+import { PenIcon } from "lucide-react";
 
 import {
   Dialog,
@@ -29,17 +26,17 @@ import {
 } from "@/components/ui/dialog";
 import { sleep } from "@/lib/utils";
 import { useRouter } from "next/navigation";
-import { Switch } from "@/components/ui/switch";
 import { Spinner } from "@/components/ui/spinner";
 import { GlobalLoader } from "@/components/global-loader";
-import { createUser } from "@/server/users";
+import { updatePermission } from "@/server/permissions";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { createPermission } from "@/server/permissions";
 import { Textarea } from "@/components/ui/textarea";
+import { Permission } from "@/lib/generated/prisma/client";
 import { Action } from "@/lib/generated/prisma/enums";
 import DisplayError from "@/components/display-error";
 import { TABLES } from "@/lib/tables";
 import yup from "@/lib/yupFr";
+
 
 const formSchema = yup.object({
   resource: yup.string().oneOf(TABLES).required("Veuillez choisir une ressource"),
@@ -47,30 +44,36 @@ const formSchema = yup.object({
   description: yup.string().max(255, "La description ne peut pas dépasser 255 caractères"),
 });
 
-export function CreatePermissionForm() {
+export function UpdatePermissionForm({ permission }: { permission: Permission }) {
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
   const [isPending, startTransition] = useTransition();
 
-  const [error, setError] = useState("");
   const [open, setOpen] = useState(false);
   const form = useForm<yup.InferType<typeof formSchema>>({
     resolver: yupResolver(formSchema),
-    defaultValues: {
-      resource: TABLES[0] ?? "user",
-      action: Action.read,
-      description: "",
+    values: {
+      resource: permission?.resource as (typeof TABLES)[number],
+      action: permission?.action,
+      description: permission?.description || "",
     },
   });
 
   const router = useRouter();
 
   async function onSubmit(values: yup.InferType<typeof formSchema>) {
+    if (!permission?.id) {
+      setError("Permission introuvable");
+      return;
+    }
+
     try {
       setError("");
       setIsLoading(true);
       await sleep();
 
-      const { success, message } = await createPermission(
+      const { success, message } = await updatePermission(
+        permission.id,
         values.resource,
         values.action,
         values.description ?? ""
@@ -81,11 +84,13 @@ export function CreatePermissionForm() {
         return;
       }
 
+      // router.refresh();
+      // ⚠️ On enveloppe router.refresh() dans startTransition
       startTransition(() => {
         router.refresh();
       });
 
-      toast.success("Utilisateur créé avec succès");
+      toast.success("Permission modifié avec succès");
       setOpen(false);
       form.reset();
     } catch (error) {
@@ -97,24 +102,24 @@ export function CreatePermissionForm() {
 
   useEffect(() => {
     if (!open) {
-      form.reset();
       setError("");
     }
-  }, [open, form]);
+  }, [open]);
 
   return (
-    <div>
+    <>
       <GlobalLoader show={isPending} />
+
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogTrigger className="mx-auto inline-flex items-center justify-center rounded-full bg-primary p-1 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 hover:cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50">
-          <PlusIcon className="size-4" />
+        <DialogTrigger className="text-primary hover:cursor-pointer">
+          <PenIcon className="size-4" />
         </DialogTrigger>
 
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Créer une permission</DialogTitle>
+            <DialogTitle>Modifier le site</DialogTitle>
             <DialogDescription>
-              Créez un nouvelle permission
+              Modifier le site
             </DialogDescription>
 
             <DisplayError error={error} />
@@ -131,7 +136,7 @@ export function CreatePermissionForm() {
                     <Field data-invalid={fieldState.invalid}>
                       <FieldLabel htmlFor="resource">Ressource</FieldLabel>
                       <Select
-                        value={field.value ?? ""}
+                        value={field.value}
                         onValueChange={field.onChange}
                         disabled={isLoading}
                       >
@@ -143,7 +148,7 @@ export function CreatePermissionForm() {
                           <SelectValue placeholder="Ressource" />
                         </SelectTrigger>
                         <SelectContent>
-                          {TABLES.map((resource, index) => (
+                          {TABLES?.map((resource, index) => (
                             <SelectItem key={index} value={resource}>{resource}</SelectItem>
                           ))}
                         </SelectContent>
@@ -163,7 +168,7 @@ export function CreatePermissionForm() {
                     <Field data-invalid={fieldState.invalid}>
                       <FieldLabel htmlFor="action">Action</FieldLabel>
                       <Select
-                        value={field.value ?? ""}
+                        value={field.value}
                         onValueChange={field.onChange}
                         disabled={isLoading}
                       >
@@ -179,6 +184,7 @@ export function CreatePermissionForm() {
                           <SelectItem value={Action.read}>Lecture</SelectItem>
                           <SelectItem value={Action.update}>Modification</SelectItem>
                           <SelectItem value={Action.delete}>Suppression</SelectItem>
+                          <SelectItem value={Action.export}>Exporation</SelectItem>
                         </SelectContent>
                       </Select>
                       {fieldState.invalid && (
@@ -200,7 +206,7 @@ export function CreatePermissionForm() {
                       {...field}
                       id="description"
                       aria-invalid={fieldState.invalid}
-                      placeholder="Description optionnelle"
+                      placeholder=""
                       autoComplete="off"
                       disabled={isLoading}
                     />
@@ -219,13 +225,13 @@ export function CreatePermissionForm() {
                 {isLoading ? (
                   <Spinner className="size-4" />
                 ) : (
-                  "Créer"
+                  "Modifier"
                 )}
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }

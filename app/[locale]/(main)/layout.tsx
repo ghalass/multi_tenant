@@ -1,19 +1,23 @@
+// app/[locale]/(main)/layout.tsx
+
 import { AppSidebar } from "@/components/AppSidebar";
 import Navbar from "@/components/Navbar";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { getSession } from "@/lib/auth";
-// import { getCurrentUser } from "@/lib/auth";
 
 export default async function MainLayout({
-  children,
+  children, params,
 }: Readonly<{
-  children: React.ReactNode;
+  children: React.ReactNode; params: Promise<{ locale: string }>;
 }>) {
+  const { locale } = await params;
+  const isRTL = locale === "ar";
+
   const session = await getSession();
 
   return (
     <SidebarProvider>
-      <div className="flex h-dvh w-full overflow-hidden bg-muted/40 p-2">
+      <div dir={isRTL ? "rtl" : "ltr"} className="flex h-dvh w-full overflow-hidden bg-sidebar p-2">
 
         {/* Sidebar */}
         {/* {<AppSidebar />} */}
@@ -22,13 +26,13 @@ export default async function MainLayout({
         {/* Zone principale */}
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
           {/* Navbar */}
-          <header className="bg-background/70 backdrop-blur-md">
+          <header className="bg-sidebar backdrop-blur-md">
             {/* Le SidebarTrigger est dans Navbar, qui est bien dans le Provider */}
             <Navbar />
           </header>
 
           {/* Contenu */}
-          <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden rounded-b-lg border bg-background p-4 shadow-inner">
+          <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden rounded-b-lg border bg-sidebar p-4 shadow-inner">
             <div className="mx-auto w-full max-w-[1600px]">{children}</div>
           </main>
         </div>

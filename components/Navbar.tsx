@@ -4,6 +4,7 @@ import AuthButtons from "./AuthButtons";
 import { APP_NAME } from "@/lib/constantes";
 import Link from "next/link";
 import { getCurrentTenant } from "@/server/tenants";
+import LanguageSelector from "./language-selector";
 
 export default async function Navbar({
   showSidebarTrigger = true,
@@ -14,7 +15,7 @@ export default async function Navbar({
   const currentTenant = await getCurrentTenant();
 
   return (
-    <header className="flex items-center justify-between px-4 border-l border-r border-t rounded-t-md bg-background/95 backdrop-blur">
+    <header className="flex items-center justify-between px-4 border-l border-r border-t rounded-t-md bg-sidebar backdrop-blur">
       <div className="flex items-center gap-4 py-4">
         {showSidebarTrigger && (
           <SidebarTrigger className="hover:bg-accent transition-colors rounded-md p-2" />
@@ -27,10 +28,11 @@ export default async function Navbar({
             </Link>
           </h1>
         </div>
+
       </div>
 
-      <div className="flex items-center gap-4">
-
+      <div className="flex items-center gap-2">
+        <LanguageSelector />
         <div className="h-6 w-px bg-border hidden sm:block" />
         <ModeToggle />
         <div className="h-6 w-px bg-border hidden sm:block" />

@@ -1,5 +1,7 @@
 // lib/constantes.ts
 
+import { FR, MR } from "country-flag-icons/react/3x2";
+
 export const APP_NAME = "APP";
 export const DELAY_SIMULATION = 0 // zero in prod
 
@@ -19,3 +21,17 @@ export const ACTIVE = {
     YES: "active",
     NO: "inactive",
 };
+
+export const LANGUAGES = [
+    {
+        name: 'Français',
+        locale: 'fr',
+        flag: FR,
+        direction: "ltr",
+    }, {
+        name: 'عربية',
+        locale: 'ar',
+        flag: MR,
+        direction: "rtl",
+    },
+] as const

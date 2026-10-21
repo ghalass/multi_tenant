@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { guard } from "@/lib/rbac/middleware";
 import { ACTION } from "@/lib/enums";
-import { Role } from "@/lib/generated/prisma/client";
+import { Prisma, Role } from "@/lib/generated/prisma/client";
 import { ActionResponse } from "./types";
 import { getSession } from "@/lib/auth";
 import { ACTIVE, PAGINATION_SETTINGS, RESOURCE } from "@/lib/constantes";
@@ -173,7 +173,9 @@ export async function createUser(
 export async function updateUser(
   id: string,
   name: string,
-  active: boolean,
+  email?: string,
+  password?: string,
+  active?: boolean,
   roleIds: string[] = []
 ): Promise<ActionResponse> {
   // 1. Vérifier la permission
@@ -185,16 +187,22 @@ export async function updateUser(
   if (!userId) return { success: false, message: "Utilisateur non authentifié" };
 
   try {
-    await prisma.user.update({
-      where: { id },
-      data: {
-        name,
-        active,
-        roles: {
-          set: roleIds.map((id) => ({ id })),
-        },
+
+
+    const data: Prisma.UserUpdateInput = {
+      name,
+      email,
+      active,
+      roles: {
+        set: roleIds.map((id) => ({ id })),
       },
-    });
+    };
+
+    if (password) {
+      data.password = await bcrypt.hash(password, 10);
+    }
+
+    await prisma.user.update({ where: { id }, data });
 
     return { success: true, message: "Utilisateur modifié avec succès." };
   } catch (error) {

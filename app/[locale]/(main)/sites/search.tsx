@@ -19,9 +19,6 @@ export default function Filters() {
     // État local pour l'input
     const [search, setSearch] = useState(searchParams.get('name') ?? '');
 
-    // ✅ Évite la boucle : on ne resync depuis l'URL que si le changement vient de l'extérieur
-    const isTypingRef = useRef(false);
-
     const handleFilterChange = useDebouncedCallback((key: string, value: string) => {
         const params = new URLSearchParams(searchParams);
 

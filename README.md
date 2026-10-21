@@ -14,6 +14,8 @@ pnpm add zod @hookform/resolvers
 
 pnpm add react-hook-form
 
+pnpm add country-flag-icons
+
 rm -rf node_modules pnpm-lock.yaml && pnpm install
 
 npx prisma db push

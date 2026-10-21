@@ -6,14 +6,16 @@ import TenantSwitcher from "./tenant-link";
 import { getSession } from "@/lib/auth";
 import CanAccess from "@/components/can-access";
 import { ACTION } from "@/lib/enums";
+import { getI18n } from "@/locales/server";
 
 export default async function TenantMainPage() {
   const { userId, currentTenantId } = await getSession();
   const tenants = await getAllTenants();
-
+  const t = await getI18n()
   return (
     <div>
       <div className="max-w-6xl mx-auto">
+
         {/* En-tête */}
         {userId ? (
           <div className="text-center mb-8 md:mb-12">
@@ -25,9 +27,9 @@ export default async function TenantMainPage() {
               <CreateTenantForm />
             </CanAccess>
 
-            {/* <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
-              Description
-            </p> */}
+            <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
+              {t('home.desc')}
+            </p>
 
             <div className="flex flex-col gap-2 items-center justify-center mt-2">
               {tenants.map((tenant) => (

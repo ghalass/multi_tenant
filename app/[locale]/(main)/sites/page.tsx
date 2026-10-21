@@ -7,29 +7,27 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { MapPin } from "lucide-react";
+import { MapPin, SaveIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { getAllSites, searchParams } from "@/server/sites";
 import { CreateSiteForm } from "./create-site-form";
 import { UpdateSiteForm } from "./update-site-form";
 import { DeleteSiteForm } from "./delete-site-form";
-import Search from "@/app/(main)/sites/search";
+import Search from "./search";
 import Pagination from "@/components/pagination";
 import DisplayError from "@/components/display-error";
 import CanAccess from "@/components/can-access";
 import { ACTION } from "@/lib/enums";
 import { ACTIVE, RESOURCE } from "@/lib/constantes";
-import DisplayData from "@/components/DisplayData";
+import { ExportExcel } from "@/components/export-excel";
 
-export default async function SitesPage({ searchParams }: {
-  searchParams: Promise<searchParams>;
-}) {
+export default async function SitesPage({ searchParams }: { searchParams: Promise<searchParams> }) {
   const filters = await searchParams;
 
-  const result = await getAllSites(filters);
+  const response = await getAllSites(filters);
 
-  const sites = result?.data || [];
-  const meta = result?.meta;
+  const sites = response?.data || [];
+  const meta = response?.meta;
 
   return (
     <div className="container mx-auto py-2">
@@ -40,16 +38,23 @@ export default async function SitesPage({ searchParams }: {
             Gestion des sites
           </div>
         </h1>
-        <CanAccess resource={RESOURCE.SITE} action={ACTION.CREATE}>
-          <CreateSiteForm />
-        </CanAccess>
+
+        <div className="flex flex-col gap-3 sm:flex-row sm:gap-4 items-center">
+          <CanAccess resource={RESOURCE.SITE} action={ACTION.CREATE}>
+            <CreateSiteForm />
+          </CanAccess>
+          <CanAccess resource={RESOURCE.SITE} action={ACTION.EXPORT}>
+            <ExportExcel tableName="sites-table" fileName="Sites" />
+          </CanAccess>
+        </div>
+
       </div>
 
       <p className="text-muted-foreground mt-1">
         Créez et gérez les sites de votre application
       </p>
 
-      {!result?.success && <DisplayError className="mt-4" error={result?.message} />}
+      {!response?.success && <DisplayError className="mt-4" error={response?.message} />}
 
       <CanAccess resource={RESOURCE.SITE} action={ACTION.READ}>
         <div className="my-4">
@@ -58,7 +63,7 @@ export default async function SitesPage({ searchParams }: {
 
         <div className="rounded-md border">
           <div id="global-loader-slot" className="relative w-full">
-            <Table>
+            <Table id="sites-table">
               <TableHeader>
                 <TableRow>
                   <TableHead>Site</TableHead>

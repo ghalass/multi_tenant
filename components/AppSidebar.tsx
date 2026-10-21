@@ -35,6 +35,7 @@ import { useEffect } from "react";
 
 // Hook personnalisé pour la navigation active
 import { usePathname } from "next/navigation";
+import { useCurrentLocale } from "@/locales/client";
 
 function useActivePath() {
   const pathname = usePathname();
@@ -76,6 +77,9 @@ const AccessControl = {
 };
 
 export function AppSidebar() {
+  const locale = useCurrentLocale();
+  const isRTL = locale === "ar";
+
   const { isMobile, setOpenMobile } = useSidebar();
   // ⬇️ LE SEUL useEffect : ferme la sidebar mobile quand la route change
   useEffect(() => {
@@ -91,7 +95,7 @@ export function AppSidebar() {
   const allItems = [configItems, AccessControl];
 
   return (
-    <Sidebar variant="floating" collapsible="icon">
+    <Sidebar side={isRTL ? "right" : "left"} variant="floating" collapsible="icon">
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupContent>

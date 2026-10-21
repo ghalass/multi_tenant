@@ -11,7 +11,7 @@ import { MapPin } from "lucide-react";
 import { PermissionsSearchParams } from "@/server/permissions";
 import { CreatePermissionForm } from "./create-permissions-form";
 import { DeletePermissionForm } from "./delete-permissions-form";
-import Search from "@/app/(main)/permissions/search";
+import Search from "./search";
 import Pagination from "@/components/pagination";
 import { getAllPermission } from "@/server/permissions";
 import { UpdatePermissionForm } from "./update-permissions-form";

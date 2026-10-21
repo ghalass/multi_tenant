@@ -47,6 +47,7 @@ enum Action {
   read
   update
   delete
+  export
 }
 
 model Role {
