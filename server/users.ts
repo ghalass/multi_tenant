@@ -5,7 +5,7 @@ import bcrypt from "bcryptjs";
 import { guard } from "@/lib/rbac/middleware";
 import { ACTION } from "@/lib/enums";
 import { Prisma, Role } from "@/lib/generated/prisma/client";
-import { ActionResponse } from "./types";
+import { ActionResponse } from "@/lib/types";
 import { getSession } from "@/lib/auth";
 import { ACTIVE, PAGINATION_SETTINGS, RESOURCE } from "@/lib/constantes";
 

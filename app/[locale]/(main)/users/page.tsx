@@ -19,7 +19,8 @@ import { getAllRoles, getAllUsers } from "@/server/users";
 import DisplayError from "@/components/display-error";
 import CanAccess from "@/components/can-access";
 import { ACTION } from "@/lib/enums";
-import { ACTIVE } from "@/lib/constantes";
+import { ACTIVE, RESOURCE } from "@/lib/constantes";
+import { ExportExcel } from "@/components/export-excel";
 
 export default async function UsersPage({ params, searchParams }: {
   params: Promise<{ tenantId: string }>;
@@ -34,7 +35,7 @@ export default async function UsersPage({ params, searchParams }: {
 
   const { roles } = await getAllRoles();
 
-  const resource = "user"
+  const resource = RESOURCE.USER
 
   return (
     <div className="container mx-auto py-2">
@@ -47,6 +48,9 @@ export default async function UsersPage({ params, searchParams }: {
         </h1>
         <CanAccess resource={resource} action={ACTION.CREATE}>
           <CreateUserForm tenantId={tenantId} roles={roles} />
+        </CanAccess>
+        <CanAccess resource={RESOURCE.USER} action={ACTION.EXPORT}>
+          <ExportExcel tableName="users-table" fileName="Utilisateurs" />
         </CanAccess>
       </div>
 
@@ -63,7 +67,7 @@ export default async function UsersPage({ params, searchParams }: {
 
         <div className="rounded-md border">
           <div id="global-loader-slot" className="relative w-full">
-            <Table>
+            <Table id="users-table">
               <TableHeader>
                 <TableRow>
                   <TableHead>Nom</TableHead>

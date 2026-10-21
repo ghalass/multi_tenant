@@ -20,6 +20,7 @@ rm -rf node_modules pnpm-lock.yaml && pnpm install
 
 npx prisma db push
 
+pnpm install next-international
 
 ****************** après git clone
 pnpm install

@@ -18,6 +18,7 @@ import { UpdatePermissionForm } from "./update-permissions-form";
 import DisplayError from "@/components/display-error";
 import CanAccess from "@/components/can-access";
 import { ACTION } from "@/lib/enums";
+import { RESOURCE } from "@/lib/constantes";
 
 export default async function Permissions2Page({ params, searchParams }: {
   params: Promise<{ tenantId: string }>;
@@ -30,7 +31,7 @@ export default async function Permissions2Page({ params, searchParams }: {
   const permissions = result?.data || [];
   const meta = result?.meta;
 
-  const resource = "permission"
+  const resource = RESOURCE.PERMISSION
 
   return (
     <div className="container mx-auto py-2">

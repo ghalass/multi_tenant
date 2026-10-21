@@ -3,12 +3,12 @@
 
 import { prisma } from "@/lib/prisma";
 import { Action, Permission, Prisma } from "@/lib/generated/prisma/client";
+import { ActionResponse } from "@/lib/types";
 import { sleep } from "@/lib/utils";
 import { guard } from "@/lib/rbac/middleware";
 import { ACTION } from "@/lib/enums";
-import { ActionResponse } from "./types";
 import { getSession } from "@/lib/auth";
-import { PAGINATION_SETTINGS } from "@/lib/constantes";
+import { PAGINATION_SETTINGS, RESOURCE } from "@/lib/constantes";
 
 export interface PermissionsSearchParams {
   s?: string;
@@ -31,12 +31,10 @@ interface PaginatedPermissions {
   }
 }
 
-const the_resource = "permission";
-
 export async function getAllPermission(filters: PermissionsSearchParams): Promise<PaginatedPermissions | null> {
 
   // 1. Vérifier la permission
-  const g = await guard(ACTION.READ, the_resource);
+  const g = await guard(ACTION.READ, RESOURCE.PERMISSION);
   if (!g.success) return { data: [], success: false, message: g.message };
 
   // 2. Continuer la logique métier
@@ -89,7 +87,7 @@ export async function getAllPermission(filters: PermissionsSearchParams): Promis
 }
 
 export async function createPermission(resource: string, action: string, description: string): Promise<ActionResponse> {
-  const g = await guard(ACTION.CREATE, the_resource);
+  const g = await guard(ACTION.CREATE, RESOURCE.PERMISSION);
   if (!g.success) return g;
 
   try {
@@ -145,7 +143,7 @@ export async function createPermission(resource: string, action: string, descrip
 }
 
 export async function updatePermission(id: string, resource: string, action: string, description: string): Promise<ActionResponse> {
-  const g = await guard(ACTION.UPDATE, the_resource);
+  const g = await guard(ACTION.UPDATE, RESOURCE.PERMISSION);
   if (!g.success) return g;
   try {
     await sleep();
@@ -204,7 +202,7 @@ export async function updatePermission(id: string, resource: string, action: str
 }
 
 export async function deletePermission(id: string): Promise<ActionResponse> {
-  const g = await guard(ACTION.DELETE, the_resource);
+  const g = await guard(ACTION.DELETE, RESOURCE.PERMISSION);
   if (!g.success) return g;
 
   try {

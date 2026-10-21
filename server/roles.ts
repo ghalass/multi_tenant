@@ -5,10 +5,10 @@ import { ACTION } from "@/lib/enums";
 import { prisma } from "@/lib/prisma";
 import { guard } from "@/lib/rbac/middleware";
 import { Permission, Role } from "@/lib/generated/prisma/client";
-import { ActionResponse } from "./types";
+import { ActionResponse } from "@/lib/types";
 import { sleep } from "@/lib/utils";
 import { getSession } from "@/lib/auth";
-import { PAGINATION_SETTINGS } from "@/lib/constantes";
+import { PAGINATION_SETTINGS, RESOURCE } from "@/lib/constantes";
 
 type RoleWithPermission =
     Role & {
@@ -39,11 +39,9 @@ interface PaginatedRoles {
     }
 }
 
-const the_resource = "role";
-
 export async function getAllRoles(tenantId: string, filters: RoleSearchParams = {}): Promise<PaginatedRoles> {
     // 1. Vérifier la permission
-    const g = await guard(ACTION.READ, the_resource);
+    const g = await guard(ACTION.READ, RESOURCE.ROLE);
     if (!g.success) return { data: [], success: false, message: g.message };
 
     // 2. Continuer la logique métier
@@ -113,7 +111,7 @@ export async function getAllPermissions() {
 }
 
 export async function createRole(name: string, description: string, permissionIds: string[]): Promise<ActionResponse> {
-    const g = await guard(ACTION.CREATE, the_resource);
+    const g = await guard(ACTION.CREATE, RESOURCE.ROLE);
     if (!g.success) return g;
 
     try {
@@ -143,7 +141,7 @@ export async function createRole(name: string, description: string, permissionId
 }
 
 export async function updateRole(id: string, name: string, description: string, permissionIds: string[]): Promise<ActionResponse> {
-    const g = await guard(ACTION.UPDATE, the_resource);
+    const g = await guard(ACTION.UPDATE, RESOURCE.ROLE);
     if (!g.success) return g;
 
     try {
@@ -179,7 +177,7 @@ export async function updateRole(id: string, name: string, description: string, 
 }
 
 export async function deleteRole(id: string): Promise<ActionResponse> {
-    const g = await guard(ACTION.DELETE, the_resource);
+    const g = await guard(ACTION.DELETE, RESOURCE.ROLE);
     if (!g.success) return g;
 
     try {

@@ -21,6 +21,7 @@ import {
 import DisplayError from "@/components/display-error";
 import CanAccess from "@/components/can-access";
 import { ACTION } from "@/lib/enums";
+import { RESOURCE } from "@/lib/constantes";
 
 export default async function RolesPage({
   params,
@@ -38,7 +39,8 @@ export default async function RolesPage({
 
   const permissions = await getAllPermissions();
 
-  const resource = "role"
+  const resource = RESOURCE.ROLE
+
 
   return (
     <div className="container mx-auto py-2">
