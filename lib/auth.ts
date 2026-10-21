@@ -6,6 +6,9 @@ import { cookies } from "next/headers";
 import { getIronSession } from "iron-session";
 import { redirect } from "next/navigation";
 
+import { prisma } from "@/lib/prisma";
+import { sleep } from "@/lib/utils";
+
 export async function hashPassword(password: string) {
   return await bcrypt.hash(password, 10);
 }
@@ -16,25 +19,8 @@ export async function verifyPassword(password: string, hashedPassword: string) {
 }
 
 export type SessionData = {
-  userId: string;
+  userId?: string;
   currentTenantId?: string;
-  // name?: string;
-  // email?: string;
-  // roles?: string[];
-  // isLoggedIn?: boolean;
-  // isSuperAdmin?: boolean;
-  // isOwner?: boolean;
-  // tenant?: {
-  //   id?: string | null;
-  //   name: string | null;
-  // };
-  // permissions?: {
-  //   id: string;
-  //   resource: string;
-  //   action: string | null;
-  //   roleId: string;
-  //   roleName: string;
-  // }[];
 };
 
 const sessionOptions = {
@@ -73,15 +59,108 @@ export async function logoutAction() {
   redirect("/");
 }
 
-
 export async function saveSession({ userId, currentTenantId }: { userId?: string, currentTenantId?: string }) {
   const session = await getSession();
-  session.userId = userId || "";
-  session.currentTenantId = currentTenantId || "";
+  session.userId = userId;
+  session.currentTenantId = currentTenantId;
   await session.save();
 }
+
 export async function switchCurrentTenant({ currentTenantId }: { currentTenantId?: string }) {
   const session = await getSession();
-  session.currentTenantId = currentTenantId || "";
+  session.currentTenantId = currentTenantId;
   await session.save();
 }
+
+export async function login(email: string, password: string) {
+  try {
+    const error_message = "Email ou mot de passe incorrect!";
+
+    // Attend 1500ms (1.5 seconde) avant de continuer
+    await sleep();
+
+    // find user by email
+    const user = await prisma.user.findFirst({ where: { email } });
+    if (!user) return { success: false, message: error_message };
+
+    // check password
+    const isValid = await verifyPassword(password, user.password);
+    if (!isValid) return { success: false, message: error_message };
+
+    // check if user is active
+    if (!user.active)
+      return {
+        success: false,
+        message:
+          "Votre compte n'est pas encore activé, veuillez contacter un admin pour l'activation.",
+      };
+
+    // SESSION
+    // const session = await getSession();
+    // session.userId = user?.id || "";
+    // await session.save();
+    await saveSession({ userId: user?.id });
+
+    return {
+      success: true,
+      message: "Connexion réussie",
+    };
+  } catch (error) {
+    const e = error as Error;
+    return {
+      success: false,
+      message: e.message || "Une erreur inconnue s'est produite",
+    };
+  }
+}
+
+// export async function getCurrentUser() {
+//   try {
+//     await sleep();
+//     const session = await getSession();
+
+//     // check if session exist
+//     if (!session?.userId) {
+//       return {
+//         success: false,
+//         message: "Aucun utilisateur n'est connecté",
+//         data: [],
+//       };
+//     }
+
+//     // find user by email
+//     const user = await prisma.user.findFirst({
+//       where: { id: session?.userId },
+//       omit: { password: true, createdAt: true, updatedAt: true },
+//       include: {
+//         roles: {
+//           include: {
+//             permissions: true,
+//           },
+//         },
+//       },
+//     });
+//     if (!user)
+//       return {
+//         success: false,
+//         message: "Aucun utilisateur n'est connecté",
+//         data: [],
+//       };
+
+//     const res = {
+//       success: true,
+//       message: "OK",
+//       user
+//       // user: user && session ? { ...user, currentTenantId: session.currentTenantId } : null,
+//     };
+//     console.log(res);
+
+//     return res
+//   } catch (error) {
+//     const e = error as Error;
+//     return {
+//       success: false,
+//       message: e.message || "Une erreur inconnue s'est produite",
+//     };
+//   }
+// }

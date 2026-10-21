@@ -12,15 +12,17 @@ import {
 } from "@/components/ui/dropdown-menu";
 // import { Badge } from "@/components/ui/badge";
 import LogoutButton from "./LogoutButton";
-import { getCurrentUser } from "@/server/auth";
 import { Badge } from "./ui/badge";
+import { getSession } from "@/lib/auth";
+import { getUserById } from "@/server/users";
 
 export default async function AuthButtons() {
-  const { user } = await getCurrentUser();
+  const session = await getSession();
+  const userId = session?.userId
 
   // ✅ CORRECTION : iron-session renvoie toujours un objet,
   // il faut tester la propriété 'userId' configurée dans votre lib/auth.ts
-  if (!user || !user?.id) {
+  if (!userId) {
     return (
       <div className="flex items-center gap-2">
         <Link
@@ -34,8 +36,11 @@ export default async function AuthButtons() {
     );
   }
 
+  const { data } = await getUserById(userId);
+  const user = Array.isArray(data) ? data[0] : data;
+
   let roleNames = "";
-  if (user.isSuperAdmin) {
+  if (user?.isSuperAdmin) {
     roleNames = "SuperAdmin";
   }
   else if (user?.roles && Array.isArray(user.roles)) {

@@ -1,10 +1,10 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "./auth";
 import { guard } from "@/lib/rbac/middleware";
 import { ACTION } from "@/lib/enums";
 import { ActionResponse } from "@/server/types";
+import { getSession } from "@/lib/auth";
 
 export interface SiteSearchParams {
   name?: string;
@@ -21,9 +21,10 @@ export async function getAllSites(
     itemsPerPage?: number;
   }
 ) {
-  const auth = await getCurrentUser();
 
-  if (!auth.user) {
+  const { userId } = await getSession();
+
+  if (!userId) {
     throw new Error(
       "Utilisateur non authentifié."
     );
@@ -53,8 +54,7 @@ export async function getAllSites(
   const search =
     filters?.name?.trim();
 
-  const currentUser = await getCurrentUser();
-  const currentTenantId = currentUser.user?.currentTenantId;
+  const { currentTenantId } = await getSession();
 
   const where = {
     tenantId: currentTenantId,
@@ -122,9 +122,9 @@ export async function createSite({ name, active }: { name: string; active: boole
     };
   }
 
-  const auth = await getCurrentUser();
+  const { userId } = await getSession();
 
-  if (!auth.user) {
+  if (!userId) {
     return {
       success: false,
       message:
@@ -132,8 +132,7 @@ export async function createSite({ name, active }: { name: string; active: boole
     };
   }
 
-  const currentUser = await getCurrentUser();
-  const currentTenantId = currentUser.user?.currentTenantId;
+  const { currentTenantId } = await getSession();
 
   if (!currentTenantId) {
     return {
@@ -218,9 +217,9 @@ export async function updateSite(
     };
   }
 
-  const auth = await getCurrentUser();
+  const { userId } = await getSession();
 
-  if (!auth.user) {
+  if (!userId) {
     return {
       success: false,
       message:
@@ -228,8 +227,7 @@ export async function updateSite(
     };
   }
 
-  const currentUser = await getCurrentUser();
-  const currentTenantId = currentUser.user?.currentTenantId;
+  const { currentTenantId } = await getSession();
 
   if (!currentTenantId) {
     return {
@@ -333,9 +331,8 @@ export async function deleteSite(
     };
   }
 
-  const auth = await getCurrentUser();
-
-  if (!auth.user) {
+  const { userId } = await getSession();
+  if (!userId) {
     return {
       success: false,
       message:
@@ -343,8 +340,7 @@ export async function deleteSite(
     };
   }
 
-  const currentUser = await getCurrentUser();
-  const currentTenantId = currentUser.user?.currentTenantId;
+  const { currentTenantId } = await getSession();
 
   if (!currentTenantId) {
     return {

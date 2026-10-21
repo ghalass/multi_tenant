@@ -4,9 +4,9 @@ import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { guard } from "@/lib/rbac/middleware";
 import { ACTION } from "@/lib/enums";
-import { getCurrentUser } from "./auth";
 import { Role } from "@/lib/generated/prisma/client";
 import { ActionResponse } from "./types";
+import { getSession } from "@/lib/auth";
 
 export type UsersSearchParams = {
   name?: string;
@@ -21,7 +21,6 @@ const the_resource = "user";
 
 // ================== GET ALL USERS ==================
 export async function getAllUsers(
-  tenantId: string,
   filters: UsersSearchParams = {}
 ) {
 
@@ -30,8 +29,9 @@ export async function getAllUsers(
   if (!g.success) return { data: [], success: false, message: g.message };
 
   // 2. Continuer la logique métier
-  const { user } = await getCurrentUser();
-  if (!user?.id) return { data: [], success: false, message: "Utilisateur non authentifié." };
+  const { userId } = await getSession();
+
+  if (!userId) return { data: [], success: false, message: "Utilisateur non authentifié." };
 
 
 
@@ -41,8 +41,7 @@ export async function getAllUsers(
   const itemsPerPage = Math.max(1, parseInt(limit, 10) || ITEMS_PER_PAGE);
   const skip = (currentPage - 1) * itemsPerPage;
 
-  const currentUser = await getCurrentUser();
-  const currentTenantId = currentUser.user?.currentTenantId;
+  const { currentTenantId } = await getSession();
 
   const where: any = { tenantId: currentTenantId };
 
@@ -79,6 +78,26 @@ export async function getAllUsers(
   };
 }
 
+// ================== GET USER BY ID ==================
+export async function getUserById(id: string) {
+  // 1. Vérifier la permission
+  const g = await guard(ACTION.READ, the_resource);
+  if (!g.success) return { data: [], success: false, message: g.message };
+
+  // 2. Continuer la logique métier
+  const { userId } = await getSession();
+  if (!userId) return { data: [], success: false, message: "Utilisateur non authentifié." };
+
+  const user = await prisma.user.findUnique({
+    where: { id },
+    include: {
+      roles: true,
+      tenant: true,
+    },
+  });
+  return { data: user, success: true, message: "" };
+}
+
 // ================== GET ALL ROLES ==================
 export async function getAllRoles(): Promise<{ roles: Role[], success: boolean, message: string }> {
   // 1. Vérifier la permission
@@ -86,8 +105,9 @@ export async function getAllRoles(): Promise<{ roles: Role[], success: boolean, 
   if (!g.success) return { roles: [], success: false, message: g.message };
 
   // 2. Continuer la logique métier
-  const { user } = await getCurrentUser();
-  if (!user?.id) return { roles: [], success: false, message: "Utilisateur non authentifié" };
+  const { userId } = await getSession();
+
+  if (!userId) return { roles: [], success: false, message: "Utilisateur non authentifié" };
 
   const roles = await prisma.role.findMany({
     orderBy: { name: "asc" },
@@ -113,8 +133,8 @@ export async function createUser(
   if (!g.success) return { success: false, message: g.message };
 
   // 2. Continuer la logique métier
-  const { user } = await getCurrentUser();
-  if (!user?.id) return { success: false, message: "Utilisateur non authentifié" };
+  const { userId } = await getSession();
+  if (!userId) return { success: false, message: "Utilisateur non authentifié" };
 
   try {
     const existing = await prisma.user.findFirst({ where: { tenantId, email } });
@@ -163,8 +183,8 @@ export async function updateUser(
   if (!g.success) return { success: false, message: g.message };
 
   // 2. Continuer la logique métier
-  const { user } = await getCurrentUser();
-  if (!user?.id) return { success: false, message: "Utilisateur non authentifié" };
+  const { userId } = await getSession();
+  if (!userId) return { success: false, message: "Utilisateur non authentifié" };
 
   try {
     await prisma.user.update({
@@ -195,8 +215,8 @@ export async function deleteUser(id: string): Promise<ActionResponse> {
   if (!g.success) return { success: false, message: g.message };
 
   // 2. Continuer la logique métier
-  const { user } = await getCurrentUser();
-  if (!user?.id) return { success: false, message: "Utilisateur non authentifié" };
+  const { userId } = await getSession();
+  if (!userId) return { success: false, message: "Utilisateur non authentifié" };
 
   try {
     await prisma.user.delete({ where: { id } });

@@ -15,7 +15,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
 import * as z from "zod";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Loader2, PlusIcon } from "lucide-react";
 
 import {
@@ -27,7 +27,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-//import { authClient } from "@/lib/auth-client";
 import { sleep } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { createTenant } from "@/server/tenants";
@@ -73,6 +72,13 @@ export function CreateTenantForm({
     }
   }
 
+  useEffect(() => {
+    if (!open) {
+      form.reset();
+      setError("");
+    }
+  }, [open, form]);
+
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Dialog open={open} onOpenChange={setOpen}>
@@ -82,9 +88,9 @@ export function CreateTenantForm({
 
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Create Tenant</DialogTitle>
+            <DialogTitle>Créer Tenant</DialogTitle>
             <DialogDescription>
-              Create a new tenant to get started
+              Créez un nouveau tenant pour commencer
             </DialogDescription>
 
             <DisplayError error={error} />
@@ -122,7 +128,7 @@ export function CreateTenantForm({
                 {isLoading ? (
                   <Loader2 className="size-4 animate-spin" />
                 ) : (
-                  "Create Tenant"
+                  "Créer"
                 )}
               </Button>
             </DialogFooter>

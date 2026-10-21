@@ -27,7 +27,7 @@ export default async function UsersPage({ params, searchParams }: {
   const { tenantId } = await params;
   const filters = await searchParams;
 
-  const result = await getAllUsers(tenantId, filters);
+  const result = await getAllUsers(filters);
   const users = result?.data || [];
   const meta = result?.meta;
 

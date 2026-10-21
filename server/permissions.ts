@@ -2,12 +2,12 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "./auth";
 import { Action, Permission, Prisma } from "@/lib/generated/prisma/client";
 import { sleep } from "@/lib/utils";
 import { guard } from "@/lib/rbac/middleware";
 import { ACTION } from "@/lib/enums";
 import { ActionResponse } from "./types";
+import { getSession } from "@/lib/auth";
 
 export interface PermissionsSearchParams {
   s?: string;
@@ -39,8 +39,8 @@ export async function getAllPermission(filters: PermissionsSearchParams): Promis
   if (!g.success) return { data: [], success: false, message: g.message };
 
   // 2. Continuer la logique métier
-  const { user } = await getCurrentUser();
-  if (!user?.id) return { data: [], success: false, message: "Utilisateur non authentifié." };
+  const { userId } = await getSession();
+  if (!userId) return { data: [], success: false, message: "Utilisateur non authentifié." };
 
   try {
     await sleep();
@@ -93,17 +93,19 @@ export async function createPermission(resource: string, action: string, descrip
 
   try {
     await sleep();
-    const { user } = await getCurrentUser();
+    const { userId } = await getSession();
 
     // check if session exist
-    if (!user?.id)
+    if (!userId)
       return {
         success: false,
         message: "Aucune session n'est trouvée!",
       };
 
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+
     // Super-admin : seul qui peut créer un nouveau permission
-    if (!user.isSuperAdmin) {
+    if (!user?.isSuperAdmin) {
       return {
         success: false,
         message: "Vous n'êtes pas authorisé pour créer un permission.",
@@ -146,17 +148,19 @@ export async function updatePermission(id: string, resource: string, action: str
   if (!g.success) return g;
   try {
     await sleep();
-    const { user } = await getCurrentUser();
+    const { userId } = await getSession();
 
     // check if session exist
-    if (!user?.id)
+    if (!userId)
       return {
         success: false,
         message: "Aucune session n'est trouvée!",
       };
 
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+
     // Super-admin : seul qui peut modifier un permission
-    if (!user.isSuperAdmin) {
+    if (!user?.isSuperAdmin) {
       return {
         success: false,
         message: "Vous n'êtes pas authorisé pour modifier un permission.",
@@ -204,17 +208,19 @@ export async function deletePermission(id: string): Promise<ActionResponse> {
 
   try {
     await sleep();
-    const { user } = await getCurrentUser();
+    const { userId } = await getSession();
 
     // check if session exist
-    if (!user?.id)
+    if (!userId)
       return {
         success: false,
         message: "Aucune session n'est trouvée!",
       };
 
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+
     // Super-admin : seul qui peut modifier un site
-    if (!user.isSuperAdmin) {
+    if (!user?.isSuperAdmin) {
       return {
         success: false,
         message: "Vous n'êtes pas authorisé pour supprimer une permission.",

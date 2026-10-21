@@ -1,17 +1,23 @@
 import { AppSidebar } from "@/components/AppSidebar";
 import Navbar from "@/components/Navbar";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import { getSession } from "@/lib/auth";
+// import { getCurrentUser } from "@/lib/auth";
 
 export default async function MainLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await getSession();
+
   return (
     <SidebarProvider>
       <div className="flex h-dvh w-full overflow-hidden bg-muted/40 p-2">
+
         {/* Sidebar */}
-        <AppSidebar />
+        {<AppSidebar />}
+        {session?.currentTenantId && <AppSidebar />}
 
         {/* Zone principale */}
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">

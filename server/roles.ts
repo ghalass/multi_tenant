@@ -4,10 +4,10 @@
 import { ACTION } from "@/lib/enums";
 import { prisma } from "@/lib/prisma";
 import { guard } from "@/lib/rbac/middleware";
-import { getCurrentUser } from "./auth";
 import { Permission, Role } from "@/lib/generated/prisma/client";
 import { ActionResponse } from "./types";
 import { sleep } from "@/lib/utils";
+import { getSession } from "@/lib/auth";
 
 type RoleWithPermission =
     Role & {
@@ -46,8 +46,8 @@ export async function getAllRoles(tenantId: string, filters: RoleSearchParams = 
     if (!g.success) return { data: [], success: false, message: g.message };
 
     // 2. Continuer la logique métier
-    const { user } = await getCurrentUser();
-    if (!user?.id) return { data: [], success: false, message: "Utilisateur non authentifié." };
+    const { userId } = await getSession();
+    if (!userId) return { data: [], success: false, message: "Utilisateur non authentifié." };
 
 
     try {
@@ -117,9 +117,9 @@ export async function createRole(name: string, description: string, permissionId
 
     try {
         await sleep();
-        const { user } = await getCurrentUser();
+        const { userId } = await getSession();
 
-        if (!user?.id)
+        if (!userId)
             return { success: false, message: "Aucune session n'est trouvée!" };
 
         const existing = await prisma.role.findUnique({ where: { name } });
@@ -147,9 +147,9 @@ export async function updateRole(id: string, name: string, description: string, 
 
     try {
         await sleep();
-        const { user } = await getCurrentUser();
+        const { userId } = await getSession();
 
-        if (!user?.id)
+        if (!userId)
             return { success: false, message: "Aucune session n'est trouvée!" };
 
         const existing = await prisma.role.findFirst({
@@ -183,8 +183,8 @@ export async function deleteRole(id: string): Promise<ActionResponse> {
 
     try {
         await sleep();
-        const { user } = await getCurrentUser();
-        if (!user?.id)
+        const { userId } = await getSession();
+        if (!userId)
             return { success: false, message: "Aucune session n'est trouvée!" };
 
         await prisma.role.delete({ where: { id } });

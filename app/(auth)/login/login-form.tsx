@@ -24,9 +24,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
 import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
-import { login } from "@/server/auth";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { login } from "@/lib/auth";
 
 const formSchema = z.object({
   email: z.string().min(8).describe("Email"),

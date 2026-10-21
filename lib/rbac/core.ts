@@ -1,7 +1,9 @@
 // lib/rbac/core.ts
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/server/auth";
 import { getCurrentTenant } from "@/server/tenants";
+import { cache } from "react";
+import { ACTION } from "../enums";
+import { getSession } from "../auth";
 
 // Types pour les permissions
 export interface PermissionCheck {
@@ -34,8 +36,7 @@ export async function hasPermission(
   resourceName: string
 ): Promise<boolean> {
   // get currentUser
-  const currentUser = await getCurrentUser()
-  const userId = currentUser.user?.id || "";
+  const { userId } = await getSession()
   if (userId === "") return false
   // check if super-admin
   const is_super_admin = await isSuperAdmin(userId)
@@ -46,7 +47,7 @@ export async function hasPermission(
   return userPermissions.includes(requiredPermission);
 }
 
-export async function getUserPermissions(userId: string): Promise<string[]> {
+export async function getUserPermissions(userId?: string): Promise<string[]> {
   // const tenantId = (await getSession()).tenant.id!;
   const tenant = await getCurrentTenant()
   const user = await prisma.user.findUnique({
@@ -79,9 +80,7 @@ export async function getUserPermissions(userId: string): Promise<string[]> {
   return Array.from(permissionsSet);
 }
 
-import { cache } from "react";
-import { ACTION } from "../enums";
-export const isSuperAdmin = cache(async (userId: string): Promise<boolean> => {
+export const isSuperAdmin = cache(async (userId?: string): Promise<boolean> => {
   if (!userId) return false;
 
   const user = await prisma.user.findUnique({

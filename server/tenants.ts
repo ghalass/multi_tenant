@@ -1,20 +1,23 @@
 // server/tenants.ts
 "use server";
+import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sleep } from "@/lib/utils";
-import { getCurrentUser } from "./auth";
-import { headers } from "next/headers";
 import { cache } from "react";
 
 export async function getAllTenants() {
   await sleep();
-  const { user } = await getCurrentUser();
+  const session = await getSession();
 
   // check if session exist
-  if (!user?.id) return [];
+  if (!session.userId) return [];
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.userId },
+  });
 
   // Super-admin : accès à tous les tenants
-  if (user.isSuperAdmin) {
+  if (user?.isSuperAdmin) {
     return prisma.tenant.findMany({
       include: {
         createdBy: {
@@ -30,7 +33,7 @@ export async function getAllTenants() {
   }
 
   // Utilisateur normal : uniquement son tenant
-  if (!user.tenantId) {
+  if (!user?.tenantId) {
     return [];
   }
 
@@ -51,7 +54,11 @@ export async function getAllTenants() {
 export async function createTenant(name: string) {
   try {
     await sleep();
-    const { user } = await getCurrentUser();
+    const session = await getSession();
+
+    const user = await prisma.user.findUnique({
+      where: { id: session.userId },
+    });
 
     // check if session exist
     if (!user?.id)
@@ -99,25 +106,12 @@ export async function createTenant(name: string) {
   }
 }
 
-export async function getTenantById(tenantId: string) {
+export async function getTenantById(tenantId?: string) {
   return prisma.tenant.findUnique({ where: { id: tenantId } });
 }
 
-async function getTenantIdFromUrl(): Promise<string | null> {
-  const headersList = await headers();
-  const pathname = headersList.get("x-pathname") ?? "";
-  return pathname.split("/").filter(Boolean)[0] ?? null;
-}
-
-/**
- * Récupère le tenant courant depuis l'URL.
- * Mémoïsé avec React.cache → un seul appel DB par requête.
- */
 export const getCurrentTenant = cache(async () => {
-  // const tenantId = await getTenantIdFromUrl();
-  // if (!tenantId) return null;
-
-  const currentUser = await getCurrentUser();
-  const currentTenantId = currentUser.user?.currentTenantId;
-  return getTenantById(currentTenantId || "");
+  const session = await getSession();
+  const currentTenantId = session.currentTenantId;
+  return getTenantById(currentTenantId);
 });
