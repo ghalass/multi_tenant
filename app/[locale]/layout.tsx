@@ -11,6 +11,7 @@ import { APP_NAME } from "@/lib/constantes";
 
 import localFont from "next/font/local";
 import { I18nProviderClient } from "@/locales/client";
+import QueryProvider from "@/components/QueryProviser";
 
 const cairo = localFont({
   src: [
@@ -56,17 +57,19 @@ export default async function RootLayout({ params, children }: {
       className={cairo.variable}
     >
       <body>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <Toaster position="bottom-right" />
-          <I18nProviderClient locale={locale}>
-            {children}
-          </I18nProviderClient>
-        </ThemeProvider>
+        <QueryProvider>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+            <Toaster position="bottom-right" />
+            <I18nProviderClient locale={locale}>
+              {children}
+            </I18nProviderClient>
+          </ThemeProvider>
+        </QueryProvider>
       </body>
     </html>
   );

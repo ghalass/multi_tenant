@@ -5,6 +5,7 @@ import { guard } from "@/lib/rbac/middleware";
 import { ACTION } from "@/lib/enums";
 import { ActionResponse } from "@/lib/types"; import { getSession } from "@/lib/auth";
 import { ACTIVE, PAGINATION_SETTINGS, RESOURCE } from "@/lib/constantes";
+import { convertField } from "@/lib/convertField";
 
 export interface searchParams {
   name?: string;
@@ -338,5 +339,65 @@ export async function deleteSite(
       message:
         "Une erreur est survenue lors de la suppression du site.",
     };
+  }
+}
+
+export async function importSites(data: any) {
+  try {
+    const name = convertField(data.name, "string");
+
+    if (!name || name.trim() === "") {
+      return [
+        {
+          success: false,
+          data: data,
+          message: `Erreur: Le champ 'name' est requis`,
+        },
+      ];
+    }
+    const { currentTenantId } = await getSession();
+
+    if (!currentTenantId) {
+      return [
+        {
+          success: false,
+          data: data,
+          message: `Erreur: Aucun tenant actif pour l'import du site`,
+        },
+      ];
+    }
+
+    const site = await prisma.site.upsert({
+      where: {
+        tenantId_name: {
+          tenantId: currentTenantId,
+          name: name,
+        },
+      },
+      update: {
+        name: name,
+        updatedAt: new Date(),
+      },
+      create: {
+        name: name,
+        tenantId: currentTenantId,
+      },
+    });
+
+    return [
+      {
+        success: true,
+        data: site,
+        message: `Site ${name} importé avec succès`,
+      },
+    ];
+  } catch (error: any) {
+    return [
+      {
+        success: false,
+        data: data,
+        message: `Erreur: ${error.message}`,
+      },
+    ];
   }
 }

@@ -5,6 +5,7 @@ import {
   Settings,
   ChevronDown,
   Users,
+  Upload,
   MapPin,
   Shield,
   ShieldUser,
@@ -64,6 +65,7 @@ const configItems = {
   list: [
     { title: "Sites", url: `/sites`, icon: MapPin, description: "Gérer les sites" },
     { title: "Utilisateurs", url: `/users`, icon: Users, description: "Gérer les utilisateurs" },
+    { title: "Import", url: `/import`, icon: Upload, description: "Import" },
   ],
 };
 
