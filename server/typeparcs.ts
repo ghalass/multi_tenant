@@ -377,7 +377,6 @@ export async function importTypeParcs(data: any) {
       },
       update: {
         name: name,
-        updatedAt: new Date(),
       },
       create: {
         name: name,

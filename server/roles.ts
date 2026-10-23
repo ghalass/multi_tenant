@@ -89,7 +89,7 @@ export async function getAllRoles(tenantId: string, filters: RoleSearchParams = 
                 },
                 take: itemsPerPage,
                 skip,
-                orderBy: { createdAt: "desc" },
+                orderBy: { name: "desc" },
             }),
         ]);
         const totalPages = Math.ceil(totalItems / itemsPerPage);

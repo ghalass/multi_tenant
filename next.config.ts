@@ -17,13 +17,14 @@ const nextConfig: NextConfig = {
         ],
       },
     ];
-  }, experimental: {
-    serverActions: {
-      // Adaptez la valeur à la taille maximale de vos fichiers Excel
-      bodySizeLimit: '10mb', // ou '50mb', '100mb'...
-    },// Nécessaire si vous êtes en standalone/Docker (Next.js 15.5+)
-    proxyClientMaxBodySize: '10mb',
   },
+  // experimental: {
+  //   serverActions: {
+  //     // Adaptez la valeur à la taille maximale de vos fichiers Excel
+  //     bodySizeLimit: '10mb', // ou '50mb', '100mb'...
+  //   },// Nécessaire si vous êtes en standalone/Docker (Next.js 15.5+)
+  //   proxyClientMaxBodySize: '10mb',
+  // },
 };
 
 export default nextConfig;

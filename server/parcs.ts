@@ -402,7 +402,6 @@ export async function importParcs(data: any) {
       update: {
         name: name,
         typeparcId: typeParc.id,
-        updatedAt: new Date(),
       },
       create: {
         name: name,

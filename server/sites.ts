@@ -376,7 +376,6 @@ export async function importSites(data: any) {
       },
       update: {
         name: name,
-        updatedAt: new Date(),
       },
       create: {
         name: name,

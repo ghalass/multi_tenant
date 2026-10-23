@@ -424,7 +424,6 @@ export async function importEngins(data: any) {
         parcId: parc.id,
         siteId: site.id,
         initialHeureChassis: initialHeureChassis,
-        updatedAt: new Date(),
       },
       create: {
         name: name,
