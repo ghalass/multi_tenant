@@ -1,5 +1,8 @@
 // app/api/import/services/importService.ts
+import { importEngins } from "@/server/engins";
+import { importParcs } from "@/server/parcs";
 import { importSites } from "@/server/sites";
+import { importTypeParcs } from "@/server/typeparcs";
 
 export class ImportService {
   async importData(sheetName: string, data: any) {
@@ -7,42 +10,42 @@ export class ImportService {
       switch (sheetName.toLowerCase()) {
         case "sites":
           return await importSites(data);
-        // case "typeparcs":
-        //   return await this.importTypeParcs(data);
-        // case "parcs":
-        //   return await this.importParcs(data);
-        // case "engins":
-        //   return await this.importEngins(data);
+        case "typeparcs":
+          return await importTypeParcs(data);
+        case "parcs":
+          return await importParcs(data);
+        case "engins":
+          return await importEngins(data);
         // case "typepannes":
-        //   return await this.importTypePannes(data);
+        //   return await importTypePannes(data);
         // case "pannes":
-        //   return await this.importPannes(data);
+        //   return await importPannes(data);
 
         // // GESTION DES USERS & ROLES
         // case "users":
-        //   return await this.importUsers(data);
+        //   return await importUsers(data);
         // case "permissions":
-        //   return await this.importPermissions(data);
+        //   return await importPermissions(data);
         // case "roles":
-        //   return await this.importRoles(data);
+        //   return await importRoles(data);
 
         // // GESTION DES ANOMALIES
         // case "anomalies":
-        //   return await this.importAnomalies(data);
+        //   return await importAnomalies(data);
 
         // // SAISIE HRM & HIMS
         // case "saisie_hrm":
-        //   return await this.importSaisieHrm(data);
+        //   return await importSaisieHrm(data);
         // case "saisie_hims":
-        //   return await this.importSaisieHims(data);
+        //   return await importSaisieHims(data);
 
         // // GESTION DES ORGANEs & MOUVEMENTS
         // case "type_organe":
-        //   return await this.importTypeOrganes(data);
+        //   return await importTypeOrganes(data);
         // case "organe":
-        //   return await this.importOrganes(data);
+        //   return await importOrganes(data);
         // case "mvt_organe":
-        //   return await this.importMvtOrgane(data);
+        //   return await importMvtOrgane(data);
 
         //
         default:

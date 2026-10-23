@@ -20,8 +20,13 @@ model Tenant {
   createdById String?
   createdBy   User?   @relation("TenantCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 
-  sites Site[]
-  users User[]
+  sites      Site[]
+  users      User[]
+  typeparcs  Typeparc[]
+  parcs      Parc[]
+  engins     Engin[]
+  typepannes Typepanne[]
+  pannes     Panne[]
 
   @@map("tenant")
 }
@@ -90,15 +95,112 @@ model User {
 
 model Site {
   id       String  @id @default(cuid(2))
-  tenantId String
   name     String
   active   Boolean @default(true)
+  tenantId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  engins Engin[]
+
+  @@unique([name, tenantId])
+  @@map("site")
+}
+
+model Typeparc {
+  id       String @id @default(cuid())
+  name     String
+  tenantId String
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  parcs  Parc[]
 
-  @@unique([tenantId, name])
-  @@map("site")
+  @@unique([name, tenantId])
+  @@map("typeparc")
+}
+
+model Parc {
+  id         String @id @default(cuid())
+  name       String
+  typeparcId String
+  tenantId   String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // engins               Engin[]
+
+  // Relation 1-M avec Typeparc
+  typeparc Typeparc @relation(fields: [typeparcId], references: [id], onDelete: Restrict)
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  engins   Engin[]
+  panne    Panne?   @relation(fields: [panneId], references: [id])
+  panneId  String?
+
+  @@unique([name, tenantId])
+  @@map("parc")
+}
+
+model Engin {
+  id                  String  @id @default(cuid())
+  name                String
+  active              Boolean @default(true)
+  parcId              String
+  siteId              String
+  initialHeureChassis Float?  @default(0)
+  tenantId            String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  parc   Parc   @relation(fields: [parcId], references: [id], onDelete: Restrict)
+  site   Site   @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([name, tenantId])
+  @@map("engin")
+}
+
+model Typepanne {
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+  tenantId    String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  pannes Panne[] // ← Relation many-to-many implicite
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([name, tenantId])
+  @@map("typepanne")
+}
+
+model Panne {
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+  typepanneId String
+  tenantId    String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  typepanne Typepanne @relation(fields: [typepanneId], references: [id], onDelete: Restrict)
+
+  parcs  Parc[] // ← Relation many-to-many implicite avec Parc
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([name, tenantId])
+  @@map("panne")
 }

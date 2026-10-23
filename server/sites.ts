@@ -369,7 +369,7 @@ export async function importSites(data: any) {
 
     const site = await prisma.site.upsert({
       where: {
-        tenantId_name: {
+        name_tenantId: {
           tenantId: currentTenantId,
           name: name,
         },
