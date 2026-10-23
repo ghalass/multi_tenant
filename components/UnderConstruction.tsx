@@ -18,7 +18,7 @@ export default function UnderConstruction({
   showHomeButton = true,
 }: UnderConstructionProps) {
   return (
-    <div className="flex items-center justify-center bg-linear-to-br from-background to-muted/30 p-4">
+    <div className="flex items-center justify-center ">
       <Card className="w-full max-w-xl shadow-lg border bg-card">
         <CardContent className="p-4 md:p-6">
           <div className="text-center space-y-4">

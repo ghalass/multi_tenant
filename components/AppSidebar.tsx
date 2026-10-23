@@ -10,6 +10,14 @@ import {
   Shield,
   ShieldUser,
   LockKeyhole,
+  Truck,
+  Keyboard,
+  FolderCog2Icon,
+  CalendarCheck,
+  Ungroup,
+  NotepadText,
+  BookOpenCheck,
+  Boxes,
 } from "lucide-react";
 
 import {
@@ -69,6 +77,52 @@ const configItems = {
   ],
 };
 
+const rapportsItems = {
+  title: "Rapports",
+  icon: FolderCog2Icon,
+
+  list: [
+    {
+      title: "RJE",
+      url: "/rapports/rje",
+      icon: CalendarCheck,
+      description: "RJE",
+    },
+    {
+      title: "Unité physique",
+      url: "/rapports/unite-physique",
+      icon: Ungroup,
+      description: "Unité physique",
+    },
+    {
+      title: "Etat Mensuel",
+      url: "/rapports/etat-mensuel",
+      icon: NotepadText,
+      description: "Etat Mensuel",
+    },
+    {
+      title: "Analyse Indispo",
+      url: "/rapports/analyse-indispo-parc",
+      icon: BookOpenCheck,
+      description: "analyse-indispo",
+    },
+    {
+      title: "Etat Général",
+      url: "/rapports/etat-general",
+      icon: Boxes,
+      description: "etat-general",
+    },
+    {
+      title: "Paretos",
+      url: "/rapports/pareto",
+      icon: Boxes,
+      description: "Paretos",
+    },
+  ],
+};
+
+
+
 const AccessControl = {
   title: "Contrôle d'accès",
   icon: LockKeyhole,
@@ -94,7 +148,7 @@ export function AppSidebar() {
 
   const isActivePath = useActivePath();
 
-  const allItems = [configItems, AccessControl];
+  const allItems = [configItems, rapportsItems, AccessControl];
 
   return (
     <Sidebar side={isRTL ? "right" : "left"} variant="floating" collapsible="icon">

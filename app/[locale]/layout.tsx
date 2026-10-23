@@ -1,9 +1,7 @@
 // app/[locale]/layout.tsx
 
 import type { Metadata } from "next";
-import type { ReactNode } from "react";// Next.js processes this global stylesheet; TypeScript has no module declaration for CSS.
-// @ts-ignore
-import "./globals.css";
+import type { ReactNode } from "react";
 
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
@@ -43,35 +41,32 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function RootLayout({ params, children }: {
+export default async function LocaleLayout({ params, children }: {
   params: Promise<{ locale: string }>;
   children: ReactNode;
 }) {
   const { locale } = await params;
   const direction = locale === "ar" ? "rtl" : "ltr";
+
   return (
-    <html
-      lang={locale}
+    <div
       dir={direction}
-      suppressHydrationWarning
       className={cairo.variable}
+      style={{ display: "contents" }} // Permet de ne pas casser le CSS global
     >
-      <body>
-        <QueryProvider>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-          >
-            <Toaster position="bottom-right" />
-            <I18nProviderClient locale={locale}>
-              {children}
-            </I18nProviderClient>
-          </ThemeProvider>
-        </QueryProvider>
-      </body>
-    </html>
+      <QueryProvider>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <Toaster position="bottom-right" />
+          <I18nProviderClient locale={locale}>
+            {children}
+          </I18nProviderClient>
+        </ThemeProvider>
+      </QueryProvider>
+    </div>
   );
 }
-
