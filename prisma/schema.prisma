@@ -118,14 +118,12 @@ model Parc {
   typeparcId String
   tenantId   String
 
-  // engins               Engin[]
-
   // Relation 1-M avec Typeparc
   typeparc Typeparc @relation(fields: [typeparcId], references: [id], onDelete: Restrict)
   tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  engins   Engin[]
-  panne    Panne?   @relation(fields: [panneId], references: [id])
-  panneId  String?
+
+  engins Engin[]
+  pannes Panne[]
 
   @@unique([name, tenantId])
   @@map("parc")
@@ -145,7 +143,6 @@ model Engin {
   site       Site        @relation(fields: [siteId], references: [id], onDelete: Restrict)
   tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   saisiehrms Saisiehrm[]
-  saisiehims Saisiehim[]
 
   @@unique([name, tenantId])
   @@map("engin")
@@ -176,9 +173,10 @@ model Panne {
   // Relations
   typepanne Typepanne @relation(fields: [typepanneId], references: [id], onDelete: Restrict)
 
-  parcs      Parc[] // ← Relation many-to-many implicite avec Parc
-  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
   saisiehims Saisiehim[]
+  parcs      Parc[]
 
   @@unique([name, tenantId])
   @@map("panne")
@@ -186,7 +184,7 @@ model Panne {
 
 model Saisiehrm {
   id       String   @id @default(cuid(2))
-  du       DateTime
+  du       DateTime @db.Date
   enginId  String
   siteId   String
   hrm      Float
@@ -194,9 +192,10 @@ model Saisiehrm {
   tenantId String
 
   // Relations
-  engin     Engin       @relation(fields: [enginId], references: [id], onDelete: Restrict)
-  site      Site        @relation(fields: [siteId], references: [id], onDelete: Restrict)
-  tenant    Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  engin  Engin  @relation(fields: [enginId], references: [id], onDelete: Restrict)
+  site   Site   @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
   saisiehim Saisiehim[]
 
   @@unique([du, enginId, tenantId])
@@ -216,8 +215,6 @@ model Saisiehim {
   panne     Panne     @relation(fields: [panneId], references: [id], onDelete: Restrict)
   saisiehrm Saisiehrm @relation(fields: [saisiehrmId], references: [id], onDelete: Restrict)
   tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  engin     Engin     @relation(fields: [enginId], references: [id])
-  enginId   String
 
   @@unique([panneId, saisiehrmId, tenantId])
   @@map("saisie_him")

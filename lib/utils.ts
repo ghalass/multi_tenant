@@ -9,3 +9,5 @@ export function cn(...inputs: ClassValue[]) {
 // Fonction utilitaire pour créer le délai
 export const sleep = () =>
   new Promise((resolve) => setTimeout(resolve, DELAY_SIMULATION));
+
+export const dateFormater = (du: any) => new Date(du).toLocaleDateString("fr-FR");

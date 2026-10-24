@@ -49,7 +49,13 @@ export class ImportService {
 
         //
         default:
-          throw new Error(`Onglet non supporté: ${sheetName}`);
+          return [
+            {
+              success: false,
+              data: null,
+              message: `Onglet non supporté: ${sheetName}`,
+            },
+          ];
       }
     } catch (error) {
       console.error(`Erreur lors de l'import ${sheetName}:`, error);

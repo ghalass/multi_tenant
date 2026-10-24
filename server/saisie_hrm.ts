@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { convertField } from "@/lib/convertField";
+import { dateFormater } from "@/lib/utils";
 
 export async function importSaisieHrm(data: any) {
   try {
@@ -139,12 +140,11 @@ export async function importSaisieHrm(data: any) {
         tenantId: currentTenantId
       },
     });
-
     return [
       {
         success: true,
         data: saisie,
-        message: `Saisie importé avec succès`,
+        message: `Saisie HRM ${enginName} du ${dateFormater(du)} importé avec succès`,
       },
     ];
   } catch (error: any) {

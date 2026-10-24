@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { convertField } from "@/lib/convertField";
+import { dateFormater } from "@/lib/utils";
 
 export async function importSaisieHims(data: any) {
   try {
@@ -99,7 +100,8 @@ export async function importSaisieHims(data: any) {
         {
           success: false,
           data,
-          message: `La saisiehrm 'saisiehrm' non trouvé`,
+          // message: `La saisiehrm 'saisiehrm' non trouvé`,
+          message: `Saisie HRM ${enginName} du ${dateFormater(du)} non trouvé`,
         },
       ];
     }
@@ -129,8 +131,8 @@ export async function importSaisieHims(data: any) {
     return [
       {
         success: true,
-        // data: saisie,
-        message: `SaisieHim importé avec succès`,
+        data: saisie,
+        message: `Saisie HIM ${enginName} du ${dateFormater(du)} importé avec succès`,
       },
     ];
   } catch (error: any) {

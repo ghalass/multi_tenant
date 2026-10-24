@@ -116,7 +116,7 @@ export async function importPannes(data: any) {
       {
         success: true,
         data: panne,
-        message: `panne ${name} importé avec succès`,
+        message: `Panne ${name}, ${parcName}, ${typepanneName} importé avec succès`,
       },
     ];
   } catch (error: any) {

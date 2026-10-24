@@ -64,6 +64,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import DownloadButtonSimple from "./DownloadButton";
+import { sleep } from "@/lib/utils";
 
 // Types pour les filtres
 export type FilterStatus =
@@ -696,7 +697,7 @@ export function ExcelImporter({
       resetFilters();
       stopRequestedRef.current = false;
 
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      sleep()
 
       if (workbook && value) {
         try {
@@ -1152,7 +1153,7 @@ export function ExcelImporter({
     <>
       <Card className="w-full">
         <CardHeader>
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
             <div className="flex-1">
               <CardTitle className="text-2xl font-bold">{title}</CardTitle>
               <CardDescription className="text-muted-foreground">
@@ -1169,7 +1170,7 @@ export function ExcelImporter({
           </div>
         </CardHeader>
 
-        <CardContent className="space-y-2">
+        <CardContent className="space-y-2 mt-0!">
           <>
             {/* Section d'upload */}
             <div className="flex flex-col col-2 gap-2 items-start md:items-center">

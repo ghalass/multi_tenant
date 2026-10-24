@@ -1,10 +1,11 @@
 // app/api/import/route.ts
+import { sleep } from "@/lib/utils";
 import { ImportService } from "@/services/importService";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
   try {
-    // await new Promise((resolve) => setTimeout(resolve, 0));
+    sleep()
     const { sheetName, data } = await request.json();
 
     if (!sheetName || !data) {
