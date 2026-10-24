@@ -1,4 +1,5 @@
 // app/api/import/services/importService.ts
+import { IMPORT_TABS } from "@/lib/constantes";
 import { importEngins } from "@/server/engins";
 import { importPannes } from "@/server/pannes";
 import { importParcs } from "@/server/parcs";
@@ -11,44 +12,42 @@ import { importTypeParcs } from "@/server/typeparcs";
 export class ImportService {
   async importData(sheetName: string, data: any) {
     try {
-      let response
       switch (sheetName.toLowerCase()) {
-        case "sites": response = await importSites(data);
-        case "typeparcs": response = await importTypeParcs(data);
-        case "parcs": response = await importParcs(data);
-        case "engins": response = await importEngins(data);
-        case "typepannes": response = await importTypePannes(data);
-        case "pannes": response = await importPannes(data);
+        case IMPORT_TABS.SITES: return await importSites(data);
+        case IMPORT_TABS.TYPEPARCS: return await importTypeParcs(data);
+        case IMPORT_TABS.PARCS: return await importParcs(data);
+        case IMPORT_TABS.ENGINS: return await importEngins(data);
+        case IMPORT_TABS.TYPEPANNES: return await importTypePannes(data);
+        case IMPORT_TABS.PANNES: return await importPannes(data);
 
         // SAISIE HRM & HIMS
-        case "saisie_hrm": response = await importSaisieHrm(data);
-        case "saisie_hims": response = await importSaisieHims(data);
+        case IMPORT_TABS.SAISIE_HRM: return await importSaisieHrm(data);
+        case IMPORT_TABS.SAISIE_HIMS: return await importSaisieHims(data);
 
-          // // GESTION DES USERS & ROLES
-          // case "users":
-          //   return await importUsers(data);
-          // case "permissions":
-          //   return await importPermissions(data);
-          // case "roles":
-          //   return await importRoles(data);
+        // // GESTION DES USERS & ROLES
+        // case "users":
+        //   return await importUsers(data);
+        // case "permissions":
+        //   return await importPermissions(data);
+        // case "roles":
+        //   return await importRoles(data);
 
-          // // GESTION DES ANOMALIES
-          // case "anomalies":
-          //   return await importAnomalies(data);
-
-
+        // // GESTION DES ANOMALIES
+        // case "anomalies":
+        //   return await importAnomalies(data);
 
 
-          // // GESTION DES ORGANEs & MOUVEMENTS
-          // case "type_organe":
-          //   return await importTypeOrganes(data);
-          // case "organe":
-          //   return await importOrganes(data);
-          // case "mvt_organe":
-          //   return await importMvtOrgane(data);
 
-          //
-          return response
+
+        // // GESTION DES ORGANEs & MOUVEMENTS
+        // case "type_organe":
+        //   return await importTypeOrganes(data);
+        // case "organe":
+        //   return await importOrganes(data);
+        // case "mvt_organe":
+        //   return await importMvtOrgane(data);
+
+        //
         default:
           throw new Error(`Onglet non supporté: ${sheetName}`);
       }

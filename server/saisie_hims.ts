@@ -38,7 +38,7 @@ export async function importSaisieHims(data: any) {
 
     // VALIDATIONS
     if (!du)
-      return [{ success: false, data, message: `Le champ 'du' est requis` }];
+      return [{ success: false, data, message: `Le champ 'du' est requis!!!` }];
     if (!enginName?.trim())
       return [
         { success: false, data, message: `Le champ 'enginName' est requis` },

@@ -70,8 +70,8 @@ export type FilterStatus =
   | "all"
   | "success"
   | "error"
-  | "processing"
-  | "pending";
+// | "processing"
+// | "pending";
 
 export interface User {
   id: string;
@@ -314,11 +314,12 @@ export function ExcelImporter({
   const isResultSuccessful = useCallback((result: any): boolean => {
     if (!result) return false;
 
-    if (result.success !== undefined) {
-      return result.success === true;
-    }
+    // if (result.success !== undefined) {
+    //   return result.success === true;
+    // }
 
     if (result.data) {
+
       if (Array.isArray(result.data)) {
         if (result.data.length === 0) return false;
 
@@ -349,14 +350,14 @@ export function ExcelImporter({
   // Fonction pour obtenir le statut d'une ligne
   const getRowStatus = useCallback(
     (rowIndex: number): FilterStatus => {
-      const isProcessing = currentProcessingRow === rowIndex && !isStopped;
       const result = processingResults[rowIndex];
 
-      if (isProcessing) return "processing";
-      if (!result) return "pending";
+      // Une ligne non encore traitée n'est pas une erreur
+      if (!result) return "all";
+
       return isResultSuccessful(result) ? "success" : "error";
     },
-    [currentProcessingRow, processingResults, isResultSuccessful, isStopped]
+    [processingResults, isResultSuccessful]
   );
 
   // Fonction de formatage par défaut des données
@@ -415,15 +416,14 @@ export function ExcelImporter({
       all: 0,
       success: 0,
       error: 0,
-      processing: 0,
-      pending: 0,
     };
-
     if (tableData.length === 0) return stats;
 
     tableData.forEach((_, index) => {
       const status = getRowStatus(index);
-      stats[status]++;
+      if (status === "success" || status === "error") {
+        stats[status]++;
+      }
       stats.all++;
     });
 
@@ -1126,15 +1126,15 @@ export function ExcelImporter({
         <span>
           Ligne {currentProcessingRow + 1} sur {tableData.length}
         </span>
-        <span>
+        {/* <span>
           {processedCount} traitées • {tableData.length - processedCount}{" "}
           restantes
-        </span>
-        {processingQueue.length > 0 && (
+        </span> */}
+        {/* {processingQueue.length > 0 && (
           <Badge variant="outline">
             {processingQueue.length} en file d'attente
           </Badge>
-        )}
+        )} */}
         {isStopped && (
           <Badge
             variant="outline"
@@ -1163,16 +1163,16 @@ export function ExcelImporter({
             <div className="flex flex-col sm:flex-row gap-2">
               {/* {userInfo} */}
               {additionalActions}
-              {controlButtons}
+
               {resetButton}
             </div>
           </div>
         </CardHeader>
 
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-2">
           <>
             {/* Section d'upload */}
-            <div className="flex flex-col col-2 gap-4 items-start md:items-center">
+            <div className="flex flex-col col-2 gap-2 items-start md:items-center">
               <div className="w-full md:w-auto relative">
                 <Input
                   ref={fileInputRef}
@@ -1246,6 +1246,7 @@ export function ExcelImporter({
                     submitButtonText
                   )}
                 </Button>
+                {controlButtons}
               </div>
             </div>
 
@@ -1334,17 +1335,6 @@ export function ExcelImporter({
                   <div className="flex items-center gap-2">
                     <Filter className="h-5 w-5 text-muted-foreground" />
                     <h3 className="font-semibold">Filtres par statut</h3>
-                    {(statusFilter !== "all" || showOnlyErrors) && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={resetFilters}
-                        className="h-7 px-2"
-                      >
-                        <FilterX className="h-3 w-3 mr-1" />
-                        Réinitialiser
-                      </Button>
-                    )}
                   </div>
 
                   <div className="flex flex-wrap items-center gap-4 text-sm">
@@ -1373,26 +1363,6 @@ export function ExcelImporter({
                         {statusStats.error}
                       </Badge>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <div className="h-2 w-2 rounded-full bg-blue-500" />
-                      <span>En cours:</span>
-                      <Badge
-                        variant="outline"
-                        className="bg-blue-50 text-blue-700 border-blue-200"
-                      >
-                        {statusStats.processing}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="h-2 w-2 rounded-full bg-gray-500" />
-                      <span>En attente:</span>
-                      <Badge
-                        variant="outline"
-                        className="bg-gray-50 text-gray-700 border-gray-200"
-                      >
-                        {statusStats.pending}
-                      </Badge>
-                    </div>
                   </div>
                 </div>
 
@@ -1404,8 +1374,8 @@ export function ExcelImporter({
                     }
                     className="w-full"
                   >
-                    <TabsList className="grid grid-cols-5 w-full">
-                      <TabsTrigger value="all">
+                    <TabsList className="flex justify-center w-full">
+                      <TabsTrigger value="all" >
                         <Eye className="h-4 w-4 mr-2" />
                         Tous
                       </TabsTrigger>
@@ -1417,43 +1387,15 @@ export function ExcelImporter({
                         <XCircle className="h-4 w-4 mr-2 text-red-600" />
                         Erreurs
                       </TabsTrigger>
-                      <TabsTrigger value="processing">
-                        <Loader2 className="h-4 w-4 mr-2 text-blue-600" />
-                        En cours
-                      </TabsTrigger>
-                      <TabsTrigger value="pending">
-                        <Clock className="h-4 w-4 mr-2 text-gray-600" />
-                        En attente
-                      </TabsTrigger>
                     </TabsList>
                   </Tabs>
 
                   <div className="flex-1" />
-
-                  <Button
-                    variant={showOnlyErrors ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setShowOnlyErrors(!showOnlyErrors)}
-                    className="gap-2"
-                  >
-                    <FilterX className="h-4 w-4" />
-                    {showOnlyErrors ? "Afficher tous" : "Erreurs uniquement"}
-                  </Button>
                 </div>
 
                 {(statusFilter !== "all" || showOnlyErrors) && (
                   <div className="mt-3 p-3 rounded bg-muted">
                     <div className="flex items-center justify-between">
-                      <div className="text-sm">
-                        <span className="font-medium">
-                          {showOnlyErrors
-                            ? `Erreurs uniquement (${statusStats.error
-                            } ligne${statusStats.error !== 1 ? "s" : ""})`
-                            : `Filtre: ${statusFilter} (${statusStats[statusFilter]
-                            } ligne${statusStats[statusFilter] !== 1 ? "s" : ""
-                            })`}
-                        </span>
-                      </div>
                       <span className="text-sm text-muted-foreground">
                         {filteredData.length} ligne
                         {filteredData.length !== 1 ? "s" : ""} affichée
@@ -1471,17 +1413,6 @@ export function ExcelImporter({
             {tableData.length > 0 && (
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-2 border rounded-lg bg-muted/50">
                 <div className="flex items-center gap-4">
-                  <Badge variant="outline">
-                    {filteredData.length} ligne
-                    {filteredData.length !== 1 ? "s" : ""} affichée
-                    {filteredData.length !== 1 ? "s" : ""}
-                    {filteredData.length !== tableData.length && (
-                      <span className="text-muted-foreground ml-1">
-                        (sur {tableData.length})
-                      </span>
-                    )}
-                  </Badge>
-
                   {filteredData.length > 100 && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -1524,7 +1455,8 @@ export function ExcelImporter({
                       previewRowsCount,
                       filteredData.length
                     )} premières lignes sur ${filteredData.length}`
-                    : `Affichage de toutes les ${filteredData.length} lignes`}
+                    : `Affichage de toutes les ${filteredData.length} lignes`
+                  }
                 </div>
               </div>
             )}
@@ -1891,13 +1823,13 @@ export function ExcelImporter({
                       value={(processedCount / tableData.length) * 100}
                       className="h-2"
                     />
-                    <p className="text-xs text-muted-foreground mt-2">
+                    {/* <p className="text-xs text-muted-foreground mt-2">
                       {processedCount} ligne{processedCount !== 1 ? "s" : ""}{" "}
                       traitées
                       {tableData.length - processedCount > 0 &&
                         ` • ${tableData.length - processedCount} restante${tableData.length - processedCount !== 1 ? "s" : ""
                         }`}
-                    </p>
+                    </p> */}
                   </div>
                 )}
 

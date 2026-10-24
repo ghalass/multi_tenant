@@ -35,3 +35,14 @@ export const LANGUAGES = [
         direction: "rtl",
     },
 ] as const
+
+export const IMPORT_TABS = {
+    SITES: "sites",
+    TYPEPARCS: "typeparcs",
+    PARCS: "parcs",
+    ENGINS: "engins",
+    TYPEPANNES: "typepannes",
+    PANNES: "pannes",
+    SAISIE_HRM: "saisie_hrm",
+    SAISIE_HIMS: "saisie_hims",
+};
