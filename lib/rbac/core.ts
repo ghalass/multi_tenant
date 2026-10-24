@@ -48,8 +48,10 @@ export async function hasPermission(
 }
 
 export async function getUserPermissions(userId?: string): Promise<string[]> {
-  // const tenantId = (await getSession()).tenant.id!;
   const tenant = await getCurrentTenant()
+  if (!userId || !tenant?.id) {
+    return [];
+  }
   const user = await prisma.user.findUnique({
     where: { id: userId, tenantId: tenant?.id },
     include: {

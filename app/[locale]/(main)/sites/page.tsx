@@ -55,7 +55,6 @@ export default async function SitesPage({ searchParams }: { searchParams: Promis
       </p>
 
       {!response?.success && <DisplayError className="mt-4" error={response?.message} />}
-
       <CanAccess resource={RESOURCE.SITE} action={ACTION.READ}>
         <div className="my-4">
           <Search />

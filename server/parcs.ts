@@ -13,16 +13,19 @@ export interface searchParams {
   currentPage?: number;
   itemsPerPage?: number;
 }
-/*
-export async function getAllSites(filters?: searchParams): Promise<ActionResponse> {
-  const g = await guard(ACTION.READ, RESOURCE.SITE);
+
+export async function getAllParcs(filters: searchParams = { itemsPerPage: 0 }): Promise<ActionResponse> {
+  const g = await guard(ACTION.READ, RESOURCE.PARC);
   if (!g.success) return { data: [], success: false, message: g.message };
 
   const { userId, currentTenantId } = await getSession();
 
   // Pagination
   const currentPage = Math.max(filters?.currentPage ?? 1, 1);
-  const itemsPerPage = Math.max(filters?.itemsPerPage ?? PAGINATION_SETTINGS.itemsPerPage, 1);
+  const isUnpaged = filters?.itemsPerPage === 0;
+  const itemsPerPage = isUnpaged
+    ? 0
+    : Math.max(filters?.itemsPerPage ?? PAGINATION_SETTINGS.itemsPerPage, 1);
 
   const name = filters?.name;
   const active = filters?.active;
@@ -39,32 +42,35 @@ export async function getAllSites(filters?: searchParams): Promise<ActionRespons
   if (active === ACTIVE.NO) where.active = false;
 
 
-  const skip = (currentPage - 1) * itemsPerPage
+  const skip = isUnpaged ? 0 : (currentPage - 1) * itemsPerPage;
+  const take = isUnpaged ? undefined : itemsPerPage;
 
-  const [sites, totalItems] =
+  const [parcs, totalItems] =
     await Promise.all([
-      // 1. Récupérer les sites de la page actuelle
-      prisma.site.findMany({
+      // 1. Récupérer les parcs de la page actuelle
+      prisma.parc.findMany({
         where,
         orderBy: { name: "asc" },
         skip,
-        take: itemsPerPage,
+        take,
+        // On ne renvoie que les champs utiles du tenant
         include: {
-          tenant: true,
+          tenant: { select: { id: true, name: true } },
         },
       }),
-      // 2. Compter tous les sites correspondant aux filtres
-      prisma.site.count({ where }),
+      // 2. Compter tous les parcs correspondant aux filtres
+      prisma.parc.count({ where }),
     ]);
 
   const totalPages = Math.ceil(totalItems / itemsPerPage);
   return {
-    data: sites,
+    data: parcs,
     success: true, message: "Données récupérées avec succès!",
     meta: { totalItems, totalPages, currentPage, itemsPerPage },
   };
 }
 
+/*
 export async function createSite({ name, active }: { name: string; active: boolean }): Promise<ActionResponse> {
   const guardResult = await guard(ACTION.CREATE, RESOURCE.SITE);
 

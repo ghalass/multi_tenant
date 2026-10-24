@@ -26,6 +26,7 @@ model Tenant {
   pannes     Panne[]
   saisiehrms Saisiehrm[]
   saisiehims Saisiehim[]
+  objectifs  Objectif[]
 
   @@map("tenant")
 }
@@ -92,9 +93,10 @@ model Site {
   active   Boolean @default(true)
   tenantId String
 
-  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   engins     Engin[]
   saisiehrms Saisiehrm[]
+  objectifs  Objectif[]
 
   @@unique([name, tenantId])
   @@map("site")
@@ -105,7 +107,7 @@ model Typeparc {
   name     String
   tenantId String
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   parcs  Parc[]
 
   @@unique([name, tenantId])
@@ -120,10 +122,11 @@ model Parc {
 
   // Relation 1-M avec Typeparc
   typeparc Typeparc @relation(fields: [typeparcId], references: [id], onDelete: Restrict)
-  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
 
-  engins Engin[]
-  pannes Panne[]
+  engins    Engin[]
+  pannes    Panne[]
+  objectifs Objectif[]
 
   @@unique([name, tenantId])
   @@map("parc")
@@ -141,7 +144,7 @@ model Engin {
   // Relations
   parc       Parc        @relation(fields: [parcId], references: [id], onDelete: Restrict)
   site       Site        @relation(fields: [siteId], references: [id], onDelete: Restrict)
-  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   saisiehrms Saisiehrm[]
 
   @@unique([name, tenantId])
@@ -157,7 +160,7 @@ model Typepanne {
   // Relations
   pannes Panne[] // ← Relation many-to-many implicite
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
 
   @@unique([name, tenantId])
   @@map("typepanne")
@@ -173,7 +176,7 @@ model Panne {
   // Relations
   typepanne Typepanne @relation(fields: [typepanneId], references: [id], onDelete: Restrict)
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
 
   saisiehims Saisiehim[]
   parcs      Parc[]
@@ -194,7 +197,7 @@ model Saisiehrm {
   // Relations
   engin  Engin  @relation(fields: [enginId], references: [id], onDelete: Restrict)
   site   Site   @relation(fields: [siteId], references: [id], onDelete: Restrict)
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
 
   saisiehim Saisiehim[]
 
@@ -214,8 +217,30 @@ model Saisiehim {
   // Relations
   panne     Panne     @relation(fields: [panneId], references: [id], onDelete: Restrict)
   saisiehrm Saisiehrm @relation(fields: [saisiehrmId], references: [id], onDelete: Restrict)
-  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
 
   @@unique([panneId, saisiehrmId, tenantId])
   @@map("saisie_him")
+}
+
+model Objectif {
+  id          String @id @default(cuid(2))
+  annee       Int
+  parcId      String
+  siteId      String
+  dispo       Float?
+  mtbf        Float?
+  tdm         Float?
+  spe_huile   Float?
+  spe_go      Float?
+  spe_graisse Float?
+  tenantId    String
+
+  // Relations
+  parc   Parc   @relation(fields: [parcId], references: [id], onDelete: Restrict)
+  site   Site   @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+
+  @@unique([annee, parcId, siteId])
+  @@map("objectif")
 }

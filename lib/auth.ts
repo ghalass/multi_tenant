@@ -88,10 +88,10 @@ export async function login(email: string, password: string) {
       };
 
     // SESSION
-    // const session = await getSession();
-    // session.userId = user?.id || "";
-    // await session.save();
-    await saveSession({ userId: user?.id });
+    await saveSession({
+      userId: user.id,
+      currentTenantId: user.tenantId ?? undefined,
+    });
 
     return {
       success: true,

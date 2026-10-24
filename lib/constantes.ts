@@ -10,6 +10,8 @@ export const RESOURCE = {
     USER: "user",
     ROLE: "role",
     PERMISSION: "permission",
+    PARC: "parc",
+    RAPPORT: "rapport"
 };
 
 export const PAGINATION_SETTINGS = {

@@ -14,53 +14,55 @@ export interface searchParams {
   itemsPerPage?: number;
 }
 
-export async function getAllSites(filters?: searchParams): Promise<ActionResponse> {
+export async function getAllSites(
+  filters: searchParams = { itemsPerPage: 0 }
+): Promise<ActionResponse> {
   const g = await guard(ACTION.READ, RESOURCE.SITE);
   if (!g.success) return { data: [], success: false, message: g.message };
 
-  const { userId, currentTenantId } = await getSession();
+  const { currentTenantId } = await getSession();
 
   // Pagination
   const currentPage = Math.max(filters?.currentPage ?? 1, 1);
-  const itemsPerPage = Math.max(filters?.itemsPerPage ?? PAGINATION_SETTINGS.itemsPerPage, 1);
+  const isUnpaged = filters?.itemsPerPage === 0;
+  const itemsPerPage = isUnpaged
+    ? 0
+    : Math.max(filters?.itemsPerPage ?? PAGINATION_SETTINGS.itemsPerPage, 1);
 
-  const name = filters?.name;
-  const active = filters?.active;
+  const { name, active } = filters;
 
   const where: any = { tenantId: currentTenantId };
 
   if (name) {
-    where.OR = [
-      { name: { contains: name, mode: "insensitive" } },
-    ];
+    where.name = { contains: name, mode: "insensitive" };
   }
 
   if (active === ACTIVE.YES) where.active = true;
-  if (active === ACTIVE.NO) where.active = false;
+  else if (active === ACTIVE.NO) where.active = false;
 
+  const skip = isUnpaged ? 0 : (currentPage - 1) * itemsPerPage;
+  const take = isUnpaged ? undefined : itemsPerPage;
 
-  const skip = (currentPage - 1) * itemsPerPage
+  const [sites, totalItems] = await Promise.all([
+    prisma.site.findMany({
+      where,
+      orderBy: { name: "asc" },
+      skip,
+      take,
+      // On ne renvoie que les champs utiles du tenant
+      include: {
+        tenant: { select: { id: true, name: true } },
+      },
+    }),
+    prisma.site.count({ where }),
+  ]);
 
-  const [sites, totalItems] =
-    await Promise.all([
-      // 1. Récupérer les sites de la page actuelle
-      prisma.site.findMany({
-        where,
-        orderBy: { name: "asc" },
-        skip,
-        take: itemsPerPage,
-        include: {
-          tenant: true,
-        },
-      }),
-      // 2. Compter tous les sites correspondant aux filtres
-      prisma.site.count({ where }),
-    ]);
+  const totalPages = isUnpaged ? 1 : Math.ceil(totalItems / itemsPerPage);
 
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
   return {
     data: sites,
-    success: true, message: "Données récupérées avec succès!",
+    success: true,
+    message: "Données récupérées avec succès!",
     meta: { totalItems, totalPages, currentPage, itemsPerPage },
   };
 }
