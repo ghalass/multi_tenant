@@ -38,7 +38,8 @@ export async function getAllSites(
   }
 
   if (active === ACTIVE.YES) where.active = true;
-  else if (active === ACTIVE.NO) where.active = false;
+  if (active === ACTIVE.NO) where.active = false;
+  else where.active = true;
 
   const skip = isUnpaged ? 0 : (currentPage - 1) * itemsPerPage;
   const take = isUnpaged ? undefined : itemsPerPage;

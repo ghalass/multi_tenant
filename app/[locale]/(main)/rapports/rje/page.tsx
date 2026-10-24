@@ -22,7 +22,7 @@ export default async function RapportRJE({ searchParams }: { searchParams: Promi
     return (
         <>
             {/* En-tête */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-2">
+            <div className="flex flex-col sm:flex-row justify-between items-start md:items-center gap-4 mb-2">
                 <div>
                     <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
                         <CalendarCheck className="h-6 w-6 md:h-7 md:w-7 text-primary" />
@@ -50,7 +50,7 @@ export default async function RapportRJE({ searchParams }: { searchParams: Promi
                     >
                         <TableHeader className="bg-muted/50">
                             <TableRow >
-                                <TableCell colSpan={15}>Rapport RJE : {dateFormater(filters?.date)}, Parc {rje[0]?.parcName}, Engins : {rje.length}</TableCell>
+                                <TableCell colSpan={23}>Rapport RJE : {dateFormater(filters?.date)}, Parc {rje[0]?.parcName}, Engins : {rje.length}</TableCell>
                             </TableRow>
 
                             <TableRow>
