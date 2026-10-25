@@ -86,16 +86,29 @@ export async function getUserById(id: string) {
   if (!g.success) return { data: [], success: false, message: g.message };
 
   // 2. Continuer la logique métier
-  const { userId } = await getSession();
-  if (!userId) return { data: [], success: false, message: "Utilisateur non authentifié." };
-
+  const { userId, currentTenantId } = await getSession();
+  if (!userId || !currentTenantId) {
+    return {
+      data: null,
+      success: false,
+      message: "Aucun tenant actif.",
+    };
+  }
   const user = await prisma.user.findUnique({
-    where: { id },
+    where: { id, tenantId: currentTenantId, },
     include: {
       roles: true,
       tenant: true,
     },
   });
+  if (!user) {
+    return {
+      data: null,
+      success: false,
+      message: "Utilisateur introuvable.",
+    };
+  }
+
   return { data: user, success: true, message: "" };
 }
 
@@ -106,9 +119,9 @@ export async function getAllRoles(): Promise<{ roles: Role[], success: boolean, 
   if (!g.success) return { roles: [], success: false, message: g.message };
 
   // 2. Continuer la logique métier
-  const { userId } = await getSession();
+  const { userId, currentTenantId } = await getSession();
 
-  if (!userId) return { roles: [], success: false, message: "Utilisateur non authentifié" };
+  if (!userId || !currentTenantId) return { roles: [], success: false, message: "Utilisateur non authentifié" };
 
   const roles = await prisma.role.findMany({
     orderBy: { name: "asc" },
@@ -145,6 +158,13 @@ export async function createUser(
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
+
+    if (!currentTenantId) {
+      return {
+        success: false,
+        message: "Aucun tenant actif.",
+      };
+    }
 
     await prisma.user.create({
       data: {
@@ -183,12 +203,14 @@ export async function updateUser(
   if (!g.success) return { success: false, message: g.message };
 
   // 2. Continuer la logique métier
-  const { userId } = await getSession();
-  if (!userId) return { success: false, message: "Utilisateur non authentifié" };
-
+  const { userId, currentTenantId } = await getSession();
+  if (!userId || !currentTenantId) {
+    return {
+      success: false,
+      message: "Aucun tenant actif.",
+    };
+  }
   try {
-
-
     const data: Prisma.UserUpdateInput = {
       name,
       email,
@@ -202,7 +224,13 @@ export async function updateUser(
       data.password = await bcrypt.hash(password, 10);
     }
 
-    await prisma.user.update({ where: { id }, data });
+    await prisma.user.update({
+      where: {
+        id,
+        tenantId: currentTenantId,
+      },
+      data,
+    });
 
     return { success: true, message: "Utilisateur modifié avec succès." };
   } catch (error) {
@@ -221,11 +249,16 @@ export async function deleteUser(id: string): Promise<ActionResponse> {
   if (!g.success) return { success: false, message: g.message };
 
   // 2. Continuer la logique métier
-  const { userId } = await getSession();
+  const { userId, currentTenantId } = await getSession();
   if (!userId) return { success: false, message: "Utilisateur non authentifié" };
 
   try {
-    await prisma.user.delete({ where: { id } });
+    await prisma.user.delete({
+      where: {
+        id,
+        tenantId: currentTenantId,
+      },
+    });
     return { success: true, message: "Utilisateur supprimé avec succès." };
   } catch (error) {
     console.error(error);

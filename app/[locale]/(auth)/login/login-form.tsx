@@ -82,9 +82,10 @@ export default function LoginForm() {
                   <Input
                     {...field}
                     id="email"
+                    type="email"
+                    autoComplete="email"
                     aria-invalid={fieldState.invalid}
                     placeholder="m@example.com"
-                    autoComplete=""
                     disabled={isSubmitting}
                   />
                   {fieldState.invalid && (
@@ -103,10 +104,10 @@ export default function LoginForm() {
                   <Input
                     {...field}
                     id="password"
+                    type="password"
+                    autoComplete="current-password"
                     aria-invalid={fieldState.invalid}
                     placeholder=""
-                    autoComplete="off"
-                    type="password"
                     disabled={isSubmitting}
                   />
                   {fieldState.invalid && (

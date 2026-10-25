@@ -19,7 +19,7 @@ import {
     getDatabaseBackupsAction,
     restoreDatabaseBackupAction,
     uploadDatabaseBackupAction
-} from "@/lib/server/database-backup-actions";
+} from "@/server/database-backup-actions";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";

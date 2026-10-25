@@ -3,5 +3,6 @@ export enum ACTION {
   READ = "read",
   UPDATE = "update",
   DELETE = "delete",
-  EXPORT = "export"
+  EXPORT = "export",
+  IMPORT = "import"
 }

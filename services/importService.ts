@@ -1,5 +1,7 @@
 // app/api/import/services/importService.ts
-import { IMPORT_TABS } from "@/lib/constantes";
+import { IMPORT_RESOURCES } from "@/lib/constantes";
+import { ACTION } from "@/lib/enums";
+import { guard } from "@/lib/rbac/middleware";
 import { importEngins } from "@/server/engins";
 import { importPannes } from "@/server/pannes";
 import { importParcs } from "@/server/parcs";
@@ -12,17 +14,35 @@ import { importTypeParcs } from "@/server/typeparcs";
 export class ImportService {
   async importData(sheetName: string, data: any) {
     try {
+      const normalizedSheet = sheetName.toLowerCase();
+      const resource = IMPORT_RESOURCES[normalizedSheet];
+      if (!resource) {
+        return [{
+          success: false,
+          data: null,
+          message: `Onglet non supporté: ${sheetName}`,
+        }];
+      }
+      const permission = await guard(ACTION.IMPORT, resource);
+      if (!permission.success) {
+        return [{
+          success: false,
+          data: null,
+          message: permission.message,
+        }];
+      }
+
       switch (sheetName.toLowerCase()) {
-        case IMPORT_TABS.SITES: return await importSites(data);
-        case IMPORT_TABS.TYPEPARCS: return await importTypeParcs(data);
-        case IMPORT_TABS.PARCS: return await importParcs(data);
-        case IMPORT_TABS.ENGINS: return await importEngins(data);
-        case IMPORT_TABS.TYPEPANNES: return await importTypePannes(data);
-        case IMPORT_TABS.PANNES: return await importPannes(data);
+        case IMPORT_RESOURCES.SITES: return await importSites(data);
+        case IMPORT_RESOURCES.TYPEPARCS: return await importTypeParcs(data);
+        case IMPORT_RESOURCES.PARCS: return await importParcs(data);
+        case IMPORT_RESOURCES.ENGINS: return await importEngins(data);
+        case IMPORT_RESOURCES.TYPEPANNES: return await importTypePannes(data);
+        case IMPORT_RESOURCES.PANNES: return await importPannes(data);
 
         // SAISIE HRM & HIMS
-        case IMPORT_TABS.SAISIE_HRM: return await importSaisieHrm(data);
-        case IMPORT_TABS.SAISIE_HIMS: return await importSaisieHims(data);
+        case IMPORT_RESOURCES.SAISIE_HRM: return await importSaisieHrm(data);
+        case IMPORT_RESOURCES.SAISIE_HIMS: return await importSaisieHims(data);
 
         // // GESTION DES USERS & ROLES
         // case "users":

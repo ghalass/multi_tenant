@@ -1,6 +1,7 @@
 generator client {
-  provider = "prisma-client"
-  output   = "../lib/generated/prisma"
+  provider        = "prisma-client"
+  output          = "../lib/generated/prisma"
+  previewFeatures = ["partialIndexes"]
 }
 
 datasource db {
@@ -53,6 +54,7 @@ enum Action {
   update
   delete
   export
+  import
 }
 
 model Role {
@@ -82,6 +84,7 @@ model User {
   tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
   @@unique([tenantId, email])
+  @@unique([isSuperAdmin], where: { isSuperAdmin: true }, map: "user_single_super_admin_key")
   @@map("user")
 }
 

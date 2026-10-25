@@ -1,4 +1,4 @@
-// lib/server/database-backup-actions.ts
+// server/database-backup-actions.ts
 
 
 "use server";
@@ -12,7 +12,7 @@ import {
     importDatabaseBackup,
     listDatabaseBackups,
     restoreDatabaseBackup,
-} from "@/server/database-backup";
+} from "@/services/database-backup";
 
 async function authorizeDatabaseAdmin(): Promise<boolean> {
     const session = await getSession();
@@ -152,7 +152,12 @@ export async function deleteDatabaseBackupAction(
 
 export async function uploadDatabaseBackupAction(formData: FormData) {
     try {
-        await authorizeDatabaseAdmin();
+        if (!(await authorizeDatabaseAdmin())) {
+            return {
+                success: false,
+                message: "Accès réservé au super-administrateur.",
+            };
+        }
 
         const file = formData.get("file");
 

@@ -10,7 +10,12 @@ export const RESOURCE = {
     USER: "user",
     ROLE: "role",
     PERMISSION: "permission",
+    TYPEPARC: "typeparc",
     PARC: "parc",
+    TYPEPANNE: "typepanne",
+    PANNE: "panne",
+    SAISIE_HRM: "saisie_hrm",
+    SAISIE_HIM: "saisie_him",
     RAPPORT: "rapport"
 };
 
@@ -38,7 +43,7 @@ export const LANGUAGES = [
     },
 ] as const
 
-export const IMPORT_TABS = {
+export const IMPORT_RESOURCES: Record<string, string> = {
     SITES: "sites",
     TYPEPARCS: "typeparcs",
     PARCS: "parcs",

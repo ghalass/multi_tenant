@@ -34,9 +34,6 @@ export async function protectRoute(
     // Vérifier si l'utilisateur est admin ou super-admin
     const session = await getSession();
 
-    // check if tenantId is provided, if not throw Error
-    await checkTenant();
-
     if (!session.userId)
       return NextResponse.json(
         { error: "Unauthorized", message: "Utilisateur non authentifié" },
@@ -67,6 +64,9 @@ export async function protectRoute(
         { status: 403 }
       );
     }
+
+    // check if tenantId is provided, if not throw Error
+    await checkTenant();
 
     return null;
   } catch (error) {

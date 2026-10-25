@@ -71,8 +71,29 @@ export async function login(email: string, password: string) {
     // Attend 1500ms (1.5 seconde) avant de continuer
     await sleep();
 
+    const normalizedEmail = email.trim().toLowerCase();
+
+    const { currentTenantId: tenantId } = await getSession()
+
     // find user by email
-    const user = await prisma.user.findFirst({ where: { email } });
+    const user = tenantId
+      ? await prisma.user.findFirst({
+        where: {
+          email: normalizedEmail,
+          tenantId,
+          isSuperAdmin: false,
+          tenant: {
+            is: { active: true },
+          },
+        },
+      })
+      : await prisma.user.findFirst({
+        where: {
+          email: normalizedEmail,
+          tenantId: null,
+          isSuperAdmin: true,
+        },
+      });
     if (!user) return { success: false, message: error_message };
 
     // check password
