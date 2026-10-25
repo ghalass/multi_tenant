@@ -205,6 +205,9 @@ export async function getAllUsers(
       },
       skip,
       take: itemsPerPage,
+      omit: {
+        password: true,
+      },
       include: {
         memberships: {
           where: {
@@ -290,6 +293,8 @@ export async function getUserById(id: string) {
           tenantId: currentTenantId,
         },
       },
+    }, omit: {
+      password: true,
     },
     include: {
       memberships: {
