@@ -160,12 +160,15 @@ export async function importSaisieHrm(data: any) {
         message: `Saisie HRM ${enginName} du ${dateFormater(du)} importé avec succès`,
       },
     ];
-  } catch (error: any) {
+  } catch (error: unknown) {
+    console.error("Erreur lors de l'import de la saisie HRM :", error);
+
     return [
       {
         success: false,
         data: data,
-        message: `Erreur: ${error.message}`,
+        message:
+          "Une erreur interne est survenue lors de l'import de la saisie HRM. Vérifiez les données et consultez les journaux serveur si le problème persiste.",
       },
     ];
   }
