@@ -13,7 +13,7 @@ export function ExportExcel({ tableName, fileName }: { tableName: string; fileNa
         setIsLoading(true);
 
         // Laisse React afficher le spinner pendant au moins 300 ms
-        sleep()
+        await sleep();
         try {
             exportExcel(tableName, fileName);
         } finally {

@@ -347,6 +347,16 @@ export async function deleteSite(
 
 export async function importSites(data: any) {
   try {
+    const permission = await guard(ACTION.IMPORT, RESOURCE.SITE);
+
+    if (!permission.success) {
+      return [{
+        success: false,
+        data: null,
+        message: permission.message,
+      }];
+    }
+
     const name = convertField(data.name, "string");
 
     if (!name || name.trim() === "") {

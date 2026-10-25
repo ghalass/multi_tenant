@@ -21,6 +21,14 @@ export type UsersSearchParams = {
 export async function getAllUsers(filters: UsersSearchParams): Promise<ActionResponse> {
   const { userId, currentTenantId } = await getSession();
 
+  if (!userId || !currentTenantId) {
+    return {
+      data: [],
+      success: false,
+      message: "Aucun tenant actif.",
+    };
+  }
+
   const g = await guard(ACTION.READ, RESOURCE.USER);
   if (!g.success) return { data: [], success: false, message: g.message };
 
@@ -250,7 +258,13 @@ export async function deleteUser(id: string): Promise<ActionResponse> {
 
   // 2. Continuer la logique métier
   const { userId, currentTenantId } = await getSession();
-  if (!userId) return { success: false, message: "Utilisateur non authentifié" };
+
+  if (!userId || !currentTenantId) {
+    return {
+      success: false,
+      message: "Utilisateur non authentifié ou aucun tenant actif.",
+    };
+  }
 
   try {
     await prisma.user.delete({

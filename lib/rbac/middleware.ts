@@ -34,28 +34,22 @@ export async function protectRoute(
     // Vérifier si l'utilisateur est admin ou super-admin
     const session = await getSession();
 
-    // check if tenantId is provided, if not throw Error
-    await checkTenant();
-
     if (!session.userId)
       return NextResponse.json(
         { error: "Unauthorized", message: "Utilisateur non authentifié" },
         { status: 401 }
       );
 
-    // Vérifier l'authentification de l'utilisateur, si ce n'est pas super-admin
-    const userId = session?.userId;
-    if (!userId) {
-      return NextResponse.json(
-        { error: "Unauthorized", message: "Utilisateur non authentifié" },
-        { status: 401 }
-      );
+    // Le super-administrateur peut effectuer les opérations globales.
+    if (await isSuperAdmin(session.userId)) {
+      return null;
     }
 
-    // Accès automatique pour les super-administrateurs
-    const checkIsSuperAdmin = await isSuperAdmin(userId);
-    if (checkIsSuperAdmin) {
-      return null; // Accès autorisé pour les administrateurs, super-admin et l'owner
+    // Pour les utilisateurs ordinaires, le tenant est obligatoire.
+    const tenantError = await checkTenant();
+
+    if (tenantError) {
+      return tenantError;
     }
 
     // Vérifier les permissions spécifiques, si ce n'est pas super-admin
@@ -70,11 +64,10 @@ export async function protectRoute(
 
     return null;
   } catch (error) {
-    console.error("Error in protectRoute:", error);
+    console.error("Erreur de vérification des permissions.");
+
     return NextResponse.json(
-      {
-        message: `Erreur de vérification des permissions ${action}-${resource}`,
-      },
+      { message: "Erreur lors de la vérification des permissions." },
       { status: 500 }
     );
   }

@@ -3,9 +3,22 @@
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { convertField } from "@/lib/convertField";
+import { guard } from "@/lib/rbac/middleware";
+import { ACTION } from "@/lib/enums";
+import { RESOURCE } from "@/lib/constantes";
 
 export async function importPannes(data: any) {
   try {
+    const permission = await guard(ACTION.IMPORT, RESOURCE.PANNE);
+
+    if (!permission.success) {
+      return [{
+        success: false,
+        data: null,
+        message: permission.message,
+      }];
+    }
+
     const { currentTenantId } = await getSession();
     if (!currentTenantId) {
       return [

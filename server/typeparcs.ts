@@ -345,6 +345,16 @@ export async function deleteSite(
 
 export async function importTypeParcs(data: any) {
   try {
+    const permission = await guard(ACTION.IMPORT, RESOURCE.TYPEPARC);
+
+    if (!permission.success) {
+      return [{
+        success: false,
+        data: null,
+        message: permission.message,
+      }];
+    }
+
     const name = convertField(data.name, "string");
 
     if (!name || name.trim() === "") {

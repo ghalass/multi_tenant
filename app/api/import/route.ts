@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
   try {
-    sleep()
+    await sleep();
     const { sheetName, data } = await request.json();
 
     if (!sheetName || !data) {
@@ -25,11 +25,11 @@ export async function POST(request: NextRequest) {
     const errorCount = results?.filter((r: any) => !r.success).length;
 
     return NextResponse.json({
-      success: true,
-      message: `Import terminé: ${successCount} succès, ${errorCount} erreurs`,
+      success: errorCount === 0,
+      message: `Import terminé : ${successCount} succès, ${errorCount} erreurs`,
       data: results,
       summary: {
-        total: results?.length,
+        total: results.length,
         success: successCount,
         errors: errorCount,
       },

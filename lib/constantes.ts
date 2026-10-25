@@ -12,6 +12,7 @@ export const RESOURCE = {
     PERMISSION: "permission",
     TYPEPARC: "typeparc",
     PARC: "parc",
+    ENGIN: "engin",
     TYPEPANNE: "typepanne",
     PANNE: "panne",
     SAISIE_HRM: "saisie_hrm",

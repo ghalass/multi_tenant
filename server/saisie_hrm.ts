@@ -4,9 +4,22 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { convertField } from "@/lib/convertField";
 import { dateFormater } from "@/lib/utils";
+import { guard } from "@/lib/rbac/middleware";
+import { ACTION } from "@/lib/enums";
+import { RESOURCE } from "@/lib/constantes";
 
 export async function importSaisieHrm(data: any) {
   try {
+    const permission = await guard(ACTION.IMPORT, RESOURCE.SAISIE_HRM);
+
+    if (!permission.success) {
+      return [{
+        success: false,
+        data: null,
+        message: permission.message,
+      }];
+    }
+
     const { currentTenantId } = await getSession();
     if (!currentTenantId) {
       return [

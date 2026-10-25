@@ -58,8 +58,44 @@ export async function saveSession({ userId, currentTenantId }: { userId?: string
   await session.save();
 }
 
-export async function switchCurrentTenant({ currentTenantId }: { currentTenantId?: string }) {
+export async function switchCurrentTenant({
+  currentTenantId,
+}: {
+  currentTenantId?: string;
+}) {
   const session = await getSession();
+
+  if (!session.userId) {
+    throw new Error("Utilisateur non authentifié.");
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.userId },
+    select: {
+      tenantId: true,
+      isSuperAdmin: true,
+    },
+  });
+
+  if (!user) {
+    throw new Error("Utilisateur introuvable.");
+  }
+
+  if (user.isSuperAdmin) {
+    if (currentTenantId) {
+      const tenant = await prisma.tenant.findUnique({
+        where: { id: currentTenantId },
+        select: { id: true, active: true },
+      });
+
+      if (!tenant || !tenant.active) {
+        throw new Error("Tenant invalide ou inactif.");
+      }
+    }
+  } else if (currentTenantId !== user.tenantId) {
+    throw new Error("Accès interdit à ce tenant.");
+  }
+
   session.currentTenantId = currentTenantId;
   await session.save();
 }

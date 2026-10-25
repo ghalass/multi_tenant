@@ -697,7 +697,7 @@ export function ExcelImporter({
       resetFilters();
       stopRequestedRef.current = false;
 
-      sleep()
+      await sleep();
 
       if (workbook && value) {
         try {
