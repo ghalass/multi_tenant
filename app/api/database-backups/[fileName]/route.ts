@@ -42,7 +42,7 @@ export async function GET(
             );
         }
 
-        const root = path.resolve(BACKUP_DIR);
+        const root = path.resolve(/*turbopackIgnore: true*/ BACKUP_DIR);
         const filePath = path.resolve(root, fileName);
 
         if (path.dirname(filePath) !== root) {
@@ -52,7 +52,7 @@ export async function GET(
             );
         }
 
-        const info = await stat(filePath);
+        const info = await stat(/*turbopackIgnore: true*/ filePath);
 
         if (!info.isFile() || info.size === 0) {
             return NextResponse.json(
@@ -61,7 +61,7 @@ export async function GET(
             );
         }
 
-        const file = await readFile(filePath);
+        const file = await readFile(/*turbopackIgnore: true*/ filePath);
 
         return new Response(file, {
             status: 200,
