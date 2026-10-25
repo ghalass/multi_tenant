@@ -8,6 +8,7 @@ import { Prisma, Role } from "@/lib/generated/prisma/client";
 import { ActionResponse } from "@/lib/types";
 import { getSession } from "@/lib/auth";
 import { ACTIVE, PAGINATION_SETTINGS, RESOURCE } from "@/lib/constantes";
+import { getUserPermissions, isSuperAdmin } from "@/lib/rbac/core";
 
 export type UsersSearchParams = {
   name?: string;
@@ -47,6 +48,68 @@ async function syncMembershipRoles(
       roleId,
     })),
   });
+}
+
+/**
+ * Empêche un utilisateur ordinaire d'attribuer
+ * des permissions qu'il ne possède pas lui-même.
+ */
+async function validateRoleAssignments(
+  actorUserId: string,
+  roleIds: string[]
+): Promise<string | null> {
+  const uniqueRoleIds = [...new Set(roleIds)];
+
+  if (uniqueRoleIds.length === 0) {
+    return null;
+  }
+
+  // Vérifier que tous les rôles transmis existent.
+  const roles = await prisma.role.findMany({
+    where: {
+      id: {
+        in: uniqueRoleIds,
+      },
+    },
+    include: {
+      permissions: {
+        select: {
+          action: true,
+          resource: true,
+        },
+      },
+    },
+  });
+
+  if (roles.length !== uniqueRoleIds.length) {
+    return "Un ou plusieurs rôles sélectionnés sont invalides.";
+  }
+
+  // Le SuperAdmin actif peut attribuer n'importe quel rôle.
+  if (await isSuperAdmin(actorUserId)) {
+    return null;
+  }
+
+  // Permissions réellement détenues dans le tenant courant.
+  const actorPermissions = new Set(
+    await getUserPermissions(actorUserId)
+  );
+
+  for (const role of roles) {
+    for (const permission of role.permissions) {
+      const permissionKey =
+        `${permission.action}:${permission.resource}`;
+
+      if (!actorPermissions.has(permissionKey)) {
+        return (
+          `Vous ne pouvez pas attribuer le rôle "${role.name}", ` +
+          "car il contient des permissions que vous ne possédez pas."
+        );
+      }
+    }
+  }
+
+  return null;
 }
 
 // ============================================================
@@ -344,6 +407,18 @@ export async function createUser(
   }
 
   try {
+    const roleValidationError = await validateRoleAssignments(
+      userId,
+      roleIds
+    );
+
+    if (roleValidationError) {
+      return {
+        success: false,
+        message: roleValidationError,
+      };
+    }
+
     const normalizedEmail = email.trim().toLowerCase();
 
     if (!normalizedEmail) {
@@ -501,6 +576,18 @@ export async function updateUser(
   }
 
   try {
+    const roleValidationError = await validateRoleAssignments(
+      userId,
+      roleIds
+    );
+
+    if (roleValidationError) {
+      return {
+        success: false,
+        message: roleValidationError,
+      };
+    }
+
     // Vérifier que l'utilisateur cible appartient au tenant courant.
     const membership = await prisma.userTenant.findUnique({
       where: {
