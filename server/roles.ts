@@ -39,6 +39,51 @@ interface PaginatedRoles {
     };
 }
 
+async function ensureSuperAdmin(): Promise<ActionResponse | null> {
+    try {
+        const { userId } = await getSession();
+
+        if (!userId) {
+            return {
+                success: false,
+                message: "Utilisateur non authentifié.",
+            };
+        }
+
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: {
+                active: true,
+                isSuperAdmin: true,
+            },
+        });
+
+        if (!user || !user.active) {
+            return {
+                success: false,
+                message: "Compte désactivé ou utilisateur introuvable.",
+            };
+        }
+
+        if (!user.isSuperAdmin) {
+            return {
+                success: false,
+                message:
+                    "Seul le SuperAdmin peut gérer les définitions globales des rôles.",
+            };
+        }
+
+        return null;
+    } catch (error) {
+        console.error("Erreur de vérification du SuperAdmin :", error);
+
+        return {
+            success: false,
+            message: "Impossible de vérifier les autorisations.",
+        };
+    }
+}
+
 // ============================================================
 // GET ALL ROLES
 // Les définitions des rôles sont globales.
@@ -218,6 +263,12 @@ export async function createRole(
     description: string,
     permissionIds: string[]
 ): Promise<ActionResponse> {
+    const authorization = await ensureSuperAdmin();
+
+    if (authorization) {
+        return authorization;
+    }
+
     const g = await guard(ACTION.CREATE, RESOURCE.ROLE);
 
     if (!g.success) {
@@ -300,6 +351,12 @@ export async function updateRole(
     description: string,
     permissionIds: string[]
 ): Promise<ActionResponse> {
+    const authorization = await ensureSuperAdmin();
+
+    if (authorization) {
+        return authorization;
+    }
+
     const g = await guard(ACTION.UPDATE, RESOURCE.ROLE);
 
     if (!g.success) {
@@ -387,6 +444,12 @@ export async function updateRole(
 export async function deleteRole(
     id: string
 ): Promise<ActionResponse> {
+    const authorization = await ensureSuperAdmin();
+
+    if (authorization) {
+        return authorization;
+    }
+
     const g = await guard(ACTION.DELETE, RESOURCE.ROLE);
 
     if (!g.success) {
