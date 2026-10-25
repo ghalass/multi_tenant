@@ -40,7 +40,7 @@ export default function LoginForm() {
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: { email: "ghalass@ghalass.com", password: "super@dmin" },
+    defaultValues: { email: "", password: "" },
   });
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setisSubmitting(true);
@@ -84,7 +84,7 @@ export default function LoginForm() {
                     id="email"
                     aria-invalid={fieldState.invalid}
                     placeholder="m@example.com"
-                    autoComplete="off"
+                    autoComplete=""
                     disabled={isSubmitting}
                   />
                   {fieldState.invalid && (
