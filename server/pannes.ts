@@ -132,12 +132,15 @@ export async function importPannes(data: any) {
         message: `Panne ${name}, ${parcName}, ${typepanneName} importé avec succès`,
       },
     ];
-  } catch (error: any) {
+  } catch (error: unknown) {
+    console.error("Erreur lors de l'import des pannes :", error);
+
     return [
       {
         success: false,
         data: data,
-        message: `Erreur: ${error.message}`,
+        message:
+          "Une erreur interne est survenue lors de l'import des pannes. Vérifiez les données et consultez les journaux serveur si le problème persiste.",
       },
     ];
   }
