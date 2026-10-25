@@ -1,74 +1,103 @@
 // lib/rbac/middleware.ts
 import { NextResponse } from "next/server";
-import { hasPermission, isSuperAdmin } from "./core";
+import { hasPermission } from "./core";
 import { getSession } from "../auth";
 import { prisma } from "../prisma";
 import { getCurrentTenant } from "@/server/tenants";
 import { ACTION } from "../enums";
 
-const checkTenant = async () => {
-  const currentTenant = await getCurrentTenant()
+const checkTenant = async (): Promise<NextResponse | null> => {
+  const currentTenant = await getCurrentTenant();
+
   if (!currentTenant?.id) {
     return NextResponse.json(
-      { message: "Aucune tenant ID n'est trouvé" },
-      { status: 404 }
+      { message: "Aucun tenant actif n'est sélectionné." },
+      { status: 404 },
     );
   }
-  // Vérifier si le tenant existe déjà
-  const tenant = await prisma.tenant.findUnique({
-    where: { id: currentTenant?.id },
-  });
-  if (!tenant) {
+
+  if (!currentTenant.active) {
     return NextResponse.json(
-      { message: "Ce nom d'organisation n'existe pas" },
-      { status: 404 }
+      { message: "Ce tenant est désactivé." },
+      { status: 403 },
     );
   }
+
+  return null;
 };
 
 export async function protectRoute(
   action: ACTION,
-  resource: string
+  resource: string,
 ): Promise<NextResponse | null> {
   try {
-    // Vérifier si l'utilisateur est admin ou super-admin
     const session = await getSession();
 
-    if (!session.userId)
+    if (!session.userId) {
       return NextResponse.json(
-        { error: "Unauthorized", message: "Utilisateur non authentifié" },
-        { status: 401 }
+        {
+          error: "Unauthorized",
+          message: "Utilisateur non authentifié.",
+        },
+        { status: 401 },
       );
+    }
 
-    // Le super-administrateur peut effectuer les opérations globales.
-    if (await isSuperAdmin(session.userId)) {
+    // Vérifier que le compte existe et qu'il est actif.
+    const user = await prisma.user.findUnique({
+      where: { id: session.userId },
+      select: {
+        active: true,
+        isSuperAdmin: true,
+      },
+    });
+
+    if (!user || !user.active) {
+      return NextResponse.json(
+        {
+          error: "Unauthorized",
+          message: !user
+            ? "Utilisateur introuvable."
+            : "Votre compte est désactivé.",
+        },
+        { status: 401 },
+      );
+    }
+
+    // Le SuperAdmin conserve ses droits globaux
+    // uniquement si son compte est actif.
+    if (user.isSuperAdmin) {
       return null;
     }
 
-    // Pour les utilisateurs ordinaires, le tenant est obligatoire.
+    // Pour les autres utilisateurs, le tenant doit être actif.
     const tenantError = await checkTenant();
 
     if (tenantError) {
       return tenantError;
     }
 
-    // Vérifier les permissions spécifiques, si ce n'est pas super-admin
+    // Vérifier les permissions de l'utilisateur dans ce tenant.
     const hasAccess = await hasPermission(action, resource);
 
     if (!hasAccess) {
       return NextResponse.json(
-        { message: `Vous n'êtes pas autorisé ${humanizeAction(action)}` },
-        { status: 403 }
+        {
+          message: `Vous n'êtes pas autorisé ${humanizeAction(action)}`,
+        },
+        { status: 403 },
       );
     }
 
     return null;
-  } catch (error) {
+  } catch {
     console.error("Erreur de vérification des permissions.");
 
     return NextResponse.json(
-      { message: "Erreur lors de la vérification des permissions." },
-      { status: 500 }
+      {
+        message: "Erreur lors de la vérification des permissions.",
+      },
+      { status: 500 },
     );
   }
 }
