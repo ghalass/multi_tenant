@@ -81,13 +81,10 @@ export async function getAllRoles(tenantId: string, filters: RoleSearchParams = 
                     permissions: true,
                     _count: {
                         select: {
-                            users: {
-                                where: {
-                                    memberships: {
-                                        some: { tenantId },
-                                    },
-                                },
-                            }, permissions: true
+                            userAssignments: {
+                                where: { tenantId },
+                            },
+                            permissions: true
                         }
                     },
                 },
@@ -98,7 +95,13 @@ export async function getAllRoles(tenantId: string, filters: RoleSearchParams = 
         ]);
         const totalPages = Math.ceil(totalItems / itemsPerPage);
         return {
-            data: roles,
+            data: roles.map((role) => ({
+                ...role,
+                _count: {
+                    permissions: role._count.permissions,
+                    users: role._count.userAssignments,
+                },
+            })),
             success: true, message: "Données récupérées avec succès!",
             meta: { totalItems, totalPages, currentPage, itemsPerPage },
         };
