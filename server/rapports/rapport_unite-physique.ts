@@ -22,6 +22,34 @@ export async function getRapportUnitePhysique(
 
   const { currentTenantId } = await getSession();
 
+  // Un rapport doit toujours être limité à un tenant précis.
+  if (!currentTenantId) {
+    return {
+      data: [],
+      success: false,
+      message: "Sélectionnez un tenant avant de consulter ce rapport.",
+    };
+  }
+
+  // Vérifier que le tenant sélectionné existe et est actif.
+  const tenant = await prisma.tenant.findFirst({
+    where: {
+      id: currentTenantId,
+      active: true,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (!tenant) {
+    return {
+      data: [],
+      success: false,
+      message: "Le tenant sélectionné est introuvable ou désactivé.",
+    };
+  }
+
   const { mois, annee } = filters ?? {};
   if (!mois || !annee) {
     return { data: [], success: false, message: "mois et annee sont requis" };
