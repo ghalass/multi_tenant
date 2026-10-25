@@ -48,45 +48,40 @@ export async function hasPermission(
 }
 
 export async function getUserPermissions(userId?: string): Promise<string[]> {
-  const tenant = await getCurrentTenant()
-  if (!userId || !tenant?.id) {
-    return [];
-  }
-  const user = await prisma.user.findUnique({
+  const tenant = await getCurrentTenant();
+  if (!userId || !tenant?.id) return [];
+
+  const membership = await prisma.userTenant.findUnique({
     where: {
-      id: userId,
-      memberships: {
-        some: {
-          tenantId: tenant.id,
-        },
+      userId_tenantId: {
+        userId,
+        tenantId: tenant.id,
       },
     },
     include: {
-      roles: {
+      roleAssignments: {
         include: {
-          permissions: true,
+          role: {
+            include: { permissions: true },
+          },
         },
       },
     },
   });
 
-  if (!user) {
-    return [];
+  if (!membership) return [];
+
+  const permissions = new Set<string>();
+
+  for (const assignment of membership.roleAssignments) {
+    for (const permission of assignment.role.permissions) {
+      if (permission.action && permission.resource) {
+        permissions.add(`${permission.action}:${permission.resource}`);
+      }
+    }
   }
 
-  const permissionsSet = new Set<string>();
-
-  user.roles.forEach((role) => {
-    role.permissions.forEach((permission) => {
-      const permissionString = `${permission.action || ""}:${permission.resource
-        }`;
-      if (permission.action && permission.resource) {
-        permissionsSet.add(permissionString);
-      }
-    });
-  });
-
-  return Array.from(permissionsSet);
+  return [...permissions];
 }
 
 export const isSuperAdmin = cache(async (userId?: string): Promise<boolean> => {
