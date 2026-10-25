@@ -1,14 +1,17 @@
-@baseUrl=http://localhost:3000/api/
+@baseUrl = http://localhost:3000/api
+@setupToken = {{$dotenv SUPER_ADMIN_SETUP_TOKEN}}
 
 ### CREATE SUPER_ADMIN
 POST {{baseUrl}}/create_super_admin
+# Authorization: Bearer {{setupToken}}
 Content-Type: application/json
 
 {
-    "name":"ghalass",
-    "email":"ghalass@ghalass.com",
-    "password":"super@dmin"
+    "name": "ghalass",
+    "email": "ghalass@ghalass.com",
+    "password": "SuperAdmin@2026!"
 }
+
 
 ### CREATE TENANT
 POST {{baseUrl}}/auth/register

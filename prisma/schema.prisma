@@ -18,8 +18,10 @@ model Tenant {
   createdById String?
   createdBy   User?   @relation("TenantCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 
-  sites      Site[]
-  users      User[]
+  sites       Site[]
+  users       User[]
+  memberships UserTenant[]
+
   typeparcs  Typeparc[]
   parcs      Parc[]
   engins     Engin[]
@@ -73,19 +75,31 @@ model User {
   id           String  @id @default(cuid(2))
   tenantId     String?
   name         String
-  email        String
+  email        String  @unique
   password     String
   active       Boolean @default(true)
   isSuperAdmin Boolean @default(false)
 
   createdTenants Tenant[] @relation("TenantCreatedBy")
 
-  roles  Role[]
-  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  roles       Role[]
+  tenant      Tenant?      @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  memberships UserTenant[]
 
-  @@unique([tenantId, email])
   @@unique([isSuperAdmin], where: { isSuperAdmin: true }, map: "user_single_super_admin_key")
   @@map("user")
+}
+
+model UserTenant {
+  userId   String
+  tenantId String
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@id([userId, tenantId])
+  @@index([tenantId])
+  @@map("user_tenant")
 }
 
 // ****************** GESTION DES DONNEES DE BASE ******************

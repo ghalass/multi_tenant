@@ -82,7 +82,11 @@ export async function getAllRoles(tenantId: string, filters: RoleSearchParams = 
                     _count: {
                         select: {
                             users: {
-                                where: { tenantId }
+                                where: {
+                                    memberships: {
+                                        some: { tenantId },
+                                    },
+                                },
                             }, permissions: true
                         }
                     },

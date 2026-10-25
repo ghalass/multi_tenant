@@ -2,7 +2,7 @@
 
 import { getAllTenants } from "@/server/tenants";
 import { CreateTenantForm } from "./create-tenant-form";
-import TenantSwitcher from "./tenant-link";
+import TenantSwitcher from "../../../components/tenant-link";
 import { getSession } from "@/lib/auth";
 import CanAccess from "@/components/can-access";
 import { ACTION } from "@/lib/enums";
@@ -34,7 +34,11 @@ export default async function TenantMainPage() {
             <div className="flex flex-col gap-2 items-center justify-center mt-2">
               {tenants.map((tenant) => (
                 <div key={tenant.id} className="flex items-center gap-0.5">
-                  <TenantSwitcher tenantName={tenant.name} tenantId={tenant.id} currentTenantId={currentTenantId!} />
+                  <TenantSwitcher
+                    tenantName={tenant.name}
+                    tenantId={tenant.id}
+                    currentTenantId={currentTenantId}
+                  />
                 </div>
               ))}
             </div>

@@ -53,11 +53,18 @@ export async function getUserPermissions(userId?: string): Promise<string[]> {
     return [];
   }
   const user = await prisma.user.findUnique({
-    where: { id: userId, tenantId: tenant?.id },
+    where: {
+      id: userId,
+      memberships: {
+        some: {
+          tenantId: tenant.id,
+        },
+      },
+    },
     include: {
       roles: {
         include: {
-          permissions: true, // Pas besoin de `permission: true`, c'est direct
+          permissions: true,
         },
       },
     },

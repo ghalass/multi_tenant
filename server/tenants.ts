@@ -6,49 +6,47 @@ import { sleep } from "@/lib/utils";
 import { cache } from "react";
 
 export async function getAllTenants() {
-  await sleep();
   const session = await getSession();
 
-  // check if session exist
   if (!session.userId) return [];
 
   const user = await prisma.user.findUnique({
     where: { id: session.userId },
+    select: { isSuperAdmin: true },
   });
 
-  // Super-admin : accès à tous les tenants
-  if (user?.isSuperAdmin) {
+  if (!user) return [];
+
+  // Super-administrateur : tous les tenants.
+  if (user.isSuperAdmin) {
     return prisma.tenant.findMany({
       include: {
         createdBy: {
-          omit: {
-            password: true,
-          },
+          omit: { password: true },
         },
       },
-      orderBy: {
-        name: "asc",
-      },
+      orderBy: { name: "asc" },
     });
   }
 
-  // Utilisateur normal : uniquement son tenant
-  if (!user?.tenantId) {
-    return [];
-  }
-
-  return prisma.tenant.findMany({
-    where: {
-      id: user.tenantId,
-    },
+  // Utilisateur ordinaire : uniquement ses appartenances.
+  const memberships = await prisma.userTenant.findMany({
+    where: { userId: session.userId },
     include: {
-      createdBy: {
-        omit: {
-          password: true,
+      tenant: {
+        include: {
+          createdBy: {
+            omit: { password: true },
+          },
         },
       },
     },
   });
+
+  return memberships
+    .filter(({ tenant }) => tenant.active)
+    .map(({ tenant }) => tenant)
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function createTenant(name: string) {

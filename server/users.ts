@@ -40,7 +40,11 @@ export async function getAllUsers(filters: UsersSearchParams): Promise<ActionRes
   const active = filters?.active;
   const role = filters?.role;
 
-  const where: any = { tenantId: currentTenantId };
+  const where: Prisma.UserWhereInput = {
+    memberships: {
+      some: { tenantId: currentTenantId },
+    },
+  };
 
   if (name) {
     where.OR = [
@@ -71,7 +75,10 @@ export async function getAllUsers(filters: UsersSearchParams): Promise<ActionRes
       take: itemsPerPage,
       include: {
         roles: true,
-        tenant: true,
+        memberships: {
+          where: { tenantId: currentTenantId },
+          include: { tenant: true },
+        },
       },
     }),
     // 2. Compter tous les users correspondant aux filtres
@@ -102,11 +109,19 @@ export async function getUserById(id: string) {
       message: "Aucun tenant actif.",
     };
   }
-  const user = await prisma.user.findUnique({
-    where: { id, tenantId: currentTenantId, },
+  const user = await prisma.user.findFirst({
+    where: {
+      id,
+      memberships: {
+        some: { tenantId: currentTenantId },
+      },
+    },
     include: {
       roles: true,
-      tenant: true,
+      memberships: {
+        where: { tenantId: currentTenantId },
+        include: { tenant: true },
+      },
     },
   });
   if (!user) {
@@ -117,7 +132,16 @@ export async function getUserById(id: string) {
     };
   }
 
-  return { data: user, success: true, message: "" };
+  const { memberships, ...userData } = user;
+
+  return {
+    data: {
+      ...userData,
+      tenant: memberships[0]?.tenant ?? null,
+    },
+    success: true,
+    message: "",
+  };
 }
 
 // ================== GET ALL ROLES ==================
@@ -153,43 +177,96 @@ export async function createUser(
   if (!g.success) return { success: false, message: g.message };
 
   const { userId, currentTenantId } = await getSession();
-  if (!userId) return { success: false, message: "Utilisateur non authentifié" };
+
+  if (!userId || !currentTenantId) {
+    return {
+      success: false,
+      message: "Utilisateur non authentifié ou aucun tenant actif.",
+    };
+  }
 
   try {
-    const existing = await prisma.user.findFirst({ where: { tenantId: currentTenantId, email } });
+    const normalizedEmail = email.trim().toLowerCase();
+
+    const existing = await prisma.user.findUnique({
+      where: { email: normalizedEmail },
+    });
 
     if (existing) {
+      if (existing.isSuperAdmin) {
+        return {
+          success: false,
+          message: "Cet email appartient au super-administrateur.",
+        };
+      }
+
+      if (!existing.active) {
+        return {
+          success: false,
+          message: "Ce compte utilisateur est désactivé.",
+        };
+      }
+
+      const membership = await prisma.userTenant.findUnique({
+        where: {
+          userId_tenantId: {
+            userId: existing.id,
+            tenantId: currentTenantId,
+          },
+        },
+      });
+
+      if (membership) {
+        return {
+          success: false,
+          message: "Cet utilisateur appartient déjà à ce tenant.",
+        };
+      }
+
+      await prisma.userTenant.create({
+        data: {
+          userId: existing.id,
+          tenantId: currentTenantId,
+        },
+      });
+
       return {
-        success: false,
-        message: "Un utilisateur avec cet email existe déjà.",
+        success: true,
+        message: "Le compte existant a été ajouté à ce tenant.",
       };
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    if (!currentTenantId) {
-      return {
-        success: false,
-        message: "Aucun tenant actif.",
-      };
-    }
-
     await prisma.user.create({
       data: {
         name,
         active,
-        email,
+        email: normalizedEmail,
         password: hashedPassword,
+
+        // Conservé pour compatibilité avec le code existant.
         tenantId: currentTenantId,
+
+        memberships: {
+          create: {
+            tenantId: currentTenantId,
+          },
+        },
+
         roles: {
           connect: roleIds.map((id) => ({ id })),
         },
       },
     });
 
-    return { success: true, message: "Utilisateur créé avec succès." };
+    return {
+      success: true,
+      message: "Utilisateur créé avec succès.",
+    };
   } catch (error) {
-    console.error(error);
+    console.error("Erreur lors de la création de l'utilisateur.");
+
     return {
       success: false,
       message: "Erreur lors de la création de l'utilisateur.",
@@ -218,10 +295,26 @@ export async function updateUser(
       message: "Aucun tenant actif.",
     };
   }
+  const membership = await prisma.userTenant.findUnique({
+    where: {
+      userId_tenantId: {
+        userId: id,
+        tenantId: currentTenantId,
+      },
+    },
+  });
+
+  if (!membership) {
+    return {
+      success: false,
+      message: "Utilisateur introuvable dans ce tenant.",
+    };
+  }
+
   try {
     const data: Prisma.UserUpdateInput = {
       name,
-      email,
+      email: email?.trim().toLowerCase(),
       active,
       roles: {
         set: roleIds.map((id) => ({ id })),
@@ -233,10 +326,7 @@ export async function updateUser(
     }
 
     await prisma.user.update({
-      where: {
-        id,
-        tenantId: currentTenantId,
-      },
+      where: { id },
       data,
     });
 
@@ -267,13 +357,24 @@ export async function deleteUser(id: string): Promise<ActionResponse> {
   }
 
   try {
-    await prisma.user.delete({
+    const result = await prisma.userTenant.deleteMany({
       where: {
-        id,
+        userId: id,
         tenantId: currentTenantId,
       },
     });
-    return { success: true, message: "Utilisateur supprimé avec succès." };
+
+    if (result.count === 0) {
+      return {
+        success: false,
+        message: "Utilisateur introuvable dans ce tenant.",
+      };
+    }
+
+    return {
+      success: true,
+      message: "Utilisateur retiré de ce tenant.",
+    };
   } catch (error) {
     console.error(error);
     return {

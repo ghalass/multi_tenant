@@ -71,29 +71,47 @@ export async function switchCurrentTenant({
 
   const user = await prisma.user.findUnique({
     where: { id: session.userId },
-    select: {
-      tenantId: true,
-      isSuperAdmin: true,
-    },
+    select: { isSuperAdmin: true },
   });
 
   if (!user) {
     throw new Error("Utilisateur introuvable.");
   }
 
-  if (user.isSuperAdmin) {
-    if (currentTenantId) {
-      const tenant = await prisma.tenant.findUnique({
-        where: { id: currentTenantId },
-        select: { id: true, active: true },
-      });
+  // Permet de retirer le tenant actif de la session.
+  if (!currentTenantId) {
+    session.currentTenantId = undefined;
+    await session.save();
+    return;
+  }
 
-      if (!tenant || !tenant.active) {
-        throw new Error("Tenant invalide ou inactif.");
-      }
+  const tenant = await prisma.tenant.findFirst({
+    where: {
+      id: currentTenantId,
+      active: true,
+    },
+    select: { id: true },
+  });
+
+  if (!tenant) {
+    throw new Error("Tenant invalide ou inactif.");
+  }
+
+  // Le super-administrateur peut choisir n'importe quel tenant actif.
+  // Un utilisateur ordinaire doit en être membre.
+  if (!user.isSuperAdmin) {
+    const membership = await prisma.userTenant.findUnique({
+      where: {
+        userId_tenantId: {
+          userId: session.userId,
+          tenantId: currentTenantId,
+        },
+      },
+    });
+
+    if (!membership) {
+      throw new Error("Accès interdit à ce tenant.");
     }
-  } else if (currentTenantId !== user.tenantId) {
-    throw new Error("Accès interdit à ce tenant.");
   }
 
   session.currentTenantId = currentTenantId;
@@ -102,63 +120,73 @@ export async function switchCurrentTenant({
 
 export async function login(email: string, password: string) {
   try {
-    const error_message = "Email ou mot de passe incorrect!";
-
-    // Attend 1500ms (1.5 seconde) avant de continuer
     await sleep();
 
     const normalizedEmail = email.trim().toLowerCase();
 
-    const { currentTenantId: tenantId } = await getSession()
+    const user = await prisma.user.findUnique({
+      where: { email: normalizedEmail },
+    });
 
-    // find user by email
-    const user = tenantId
-      ? await prisma.user.findFirst({
-        where: {
-          email: normalizedEmail,
-          tenantId,
-          isSuperAdmin: false,
-          tenant: {
-            is: { active: true },
-          },
-        },
-      })
-      : await prisma.user.findFirst({
-        where: {
-          email: normalizedEmail,
-          tenantId: null,
-          isSuperAdmin: true,
-        },
-      });
-    if (!user) return { success: false, message: error_message };
-
-    // check password
-    const isValid = await verifyPassword(password, user.password);
-    if (!isValid) return { success: false, message: error_message };
-
-    // check if user is active
-    if (!user.active)
+    if (!user || !(await verifyPassword(password, user.password))) {
       return {
         success: false,
-        message:
-          "Votre compte n'est pas encore activé, veuillez contacter un admin pour l'activation.",
+        message: "Email ou mot de passe incorrect.",
       };
+    }
 
-    // SESSION
+    if (!user.active) {
+      return {
+        success: false,
+        message: "Votre compte est désactivé.",
+      };
+    }
+
+    let currentTenantId: string | undefined;
+
+    if (!user.isSuperAdmin) {
+      const memberships = await prisma.userTenant.findMany({
+        where: { userId: user.id },
+        include: {
+          tenant: {
+            select: { active: true },
+          },
+        },
+      });
+
+      const activeTenantIds = memberships
+        .filter((membership) => membership.tenant.active)
+        .map((membership) => membership.tenantId);
+
+      if (activeTenantIds.length === 0) {
+        return {
+          success: false,
+          message: "Aucun tenant actif n'est associé à ce compte.",
+        };
+      }
+
+      // Sélection automatique si l'utilisateur n'a qu'un seul tenant.
+      // Sinon, il choisira sur la page d'accueil.
+      if (activeTenantIds.length === 1) {
+        currentTenantId = activeTenantIds[0];
+      }
+    }
+
     await saveSession({
       userId: user.id,
-      currentTenantId: user.tenantId ?? undefined,
+      currentTenantId,
     });
 
     return {
       success: true,
-      message: "Connexion réussie",
+      message: "Connexion réussie.",
     };
   } catch (error) {
-    const e = error as Error;
+    console.error("Erreur lors de la connexion.");
+
     return {
       success: false,
-      message: e.message || "Une erreur inconnue s'est produite",
+      message: "Une erreur est survenue lors de la connexion.",
     };
   }
 }
