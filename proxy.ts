@@ -1,6 +1,7 @@
 
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+
 import { getSession } from "./lib/auth";
 import { createI18nMiddleware } from "next-international/middleware";
 
@@ -12,20 +13,21 @@ const defaultLocale: Locale = "fr";
 const I18nMiddleware = createI18nMiddleware({
   locales: [...locales],
   defaultLocale,
-  urlMappingStrategy: 'rewriteDefault'
+  urlMappingStrategy: "rewriteDefault",
 });
 
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const isApi = pathname.startsWith("/api/");
 
-  // Les API ne passent pas par le middleware i18n
+  // 1. Gestion des API
   if (isApi) {
-    const session = await getSession();
-
+    // La route d'initialisation vérifie elle-même son secret.
     if (pathname === "/api/create_super_admin") {
       return NextResponse.next();
     }
+
+    const session = await getSession();
 
     if (!session.userId) {
       return NextResponse.json(
@@ -37,30 +39,23 @@ export async function proxy(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // Appliquer l'internationalisation
-  const i18nResponse = I18nMiddleware(req);
-
-  // Respecter les redirections et réécritures i18n
-  if (
-    (i18nResponse.status >= 300 &&
-      i18nResponse.status < 400) ||
-    i18nResponse.headers.has("x-middleware-rewrite")
-  ) {
-    return i18nResponse;
-  }
-
-  // Déterminer la langue et le chemin sans préfixe
+  // 2. Déterminer la langue et le chemin normalisé
   const segments = pathname.split("/");
   const firstSegment = segments[1];
 
-  const locale = locales.includes(firstSegment as Locale)
+  const hasLocalePrefix = locales.includes(
+    firstSegment as Locale,
+  );
+
+  const locale: Locale = hasLocalePrefix
     ? (firstSegment as Locale)
     : defaultLocale;
 
-  const normalizedPathname = locales.includes(firstSegment as Locale)
-    ? "/" + segments.slice(2).join("/")
+  const normalizedPathname = hasLocalePrefix
+    ? `/${segments.slice(2).join("/")}`
     : pathname;
 
+  // 3. Vérifier l'authentification AVANT l'i18n
   const session = await getSession();
 
   const publicPaths = ["/", "/login", "/register"];
@@ -69,33 +64,46 @@ export async function proxy(req: NextRequest) {
     (path) =>
       normalizedPathname === path ||
       (path !== "/" &&
-        normalizedPathname.startsWith(path + "/")),
+        normalizedPathname.startsWith(`${path}/`)),
   );
 
-  if (isPublic) {
-    if (
-      session.userId &&
-      ["/login", "/register"].includes(normalizedPathname)
-    ) {
-      return NextResponse.redirect(
-        new URL(`/${locale}`, req.url),
-      );
-    }
-
-    return NextResponse.next();
+  // Rediriger les utilisateurs connectés hors des pages de connexion.
+  if (
+    session.userId &&
+    ["/login", "/register"].includes(normalizedPathname)
+  ) {
+    return NextResponse.redirect(
+      new URL(`/${locale}`, req.url),
+    );
   }
 
-  if (!session.userId) {
+  // Protéger les pages privées.
+  if (!isPublic && !session.userId) {
     return NextResponse.redirect(
       new URL(`/${locale}/login`, req.url),
     );
   }
 
+  // 4. Appliquer l'internationalisation après le contrôle d'accès
+  const i18nResponse = I18nMiddleware(req);
+
+  // Respecter les redirections et les réécritures i18n.
+  if (
+    (i18nResponse.status >= 300 &&
+      i18nResponse.status < 400) ||
+    i18nResponse.headers.has("x-middleware-rewrite")
+  ) {
+    return i18nResponse;
+  }
+
+  // 5. Transmettre le chemin de la requête à l'application.
   const requestHeaders = new Headers(req.headers);
   requestHeaders.set("x-pathname", pathname);
 
   return NextResponse.next({
-    request: { headers: requestHeaders },
+    request: {
+      headers: requestHeaders,
+    },
   });
 }
 
@@ -104,66 +112,3 @@ export const config = {
     "/((?!_next/static|_next/image|favicon.ico|.*\\..*).*)",
   ],
 };
-
-
-
-
-// import { NextResponse } from "next/server";
-// import type { NextRequest } from "next/server";
-// import { getSession } from "./lib/auth";
-
-// import { createI18nMiddleware } from 'next-international/middleware'
-
-// const I18nMiddleware = createI18nMiddleware({
-//   locales: ['en', 'fr'],
-//   defaultLocale: 'en'
-// })
-
-// export async function proxy(req: NextRequest) {
-//   const { pathname } = req.nextUrl;
-//   const isApi = pathname.startsWith("/api/");
-//   const session = await getSession();
-
-//   const publicPaths = [
-//     "/",
-//     "/login",
-//     "/api/create_super_admin",
-//   ];
-
-//   // 🔓 Routes publiques
-//   if (
-//     publicPaths.some(
-//       (path) => pathname === path || pathname.startsWith(path + "/"),
-//     )
-//   ) {
-//     if (session.userId && (pathname === "/login" || pathname === "/register")) {
-//       return NextResponse.redirect(new URL("/", req.url));
-//     }
-
-//     return NextResponse.next();
-//   }
-
-//   // 🔒 Routes privées
-//   const decoded = session.userId ? session : null;
-
-//   if (!decoded) {
-//     if (isApi) {
-//       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-//     } else {
-//       return NextResponse.redirect(new URL("/login", req.url));
-//     }
-//   }
-
-//   // Next.js injecte le pathname dans les headers. On peut parser l'tenantId depuis là.
-//   // injecter x-pathname
-//   const requestHeaders = new Headers(req.headers);
-//   requestHeaders.set("x-pathname", req.nextUrl.pathname);
-
-//   return NextResponse.next({
-//     request: { headers: requestHeaders },
-//   });
-// }
-
-// export const config = {
-//   matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
-// };
