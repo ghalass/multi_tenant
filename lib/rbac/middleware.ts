@@ -34,6 +34,9 @@ export async function protectRoute(
     // Vérifier si l'utilisateur est admin ou super-admin
     const session = await getSession();
 
+    // check if tenantId is provided, if not throw Error
+    await checkTenant();
+
     if (!session.userId)
       return NextResponse.json(
         { error: "Unauthorized", message: "Utilisateur non authentifié" },
@@ -64,9 +67,6 @@ export async function protectRoute(
         { status: 403 }
       );
     }
-
-    // check if tenantId is provided, if not throw Error
-    await checkTenant();
 
     return null;
   } catch (error) {
@@ -116,7 +116,8 @@ const ACTION_LABELS: Record<string, string> = {
   create: "pour la création",
   update: "pour la modification",
   delete: "pour la suppression",
-  export: "pour exportation"
+  export: "pour exportation",
+  import: "pour importation",
 };
 
 function humanizeAction(action: string): string {

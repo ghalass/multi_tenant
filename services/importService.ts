@@ -1,7 +1,5 @@
-// app/api/import/services/importService.ts
+// services/importService.ts
 import { IMPORT_RESOURCES } from "@/lib/constantes";
-import { ACTION } from "@/lib/enums";
-import { guard } from "@/lib/rbac/middleware";
 import { importEngins } from "@/server/engins";
 import { importPannes } from "@/server/pannes";
 import { importParcs } from "@/server/parcs";
@@ -14,24 +12,6 @@ import { importTypeParcs } from "@/server/typeparcs";
 export class ImportService {
   async importData(sheetName: string, data: any) {
     try {
-      const normalizedSheet = sheetName.toLowerCase();
-      const resource = IMPORT_RESOURCES[normalizedSheet];
-      if (!resource) {
-        return [{
-          success: false,
-          data: null,
-          message: `Onglet non supporté: ${sheetName}`,
-        }];
-      }
-      const permission = await guard(ACTION.IMPORT, resource);
-      if (!permission.success) {
-        return [{
-          success: false,
-          data: null,
-          message: permission.message,
-        }];
-      }
-
       switch (sheetName.toLowerCase()) {
         case IMPORT_RESOURCES.SITES: return await importSites(data);
         case IMPORT_RESOURCES.TYPEPARCS: return await importTypeParcs(data);
@@ -43,31 +23,6 @@ export class ImportService {
         // SAISIE HRM & HIMS
         case IMPORT_RESOURCES.SAISIE_HRM: return await importSaisieHrm(data);
         case IMPORT_RESOURCES.SAISIE_HIMS: return await importSaisieHims(data);
-
-        // // GESTION DES USERS & ROLES
-        // case "users":
-        //   return await importUsers(data);
-        // case "permissions":
-        //   return await importPermissions(data);
-        // case "roles":
-        //   return await importRoles(data);
-
-        // // GESTION DES ANOMALIES
-        // case "anomalies":
-        //   return await importAnomalies(data);
-
-
-
-
-        // // GESTION DES ORGANEs & MOUVEMENTS
-        // case "type_organe":
-        //   return await importTypeOrganes(data);
-        // case "organe":
-        //   return await importOrganes(data);
-        // case "mvt_organe":
-        //   return await importMvtOrgane(data);
-
-        //
         default:
           return [
             {
