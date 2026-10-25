@@ -80,9 +80,14 @@ export async function getAllPermission(filters: PermissionsSearchParams): Promis
       success: true, message: "Données récupérées avec succès!",
       meta: { totalItems, totalPages, currentPage, itemsPerPage },
     };
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("getAllPermissions error:", error);
-    return { data: [], success: false, message: error as string };
+
+    return {
+      data: [],
+      success: false,
+      message: "Impossible de récupérer les permissions.",
+    };
   }
 }
 

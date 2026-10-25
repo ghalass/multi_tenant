@@ -234,16 +234,13 @@ export async function getAllRoles(
                 itemsPerPage,
             },
         };
-    } catch (error) {
+    } catch (error: unknown) {
         console.error("Erreur dans getAllRoles :", error);
 
         return {
             data: [],
             success: false,
-            message:
-                error instanceof Error
-                    ? error.message
-                    : "Impossible de récupérer les rôles.",
+            message: "Impossible de récupérer les rôles.",
         };
     }
 }
