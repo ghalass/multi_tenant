@@ -64,8 +64,8 @@ model Role {
   name        String
   description String?
 
-  permissions Permission[]
-  users       User[]
+  permissions     Permission[]
+  userAssignments UserTenantRole[]
 
   @@unique([name])
   @@map("role")
@@ -82,7 +82,6 @@ model User {
 
   createdTenants Tenant[] @relation("TenantCreatedBy")
 
-  roles       Role[]
   tenant      Tenant?      @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   memberships UserTenant[]
 
@@ -94,12 +93,26 @@ model UserTenant {
   userId   String
   tenantId String
 
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  roleAssignments UserTenantRole[]
 
   @@id([userId, tenantId])
   @@index([tenantId])
   @@map("user_tenant")
+}
+
+model UserTenantRole {
+  userId   String
+  tenantId String
+  roleId   String
+
+  membership UserTenant @relation(fields: [userId, tenantId], references: [userId, tenantId], onDelete: Cascade)
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, tenantId, roleId])
+  @@index([roleId])
+  @@map("user_tenant_role")
 }
 
 // ****************** GESTION DES DONNEES DE BASE ******************
