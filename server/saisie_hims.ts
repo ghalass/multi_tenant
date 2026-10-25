@@ -91,8 +91,12 @@ export async function importSaisieHims(data: any) {
     const panne = await prisma.panne.findFirst({
       where: {
         name: panneName,
+        tenantId: currentTenantId,
         parcs: {
-          some: { name: engin.parc.name },
+          some: {
+            id: engin.parcId,
+            tenantId: currentTenantId,
+          },
         },
       },
     });
@@ -106,7 +110,11 @@ export async function importSaisieHims(data: any) {
       ];
     }
     const saisiehrm = await prisma.saisiehrm.findFirst({
-      where: { du: du, enginId: engin.id },
+      where: {
+        du,
+        enginId: engin.id,
+        tenantId: currentTenantId,
+      },
     });
     if (!saisiehrm) {
       return [
