@@ -136,13 +136,20 @@ function getDatabaseConfig() {
  * Vérifie que le répertoire de sauvegarde est hors du projet.
  */
 async function assertBackupDirectory(): Promise<string> {
+    const projectDirectory = path.resolve(process.cwd());
     const directory = getBackupDirectory();
-    const relative = path.relative(process.cwd(), directory);
 
-    if (
+    const relative = path.relative(projectDirectory, directory);
+
+    const isInsideProject =
         relative === "" ||
-        (!relative.startsWith("..") && !path.isAbsolute(relative))
-    ) {
+        (
+            !path.isAbsolute(relative) &&
+            relative !== ".." &&
+            !relative.startsWith(`..${path.sep}`)
+        );
+
+    if (isInsideProject) {
         throw new Error(
             "Le dossier de sauvegarde doit être hors du projet.",
         );
