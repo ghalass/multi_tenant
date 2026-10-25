@@ -91,6 +91,7 @@ export async function getRapportRje(filters?: searchParamsRapportRje): Promise<A
       const him = await prisma.saisiehim.aggregate({
         _sum: { him: true },
         where: {
+          tenantId: currentTenantId,
           saisiehrm: {
             du: { gte: startDate, lte: endDate },
             enginId: enginId,
@@ -110,6 +111,7 @@ export async function getRapportRje(filters?: searchParamsRapportRje): Promise<A
 
       const ni = await prisma.saisiehim.count({
         where: {
+          tenantId: currentTenantId,
           saisiehrm: {
             du: { gte: startDate, lte: endDate },
             enginId: enginId,
