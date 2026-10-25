@@ -2,9 +2,8 @@
 import { NextResponse } from "next/server";
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
-
+import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
-import { isSuperAdmin } from "@/lib/rbac/core";
 
 export const runtime = "nodejs";
 
@@ -22,12 +21,26 @@ export async function GET(
     try {
         const session = await getSession();
 
-        if (
-            !session.userId ||
-            !(await isSuperAdmin(session.userId))
-        ) {
+        if (!session.userId) {
             return NextResponse.json(
                 { message: "Accès réservé au super-administrateur." },
+                { status: 403 },
+            );
+        }
+
+        const user = await prisma.user.findUnique({
+            where: {
+                id: session.userId,
+            },
+            select: {
+                active: true,
+                isSuperAdmin: true,
+            },
+        });
+
+        if (!user?.active || !user.isSuperAdmin) {
+            return NextResponse.json(
+                { message: "Accès réservé au super-administrateur actif." },
                 { status: 403 },
             );
         }

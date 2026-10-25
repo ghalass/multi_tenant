@@ -4,8 +4,7 @@
 "use server";
 
 import { getSession } from "@/lib/auth";
-import { isSuperAdmin } from "@/lib/rbac/core";
-
+import { prisma } from "@/lib/prisma";
 import {
     createDatabaseBackup,
     deleteDatabaseBackup,
@@ -21,8 +20,17 @@ async function authorizeDatabaseAdmin(): Promise<boolean> {
         return false;
     }
 
-    // Opérations globales : aucun tenant courant requis.
-    return await isSuperAdmin(session.userId);
+    const user = await prisma.user.findUnique({
+        where: {
+            id: session.userId,
+        },
+        select: {
+            active: true,
+            isSuperAdmin: true,
+        },
+    });
+
+    return user?.active === true && user.isSuperAdmin === true;
 }
 
 export async function getDatabaseBackupsAction() {
