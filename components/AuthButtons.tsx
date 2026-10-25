@@ -44,12 +44,19 @@ export default async function AuthButtons() {
     roleNames = "SuperAdmin";
   }
   else if (user?.roles && Array.isArray(user.roles)) {
-    roleNames = user.roles.map((role) => {
-      if (typeof role === "object" && role !== null && "name" in role) {
-        return (role as { name: string }).name;
-      }
-      return typeof role === "string" ? role : "";
-    })
+    roleNames = user.roles
+      .map((role: unknown) => {
+        if (
+          typeof role === "object" &&
+          role !== null &&
+          "name" in role &&
+          typeof role.name === "string"
+        ) {
+          return role.name;
+        }
+
+        return typeof role === "string" ? role : "";
+      })
       .filter(Boolean)
       .join(", ");
   }

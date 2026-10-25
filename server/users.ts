@@ -17,8 +17,45 @@ export type UsersSearchParams = {
   itemsPerPage?: number;
 };
 
+/**
+ * Remplace uniquement les rôles de l'appartenance concernée.
+ * Les rôles attribués dans les autres tenants restent inchangés.
+ */
+async function syncMembershipRoles(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  tenantId: string,
+  roleIds: string[]
+) {
+  await tx.userTenantRole.deleteMany({
+    where: {
+      userId,
+      tenantId,
+    },
+  });
 
-export async function getAllUsers(filters: UsersSearchParams): Promise<ActionResponse> {
+  const uniqueRoleIds = [...new Set(roleIds)];
+
+  if (uniqueRoleIds.length === 0) {
+    return;
+  }
+
+  await tx.userTenantRole.createMany({
+    data: uniqueRoleIds.map((roleId) => ({
+      userId,
+      tenantId,
+      roleId,
+    })),
+  });
+}
+
+// ============================================================
+// GET ALL USERS
+// ============================================================
+
+export async function getAllUsers(
+  filters: UsersSearchParams
+): Promise<ActionResponse> {
   const { userId, currentTenantId } = await getSession();
 
   if (!userId || !currentTenantId) {
@@ -30,78 +67,150 @@ export async function getAllUsers(filters: UsersSearchParams): Promise<ActionRes
   }
 
   const g = await guard(ACTION.READ, RESOURCE.USER);
-  if (!g.success) return { data: [], success: false, message: g.message };
 
-  // Pagination
+  if (!g.success) {
+    return {
+      data: [],
+      success: false,
+      message: g.message,
+    };
+  }
+
   const currentPage = Math.max(filters?.currentPage ?? 1, 1);
-  const itemsPerPage = Math.max(filters?.itemsPerPage ?? PAGINATION_SETTINGS.itemsPerPage, 1);
 
-  const name = filters?.name;
+  const requestedItemsPerPage =
+    filters?.itemsPerPage ?? PAGINATION_SETTINGS.itemsPerPage;
+
+  const itemsPerPage = Math.max(requestedItemsPerPage, 1);
+
+  const name = filters?.name?.trim();
   const active = filters?.active;
-  const role = filters?.role;
+  const role = filters?.role?.trim();
 
   const where: Prisma.UserWhereInput = {
     memberships: {
-      some: { tenantId: currentTenantId },
+      some: {
+        tenantId: currentTenantId,
+
+        ...(role
+          ? {
+            roleAssignments: {
+              some: {
+                role: {
+                  name: role,
+                },
+              },
+            },
+          }
+          : {}),
+      },
     },
   };
 
   if (name) {
     where.OR = [
-      { name: { contains: name, mode: "insensitive" } },
-      { email: { contains: name, mode: "insensitive" } },
+      {
+        name: {
+          contains: name,
+          mode: "insensitive",
+        },
+      },
+      {
+        email: {
+          contains: name,
+          mode: "insensitive",
+        },
+      },
     ];
   }
 
-  if (role) {
-    where.roles = {
-      some: {
-        name: role,
-      },
-    };
+  if (active === ACTIVE.YES) {
+    where.active = true;
   }
 
-  if (active === ACTIVE.YES) where.active = true;
-  if (active === ACTIVE.NO) where.active = false;
+  if (active === ACTIVE.NO) {
+    where.active = false;
+  }
 
-  const skip = (currentPage - 1) * itemsPerPage
+  const skip = (currentPage - 1) * itemsPerPage;
 
   const [users, totalItems] = await Promise.all([
-    // 1. Récupérer les users de la page actuelle
     prisma.user.findMany({
       where,
-      orderBy: { name: "asc" },
+      orderBy: {
+        name: "asc",
+      },
       skip,
       take: itemsPerPage,
       include: {
-        roles: true,
         memberships: {
-          where: { tenantId: currentTenantId },
-          include: { tenant: true },
+          where: {
+            tenantId: currentTenantId,
+          },
+          include: {
+            tenant: true,
+            roleAssignments: {
+              include: {
+                role: true,
+              },
+            },
+          },
         },
       },
     }),
-    // 2. Compter tous les users correspondant aux filtres
-    prisma.user.count({ where }),
+
+    prisma.user.count({
+      where,
+    }),
   ]);
+
+  // Présenter les rôles de l'appartenance courante sous la propriété
+  // "roles", afin de conserver la compatibilité avec l'interface.
+  const formattedUsers = users.map(({ memberships, ...user }) => {
+    const membership = memberships[0];
+
+    return {
+      ...user,
+      tenant: membership?.tenant ?? null,
+      roles:
+        membership?.roleAssignments.map(
+          (assignment) => assignment.role
+        ) ?? [],
+    };
+  });
 
   const totalPages = Math.ceil(totalItems / itemsPerPage);
 
   return {
-    data: users,
-    success: true, message: "Données récupérées avec succès!",
-    meta: { currentPage, itemsPerPage, totalItems, totalPages },
+    data: formattedUsers,
+    success: true,
+    message: "Données récupérées avec succès!",
+    meta: {
+      currentPage,
+      itemsPerPage,
+      totalItems,
+      totalPages,
+    },
   };
 }
 
-// ================== GET USER BY ID ==================
-export async function getUserById(id: string) {
-  // 1. Vérifier la permission
-  const g = await guard(ACTION.READ, RESOURCE.USER);
-  if (!g.success) return { data: [], success: false, message: g.message };
+// ============================================================
+// GET USER BY ID
+// ============================================================
 
-  // 2. Continuer la logique métier
+export async function getUserById(id: string) {
+  const g = await guard(ACTION.READ, RESOURCE.USER);
+
+  if (!g.success) {
+    return {
+      data: null,
+      success: false,
+      message: g.message,
+    };
+  }
+
   const { userId, currentTenantId } = await getSession();
+
   if (!userId || !currentTenantId) {
     return {
       data: null,
@@ -109,63 +218,106 @@ export async function getUserById(id: string) {
       message: "Aucun tenant actif.",
     };
   }
+
   const user = await prisma.user.findFirst({
     where: {
       id,
       memberships: {
-        some: { tenantId: currentTenantId },
+        some: {
+          tenantId: currentTenantId,
+        },
       },
     },
     include: {
-      roles: true,
       memberships: {
-        where: { tenantId: currentTenantId },
-        include: { tenant: true },
+        where: {
+          tenantId: currentTenantId,
+        },
+        include: {
+          tenant: true,
+          roleAssignments: {
+            include: {
+              role: true,
+            },
+          },
+        },
       },
     },
   });
+
   if (!user) {
     return {
       data: null,
       success: false,
-      message: "Utilisateur introuvable.",
+      message: "Utilisateur introuvable dans ce tenant.",
     };
   }
 
   const { memberships, ...userData } = user;
+  const membership = memberships[0];
 
   return {
     data: {
       ...userData,
-      tenant: memberships[0]?.tenant ?? null,
+      tenant: membership?.tenant ?? null,
+      roles:
+        membership?.roleAssignments.map(
+          (assignment) => assignment.role
+        ) ?? [],
     },
     success: true,
-    message: "",
+    message: "Données récupérées avec succès.",
   };
 }
 
-// ================== GET ALL ROLES ==================
-export async function getAllRoles(): Promise<{ roles: Role[], success: boolean, message: string }> {
-  // 1. Vérifier la permission
-  const g = await guard(ACTION.READ, RESOURCE.USER);
-  if (!g.success) return { roles: [], success: false, message: g.message };
+// ============================================================
+// GET ALL ROLES FOR USER FORMS
+// Les définitions des rôles restent globales.
+// Seules leurs affectations sont propres à chaque appartenance.
+// ============================================================
 
-  // 2. Continuer la logique métier
+export async function getAllRoles(): Promise<{
+  roles: Role[];
+  success: boolean;
+  message: string;
+}> {
+  const g = await guard(ACTION.READ, RESOURCE.USER);
+
+  if (!g.success) {
+    return {
+      roles: [],
+      success: false,
+      message: g.message,
+    };
+  }
+
   const { userId, currentTenantId } = await getSession();
 
-  if (!userId || !currentTenantId) return { roles: [], success: false, message: "Utilisateur non authentifié" };
+  if (!userId || !currentTenantId) {
+    return {
+      roles: [],
+      success: false,
+      message: "Utilisateur non authentifié ou aucun tenant actif.",
+    };
+  }
 
   const roles = await prisma.role.findMany({
-    orderBy: { name: "asc" },
+    orderBy: {
+      name: "asc",
+    },
   });
+
   return {
-    roles: roles,
-    success: true, message: "Données récupérées avec succès!",
+    roles,
+    success: true,
+    message: "Données récupérées avec succès!",
   };
-  // return { data: roles, success: true, message: "" };
 }
 
-// ================== CREATE USER ==================
+// ============================================================
+// CREATE USER
+// ============================================================
+
 export async function createUser(
   name: string,
   active: boolean,
@@ -174,7 +326,13 @@ export async function createUser(
   roleIds: string[] = []
 ): Promise<ActionResponse> {
   const g = await guard(ACTION.CREATE, RESOURCE.USER);
-  if (!g.success) return { success: false, message: g.message };
+
+  if (!g.success) {
+    return {
+      success: false,
+      message: g.message,
+    };
+  }
 
   const { userId, currentTenantId } = await getSession();
 
@@ -188,9 +346,22 @@ export async function createUser(
   try {
     const normalizedEmail = email.trim().toLowerCase();
 
+    if (!normalizedEmail) {
+      return {
+        success: false,
+        message: "L'adresse e-mail est obligatoire.",
+      };
+    }
+
     const existing = await prisma.user.findUnique({
-      where: { email: normalizedEmail },
+      where: {
+        email: normalizedEmail,
+      },
     });
+
+    // --------------------------------------------------------
+    // Le compte existe : ajouter une nouvelle appartenance.
+    // --------------------------------------------------------
 
     if (existing) {
       if (existing.isSuperAdmin) {
@@ -223,11 +394,22 @@ export async function createUser(
         };
       }
 
-      await prisma.userTenant.create({
-        data: {
-          userId: existing.id,
-          tenantId: currentTenantId,
-        },
+      // Création de l'appartenance et affectation des rôles
+      // dans une seule transaction.
+      await prisma.$transaction(async (tx) => {
+        await tx.userTenant.create({
+          data: {
+            userId: existing.id,
+            tenantId: currentTenantId,
+          },
+        });
+
+        await syncMembershipRoles(
+          tx,
+          existing.id,
+          currentTenantId,
+          roleIds
+        );
       });
 
       return {
@@ -236,28 +418,37 @@ export async function createUser(
       };
     }
 
+    // --------------------------------------------------------
+    // Le compte n'existe pas : créer utilisateur et appartenance.
+    // --------------------------------------------------------
+
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    await prisma.user.create({
-      data: {
-        name,
-        active,
-        email: normalizedEmail,
-        password: hashedPassword,
+    await prisma.$transaction(async (tx) => {
+      const newUser = await tx.user.create({
+        data: {
+          name,
+          active,
+          email: normalizedEmail,
+          password: hashedPassword,
 
-        // Conservé pour compatibilité avec le code existant.
-        tenantId: currentTenantId,
+          // Ancien champ conservé pour compatibilité.
+          tenantId: currentTenantId,
 
-        memberships: {
-          create: {
-            tenantId: currentTenantId,
+          memberships: {
+            create: {
+              tenantId: currentTenantId,
+            },
           },
         },
+      });
 
-        roles: {
-          connect: roleIds.map((id) => ({ id })),
-        },
-      },
+      await syncMembershipRoles(
+        tx,
+        newUser.id,
+        currentTenantId,
+        roleIds
+      );
     });
 
     return {
@@ -265,16 +456,23 @@ export async function createUser(
       message: "Utilisateur créé avec succès.",
     };
   } catch (error) {
-    console.error("Erreur lors de la création de l'utilisateur.");
+    console.error(
+      "Erreur lors de la création de l'utilisateur :",
+      error
+    );
 
     return {
       success: false,
-      message: "Erreur lors de la création de l'utilisateur.",
+      message:
+        "Erreur lors de la création de l'utilisateur. Vérifiez les données et les rôles sélectionnés.",
     };
   }
 }
 
-// ================== UPDATE USER ==================
+// ============================================================
+// UPDATE USER
+// ============================================================
+
 export async function updateUser(
   id: string,
   name: string,
@@ -283,18 +481,25 @@ export async function updateUser(
   active?: boolean,
   roleIds: string[] = []
 ): Promise<ActionResponse> {
-  // 1. Vérifier la permission
   const g = await guard(ACTION.UPDATE, RESOURCE.USER);
-  if (!g.success) return { success: false, message: g.message };
 
-  // 2. Continuer la logique métier
+  if (!g.success) {
+    return {
+      success: false,
+      message: g.message,
+    };
+  }
+
   const { userId, currentTenantId } = await getSession();
+
   if (!userId || !currentTenantId) {
     return {
       success: false,
       message: "Aucun tenant actif.",
     };
   }
+
+  // Vérifier que l'utilisateur appartient au tenant courant.
   const membership = await prisma.userTenant.findUnique({
     where: {
       userId_tenantId: {
@@ -312,41 +517,76 @@ export async function updateUser(
   }
 
   try {
+    // Les informations du compte restent communes à l'utilisateur.
+    // Les rôles, eux, seront modifiés uniquement pour cette appartenance.
     const data: Prisma.UserUpdateInput = {
       name,
-      email: email?.trim().toLowerCase(),
-      active,
-      roles: {
-        set: roleIds.map((id) => ({ id })),
-      },
     };
+
+    if (email !== undefined) {
+      data.email = email.trim().toLowerCase();
+    }
+
+    if (active !== undefined) {
+      data.active = active;
+    }
 
     if (password) {
       data.password = await bcrypt.hash(password, 10);
     }
 
-    await prisma.user.update({
-      where: { id },
-      data,
+    await prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: {
+          id,
+        },
+        data,
+      });
+
+      await syncMembershipRoles(
+        tx,
+        id,
+        currentTenantId,
+        roleIds
+      );
     });
 
-    return { success: true, message: "Utilisateur modifié avec succès." };
+    return {
+      success: true,
+      message: "Utilisateur modifié avec succès.",
+    };
   } catch (error) {
-    console.error(error);
+    console.error(
+      "Erreur lors de la modification de l'utilisateur :",
+      error
+    );
+
     return {
       success: false,
-      message: "Erreur lors de la modification de l'utilisateur.",
+      message:
+        "Erreur lors de la modification de l'utilisateur. Vérifiez notamment que l'adresse e-mail n'est pas déjà utilisée.",
     };
   }
 }
 
-// ================== DELETE USER ==================
-export async function deleteUser(id: string): Promise<ActionResponse> {
-  // 1. Vérifier la permission
-  const g = await guard(ACTION.DELETE, RESOURCE.USER);
-  if (!g.success) return { success: false, message: g.message };
+// ============================================================
+// DELETE USER FROM CURRENT TENANT
+// Cette action supprime l'appartenance, pas le compte global.
+// Les rôles de cette appartenance sont supprimés en cascade.
+// ============================================================
 
-  // 2. Continuer la logique métier
+export async function deleteUser(
+  id: string
+): Promise<ActionResponse> {
+  const g = await guard(ACTION.DELETE, RESOURCE.USER);
+
+  if (!g.success) {
+    return {
+      success: false,
+      message: g.message,
+    };
+  }
+
   const { userId, currentTenantId } = await getSession();
 
   if (!userId || !currentTenantId) {
@@ -376,7 +616,11 @@ export async function deleteUser(id: string): Promise<ActionResponse> {
       message: "Utilisateur retiré de ce tenant.",
     };
   } catch (error) {
-    console.error(error);
+    console.error(
+      "Erreur lors de la suppression de l'utilisateur :",
+      error
+    );
+
     return {
       success: false,
       message: "Erreur lors de la suppression de l'utilisateur.",

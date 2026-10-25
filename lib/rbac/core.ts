@@ -47,44 +47,50 @@ export async function hasPermission(
   return userPermissions.includes(requiredPermission);
 }
 
-export async function getUserPermissions(userId?: string): Promise<string[]> {
-  const tenant = await getCurrentTenant()
+export async function getUserPermissions(
+  userId?: string
+): Promise<string[]> {
+  const tenant = await getCurrentTenant();
+
   if (!userId || !tenant?.id) {
     return [];
   }
-  const user = await prisma.user.findUnique({
+
+  const membership = await prisma.userTenant.findUnique({
     where: {
-      id: userId,
-      memberships: {
-        some: {
-          tenantId: tenant.id,
-        },
+      userId_tenantId: {
+        userId,
+        tenantId: tenant.id,
       },
     },
     include: {
-      roles: {
+      roleAssignments: {
         include: {
-          permissions: true,
+          role: {
+            include: {
+              permissions: true,
+            },
+          },
         },
       },
     },
   });
 
-  if (!user) {
+  if (!membership) {
     return [];
   }
 
   const permissionsSet = new Set<string>();
 
-  user.roles.forEach((role) => {
-    role.permissions.forEach((permission) => {
-      const permissionString = `${permission.action || ""}:${permission.resource
-        }`;
+  for (const assignment of membership.roleAssignments) {
+    for (const permission of assignment.role.permissions) {
       if (permission.action && permission.resource) {
-        permissionsSet.add(permissionString);
+        permissionsSet.add(
+          `${permission.action}:${permission.resource}`
+        );
       }
-    });
-  });
+    }
+  }
 
   return Array.from(permissionsSet);
 }

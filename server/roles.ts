@@ -1,25 +1,25 @@
-// server/roles.ts
 "use server";
 
 import { ACTION } from "@/lib/enums";
 import { prisma } from "@/lib/prisma";
 import { guard } from "@/lib/rbac/middleware";
-import { Permission, Role } from "@/lib/generated/prisma/client";
+import {
+    Prisma,
+    Permission,
+    Role,
+} from "@/lib/generated/prisma/client";
 import { ActionResponse } from "@/lib/types";
 import { sleep } from "@/lib/utils";
 import { getSession } from "@/lib/auth";
 import { PAGINATION_SETTINGS, RESOURCE } from "@/lib/constantes";
 
-type RoleWithPermission =
-    Role & {
-        permissions?: Permission[]
-    } & {
-        _count?: {
-            permissions?: number;
-            users?: number;
-        };
+type RoleWithPermission = Role & {
+    permissions: Permission[];
+    _count: {
+        permissions: number;
+        users: number;
     };
-
+};
 
 export type RoleSearchParams = {
     name?: string;
@@ -29,171 +29,402 @@ export type RoleSearchParams = {
 
 interface PaginatedRoles {
     data: RoleWithPermission[];
-    success?: boolean,
-    message?: string,
+    success?: boolean;
+    message?: string;
     meta?: {
         totalItems: number;
         totalPages: number;
         currentPage: number;
         itemsPerPage: number;
-    }
+    };
 }
 
-export async function getAllRoles(tenantId: string, filters: RoleSearchParams = {}): Promise<PaginatedRoles> {
-    // 1. Vérifier la permission
+// ============================================================
+// GET ALL ROLES
+// Les définitions des rôles sont globales.
+// Le compteur d'utilisateurs est calculé pour le tenant demandé.
+// ============================================================
+
+export async function getAllRoles(
+    tenantId: string,
+    filters: RoleSearchParams = {}
+): Promise<PaginatedRoles> {
     const g = await guard(ACTION.READ, RESOURCE.ROLE);
-    if (!g.success) return { data: [], success: false, message: g.message };
 
-    // 2. Continuer la logique métier
+    if (!g.success) {
+        return {
+            data: [],
+            success: false,
+            message: g.message,
+        };
+    }
+
     const { userId } = await getSession();
-    if (!userId) return { data: [], success: false, message: "Utilisateur non authentifié." };
 
+    if (!userId) {
+        return {
+            data: [],
+            success: false,
+            message: "Utilisateur non authentifié.",
+        };
+    }
 
     try {
-        const currentPage = Math.max(1, parseInt(filters?.page || "1", 10));
-        const itemsPerPage = Math.max(1, parseInt(filters?.perPage || "10", PAGINATION_SETTINGS.itemsPerPage));
+        const parsedPage = Number.parseInt(filters.page ?? "1", 10);
+
+        const parsedItemsPerPage = Number.parseInt(
+            filters.perPage ?? String(PAGINATION_SETTINGS.itemsPerPage),
+            10
+        );
+
+        const currentPage =
+            Number.isFinite(parsedPage) && parsedPage > 0
+                ? parsedPage
+                : 1;
+
+        const itemsPerPage =
+            Number.isFinite(parsedItemsPerPage) &&
+                parsedItemsPerPage > 0
+                ? parsedItemsPerPage
+                : PAGINATION_SETTINGS.itemsPerPage;
+
         const skip = (currentPage - 1) * itemsPerPage;
 
-        const whereClause: any = {
-            ...(filters?.name && {
-                OR: [
-                    {
-                        name: {
-                            contains: filters.name,
-                            mode: "insensitive",
+        const name = filters.name?.trim();
+
+        const whereClause: Prisma.RoleWhereInput = {
+            ...(name
+                ? {
+                    OR: [
+                        {
+                            name: {
+                                contains: name,
+                                mode: "insensitive",
+                            },
                         },
-                    },
-                    {
-                        description: {
-                            contains: filters.name,
-                            mode: "insensitive",
+                        {
+                            description: {
+                                contains: name,
+                                mode: "insensitive",
+                            },
                         },
-                    },
-                ],
-            }),
+                    ],
+                }
+                : {}),
         };
 
         const [totalItems, roles] = await prisma.$transaction([
-            prisma.role.count({ where: whereClause }),
+            prisma.role.count({
+                where: whereClause,
+            }),
+
             prisma.role.findMany({
                 where: whereClause,
                 include: {
                     permissions: true,
+
                     _count: {
                         select: {
-                            users: {
+                            // Compte seulement les affectations du tenant demandé.
+                            userAssignments: {
                                 where: {
-                                    memberships: {
-                                        some: { tenantId },
-                                    },
+                                    tenantId,
                                 },
-                            }, permissions: true
-                        }
+                            },
+
+                            permissions: true,
+                        },
                     },
                 },
                 take: itemsPerPage,
                 skip,
-                orderBy: { name: "desc" },
+                orderBy: {
+                    name: "desc",
+                },
             }),
         ]);
+
+        // Maintenir la propriété _count.users utilisée par le tableau.
+        const formattedRoles: RoleWithPermission[] = roles.map(
+            (role) => ({
+                id: role.id,
+                name: role.name,
+                description: role.description,
+                permissions: role.permissions,
+                _count: {
+                    users: role._count.userAssignments,
+                    permissions: role._count.permissions,
+                },
+            })
+        );
+
         const totalPages = Math.ceil(totalItems / itemsPerPage);
+
         return {
-            data: roles,
-            success: true, message: "Données récupérées avec succès!",
-            meta: { totalItems, totalPages, currentPage, itemsPerPage },
+            data: formattedRoles,
+            success: true,
+            message: "Données récupérées avec succès!",
+            meta: {
+                totalItems,
+                totalPages,
+                currentPage,
+                itemsPerPage,
+            },
         };
     } catch (error) {
-        console.error("getAllRoles error:", error);
-        return { data: [], success: false, message: error as string };
+        console.error("Erreur dans getAllRoles :", error);
+
+        return {
+            data: [],
+            success: false,
+            message:
+                error instanceof Error
+                    ? error.message
+                    : "Impossible de récupérer les rôles.",
+        };
     }
 }
 
-export async function getAllPermissions() {
+// ============================================================
+// GET ALL PERMISSIONS
+// ============================================================
+
+export async function getAllPermissions(): Promise<Permission[]> {
+    const g = await guard(ACTION.READ, RESOURCE.ROLE);
+
+    if (!g.success) {
+        return [];
+    }
+
     return prisma.permission.findMany({
-        orderBy: [{ resource: "asc" }, { action: "asc" }],
+        orderBy: [
+            {
+                resource: "asc",
+            },
+            {
+                action: "asc",
+            },
+        ],
     });
 }
 
-export async function createRole(name: string, description: string, permissionIds: string[]): Promise<ActionResponse> {
+// ============================================================
+// CREATE ROLE
+// La définition du rôle et ses permissions sont globales.
+// ============================================================
+
+export async function createRole(
+    name: string,
+    description: string,
+    permissionIds: string[]
+): Promise<ActionResponse> {
     const g = await guard(ACTION.CREATE, RESOURCE.ROLE);
-    if (!g.success) return g;
+
+    if (!g.success) {
+        return {
+            success: false,
+            message: g.message,
+        };
+    }
 
     try {
         await sleep();
+
         const { userId } = await getSession();
 
-        if (!userId)
-            return { success: false, message: "Aucune session n'est trouvée!" };
+        if (!userId) {
+            return {
+                success: false,
+                message: "Aucune session n'est trouvée!",
+            };
+        }
 
-        const existing = await prisma.role.findUnique({ where: { name } });
-        if (existing) { return { success: false, message: "Un rôle avec ce nom existe déjà." }; }
+        const normalizedName = name.trim();
+
+        if (!normalizedName) {
+            return {
+                success: false,
+                message: "Le nom du rôle est obligatoire.",
+            };
+        }
+
+        const existing = await prisma.role.findUnique({
+            where: {
+                name: normalizedName,
+            },
+        });
+
+        if (existing) {
+            return {
+                success: false,
+                message: "Un rôle avec ce nom existe déjà.",
+            };
+        }
+
+        const uniquePermissionIds = [...new Set(permissionIds)];
 
         await prisma.role.create({
             data: {
-                name,
-                description: description || null,
+                name: normalizedName,
+                description: description.trim() || null,
                 permissions: {
-                    connect: permissionIds.map((id) => ({ id })),
+                    connect: uniquePermissionIds.map((id) => ({
+                        id,
+                    })),
                 },
             },
         });
-        return { success: true, message: "Rôle créé avec succès." };
+
+        return {
+            success: true,
+            message: "Rôle créé avec succès.",
+        };
     } catch (error) {
-        console.error(error);
-        return { success: false, message: "Erreur lors de la création du rôle." };
+        console.error("Erreur lors de la création du rôle :", error);
+
+        return {
+            success: false,
+            message:
+                "Erreur lors de la création du rôle. Vérifiez le nom et les permissions sélectionnées.",
+        };
     }
 }
 
-export async function updateRole(id: string, name: string, description: string, permissionIds: string[]): Promise<ActionResponse> {
+// ============================================================
+// UPDATE ROLE
+// ============================================================
+
+export async function updateRole(
+    id: string,
+    name: string,
+    description: string,
+    permissionIds: string[]
+): Promise<ActionResponse> {
     const g = await guard(ACTION.UPDATE, RESOURCE.ROLE);
-    if (!g.success) return g;
+
+    if (!g.success) {
+        return {
+            success: false,
+            message: g.message,
+        };
+    }
 
     try {
         await sleep();
+
         const { userId } = await getSession();
 
-        if (!userId)
-            return { success: false, message: "Aucune session n'est trouvée!" };
-
-        const existing = await prisma.role.findFirst({
-            where: { name, NOT: { id } },
-        });
-        if (existing) {
-            return { success: false, message: "Un rôle avec ce nom existe déjà." };
+        if (!userId) {
+            return {
+                success: false,
+                message: "Aucune session n'est trouvée!",
+            };
         }
 
-        await prisma.role.update({
-            where: { id },
-            data: {
-                name,
-                description: description || null,
-                permissions: {
-                    set: permissionIds.map((id) => ({ id })),
+        const normalizedName = name.trim();
+
+        if (!normalizedName) {
+            return {
+                success: false,
+                message: "Le nom du rôle est obligatoire.",
+            };
+        }
+
+        const existing = await prisma.role.findFirst({
+            where: {
+                name: normalizedName,
+                NOT: {
+                    id,
                 },
             },
         });
 
-        return { success: true, message: "Rôle modifié avec succès." };
+        if (existing) {
+            return {
+                success: false,
+                message: "Un rôle avec ce nom existe déjà.",
+            };
+        }
+
+        const uniquePermissionIds = [...new Set(permissionIds)];
+
+        await prisma.role.update({
+            where: {
+                id,
+            },
+            data: {
+                name: normalizedName,
+                description: description.trim() || null,
+                permissions: {
+                    set: uniquePermissionIds.map((permissionId) => ({
+                        id: permissionId,
+                    })),
+                },
+            },
+        });
+
+        return {
+            success: true,
+            message: "Rôle modifié avec succès.",
+        };
     } catch (error) {
-        console.error(error);
-        return { success: false, message: "Erreur lors de la modification du rôle." };
+        console.error("Erreur lors de la modification du rôle :", error);
+
+        return {
+            success: false,
+            message:
+                "Erreur lors de la modification du rôle. Vérifiez le nom et les permissions sélectionnées.",
+        };
     }
 }
 
-export async function deleteRole(id: string): Promise<ActionResponse> {
+// ============================================================
+// DELETE ROLE
+// Les affectations associées sont supprimées par la clé étrangère
+// user_tenant_role_roleId_fkey avec ON DELETE CASCADE.
+// ============================================================
+
+export async function deleteRole(
+    id: string
+): Promise<ActionResponse> {
     const g = await guard(ACTION.DELETE, RESOURCE.ROLE);
-    if (!g.success) return g;
+
+    if (!g.success) {
+        return {
+            success: false,
+            message: g.message,
+        };
+    }
 
     try {
         await sleep();
-        const { userId } = await getSession();
-        if (!userId)
-            return { success: false, message: "Aucune session n'est trouvée!" };
 
-        await prisma.role.delete({ where: { id } });
-        return { success: true, message: "Rôle supprimé avec succès." };
+        const { userId } = await getSession();
+
+        if (!userId) {
+            return {
+                success: false,
+                message: "Aucune session n'est trouvée!",
+            };
+        }
+
+        await prisma.role.delete({
+            where: {
+                id,
+            },
+        });
+
+        return {
+            success: true,
+            message: "Rôle supprimé avec succès.",
+        };
     } catch (error) {
-        console.error(error);
-        return { success: false, message: "Erreur lors de la suppression du rôle." };
+        console.error("Erreur lors de la suppression du rôle :", error);
+
+        return {
+            success: false,
+            message:
+                "Erreur lors de la suppression du rôle.",
+        };
     }
 }
