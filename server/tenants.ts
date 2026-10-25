@@ -12,10 +12,13 @@ export async function getAllTenants() {
 
   const user = await prisma.user.findUnique({
     where: { id: session.userId },
-    select: { isSuperAdmin: true },
+    select: {
+      active: true,
+      isSuperAdmin: true,
+    },
   });
 
-  if (!user) return [];
+  if (!user?.active) return [];
 
   // Super-administrateur : tous les tenants.
   if (user.isSuperAdmin) {
@@ -52,60 +55,130 @@ export async function getAllTenants() {
 export async function createTenant(name: string) {
   try {
     await sleep();
+
     const session = await getSession();
+
+    if (!session.userId) {
+      return {
+        success: false,
+        message: "Aucune session n'est trouvée.",
+      };
+    }
 
     const user = await prisma.user.findUnique({
       where: { id: session.userId },
+      select: {
+        id: true,
+        active: true,
+        isSuperAdmin: true,
+      },
     });
 
-    // check if session exist
-    if (!user?.id)
+    if (!user?.active) {
       return {
         success: false,
-        message: "Aucune session n'est trouvée!",
+        message: "Compte désactivé ou utilisateur introuvable.",
       };
+    }
 
-    // Super-admin : seul qui peut créer un nouveau tenant
     if (!user.isSuperAdmin) {
       return {
         success: false,
-        message: "Vous n'êtes pas authorisé pour créer un tenant.",
+        message: "Seul le SuperAdmin peut créer un tenant.",
       };
     }
 
-    // vérifier si le nom est déjà utilisé
+    const normalizedName = name.trim();
+
+    if (!normalizedName) {
+      return {
+        success: false,
+        message: "Le nom du tenant est obligatoire.",
+      };
+    }
+
     const nameUsed = await prisma.tenant.findFirst({
-      where: { name },
+      where: { name: normalizedName },
     });
+
     if (nameUsed) {
       return {
         success: false,
-        message: "Nom du tenant est déjà utilisé, veuillez choisir un autre.",
+        message: "Ce nom de tenant est déjà utilisé.",
       };
     }
 
-    // créer le tenant
     await prisma.tenant.create({
       data: {
-        name,
-        createdById: user?.id,
+        name: normalizedName,
+        createdById: user.id,
       },
     });
+
     return {
       success: true,
-      message: "Tenant crée avec succès!",
+      message: "Tenant créé avec succès.",
     };
   } catch (error) {
-    console.error(error);
+    console.error("Erreur lors de la création du tenant :", error);
+
     return {
       success: false,
-      message: "Erreur!",
+      message: "Impossible de créer le tenant.",
     };
   }
 }
 
 export async function getTenantById(tenantId: string) {
-  return prisma.tenant.findUnique({ where: { id: tenantId } });
+  const session = await getSession();
+
+  if (!session.userId || !tenantId) {
+    return null;
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.userId },
+    select: {
+      active: true,
+      isSuperAdmin: true,
+    },
+  });
+
+  if (!user?.active) {
+    return null;
+  }
+
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: tenantId },
+  });
+
+  if (!tenant) {
+    return null;
+  }
+
+  // Le SuperAdmin actif peut consulter n'importe quel tenant.
+  if (user.isSuperAdmin) {
+    return tenant;
+  }
+
+  // Un utilisateur ordinaire doit appartenir à ce tenant.
+  const membership = await prisma.userTenant.findUnique({
+    where: {
+      userId_tenantId: {
+        userId: session.userId,
+        tenantId,
+      },
+    },
+    select: {
+      userId: true,
+    },
+  });
+
+  if (!membership) {
+    return null;
+  }
+
+  return tenant;
 }
 
 export const getCurrentTenant = cache(async () => {
