@@ -63,12 +63,18 @@ export async function importTypePannes(data: any) {
         message: `typepanne ${name} importé avec succès`,
       },
     ];
-  } catch (error: any) {
+  } catch (error: unknown) {
+    console.error(
+      "Erreur lors de l'import des types de panne :",
+      error,
+    );
+
     return [
       {
         success: false,
         data: data,
-        message: `Erreur: ${error.message}`,
+        message:
+          "Une erreur interne est survenue lors de l'import des types de panne. Vérifiez les données et consultez les journaux serveur si le problème persiste.",
       },
     ];
   }
