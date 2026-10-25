@@ -504,6 +504,13 @@ export async function createUser(
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    if (typeof password !== "string" || password.length < 12) {
+      return {
+        success: false,
+        message: "Le mot de passe doit contenir au moins 12 caractères.",
+      };
+    }
+
     await prisma.$transaction(async (tx) => {
       const newUser = await tx.user.create({
         data: {
@@ -677,6 +684,13 @@ export async function updateUser(
       }
 
       if (password) {
+        if (typeof password !== "string" || password.length < 12) {
+          return {
+            success: false,
+            message: "Le mot de passe doit contenir au moins 12 caractères.",
+          };
+        }
+
         data.password = await bcrypt.hash(password, 10);
       }
     } else {
