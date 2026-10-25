@@ -473,6 +473,7 @@ export async function createUser(
 // UPDATE USER
 // ============================================================
 
+
 export async function updateUser(
   id: string,
   name: string,
@@ -499,49 +500,121 @@ export async function updateUser(
     };
   }
 
-  // Vérifier que l'utilisateur appartient au tenant courant.
-  const membership = await prisma.userTenant.findUnique({
-    where: {
-      userId_tenantId: {
-        userId: id,
-        tenantId: currentTenantId,
-      },
-    },
-  });
-
-  if (!membership) {
-    return {
-      success: false,
-      message: "Utilisateur introuvable dans ce tenant.",
-    };
-  }
-
   try {
-    // Les informations du compte restent communes à l'utilisateur.
-    // Les rôles, eux, seront modifiés uniquement pour cette appartenance.
-    const data: Prisma.UserUpdateInput = {
-      name,
-    };
-
-    if (email !== undefined) {
-      data.email = email.trim().toLowerCase();
-    }
-
-    if (active !== undefined) {
-      data.active = active;
-    }
-
-    if (password) {
-      data.password = await bcrypt.hash(password, 10);
-    }
-
-    await prisma.$transaction(async (tx) => {
-      await tx.user.update({
-        where: {
-          id,
+    // Vérifier que l'utilisateur cible appartient au tenant courant.
+    const membership = await prisma.userTenant.findUnique({
+      where: {
+        userId_tenantId: {
+          userId: id,
+          tenantId: currentTenantId,
         },
-        data,
-      });
+      },
+    });
+
+    if (!membership) {
+      return {
+        success: false,
+        message: "Utilisateur introuvable dans ce tenant.",
+      };
+    }
+
+    // Récupérer le compte de l'utilisateur connecté
+    // et celui de l'utilisateur à modifier.
+    const [actor, target] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          active: true,
+          isSuperAdmin: true,
+        },
+      }),
+      prisma.user.findUnique({
+        where: { id },
+        select: {
+          name: true,
+          email: true,
+          active: true,
+        },
+      }),
+    ]);
+
+    if (!actor?.active) {
+      return {
+        success: false,
+        message: "Votre compte est désactivé ou introuvable.",
+      };
+    }
+
+    if (!target) {
+      return {
+        success: false,
+        message: "Utilisateur introuvable.",
+      };
+    }
+
+    const data: Prisma.UserUpdateInput = {};
+
+    if (actor.isSuperAdmin) {
+      // Le SuperAdmin peut modifier les informations globales.
+      const normalizedName = name.trim();
+
+      if (!normalizedName) {
+        return {
+          success: false,
+          message: "Le nom est obligatoire.",
+        };
+      }
+
+      data.name = normalizedName;
+
+      if (email !== undefined) {
+        const normalizedEmail = email.trim().toLowerCase();
+
+        if (!normalizedEmail) {
+          return {
+            success: false,
+            message: "L'adresse e-mail est obligatoire.",
+          };
+        }
+
+        data.email = normalizedEmail;
+      }
+
+      if (active !== undefined) {
+        data.active = active;
+      }
+
+      if (password) {
+        data.password = await bcrypt.hash(password, 10);
+      }
+    } else {
+      // Un administrateur de tenant ne peut pas modifier
+      // les propriétés globales du compte.
+      const globalFieldsChanged =
+        name !== target.name ||
+        (email !== undefined &&
+          email.trim().toLowerCase() !== target.email.toLowerCase()) ||
+        (active !== undefined && active !== target.active) ||
+        Boolean(password);
+
+      if (globalFieldsChanged) {
+        return {
+          success: false,
+          message:
+            "Seul le SuperAdmin peut modifier le nom, l'e-mail, le mot de passe ou le statut global du compte. Vous pouvez modifier les rôles dans ce tenant.",
+        };
+      }
+    }
+
+    // Les rôles sont toujours modifiés uniquement pour
+    // l'appartenance au tenant courant.
+    await prisma.$transaction(async (tx) => {
+      if (Object.keys(data).length > 0) {
+        await tx.user.update({
+          where: { id },
+          data,
+        });
+      }
 
       await syncMembershipRoles(
         tx,
@@ -568,6 +641,7 @@ export async function updateUser(
     };
   }
 }
+
 
 // ============================================================
 // DELETE USER FROM CURRENT TENANT
