@@ -22,6 +22,31 @@ export async function getAllSites(
 
   const { currentTenantId } = await getSession();
 
+  if (!currentTenantId) {
+    return {
+      data: [],
+      success: false,
+      message: "Sélectionnez un tenant avant de consulter les sites.",
+    };
+  }
+
+  const tenant = await prisma.tenant.findFirst({
+    where: {
+      id: currentTenantId,
+      active: true,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (!tenant) {
+    return {
+      data: [],
+      success: false,
+      message: "Le tenant sélectionné est introuvable ou désactivé.",
+    };
+  }
   // Pagination
   const currentPage = Math.max(filters?.currentPage ?? 1, 1);
   const isUnpaged = filters?.itemsPerPage === 0;

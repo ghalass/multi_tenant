@@ -18,7 +18,33 @@ export async function getAllParcs(filters: searchParams = { itemsPerPage: 0 }): 
   const g = await guard(ACTION.READ, RESOURCE.PARC);
   if (!g.success) return { data: [], success: false, message: g.message };
 
-  const { userId, currentTenantId } = await getSession();
+  const { currentTenantId } = await getSession();
+
+  if (!currentTenantId) {
+    return {
+      data: [],
+      success: false,
+      message: "Sélectionnez un tenant avant de consulter les parcs.",
+    };
+  }
+
+  const tenant = await prisma.tenant.findFirst({
+    where: {
+      id: currentTenantId,
+      active: true,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (!tenant) {
+    return {
+      data: [],
+      success: false,
+      message: "Le tenant sélectionné est introuvable ou désactivé.",
+    };
+  }
 
   // Pagination
   const currentPage = Math.max(filters?.currentPage ?? 1, 1);
