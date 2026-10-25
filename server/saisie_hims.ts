@@ -105,7 +105,7 @@ export async function importSaisieHims(data: any) {
         },
       ];
     }
-    let saisiehrm = await prisma.saisiehrm.findFirst({
+    const saisiehrm = await prisma.saisiehrm.findFirst({
       where: { du: du, enginId: engin.id },
     });
     if (!saisiehrm) {

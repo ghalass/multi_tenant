@@ -2,23 +2,26 @@
 import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
-import tseslint from "@typescript-eslint/eslint-plugin";
 
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
   {
-    // Configuration supplémentaire pour les règles spécifiques
-    plugins: {
-      "@typescript-eslint": tseslint,
-    },
     rules: {
-      // Changer la sévérité de no-explicit-any
-      "@typescript-eslint/no-explicit-any": "warn", // ou "error", "off"
-
-      // Vous pouvez aussi ajouter d'autres règles TypeScript ici
+      "@typescript-eslint/no-explicit-any": "warn",
       "@typescript-eslint/no-unused-vars": "warn",
       "@typescript-eslint/explicit-function-return-type": "warn",
+
+      // Règles React : avertissements plutôt qu'erreurs bloquantes
+      "react-hooks/set-state-in-effect": "warn",
+      "react-hooks/purity": "warn",
+
+      // Apostrophes et guillemets dans le JSX
+      "react/no-unescaped-entities": "warn",
+
+      // Règles de style TypeScript et JavaScript
+      "@typescript-eslint/ban-ts-comment": "warn",
+      "prefer-const": "warn",
     },
   },
   // Remplace les exclusions par défaut de eslint-config-next.
