@@ -104,7 +104,7 @@ export async function getAllRoles(
         };
     }
 
-    const { userId } = await getSession();
+    const { userId, currentTenantId } = await getSession();
 
     if (!userId) {
         return {
@@ -113,6 +113,26 @@ export async function getAllRoles(
             message: "Utilisateur non authentifié.",
         };
     }
+
+    const currentUser = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { isSuperAdmin: true },
+    });
+
+    if (!currentUser) {
+        return {
+            data: [],
+            success: false,
+            message: "Utilisateur introuvable.",
+        };
+    }
+
+    // Un utilisateur ordinaire utilise exclusivement le tenant
+    // associé à sa session. Seul le SuperAdmin peut demander
+    // les compteurs d'un autre tenant.
+    const countTenantId = currentUser.isSuperAdmin
+        ? tenantId
+        : currentTenantId;
 
     try {
         const parsedPage = Number.parseInt(filters.page ?? "1", 10);
@@ -170,13 +190,11 @@ export async function getAllRoles(
 
                     _count: {
                         select: {
-                            // Compte seulement les affectations du tenant demandé.
                             userAssignments: {
                                 where: {
-                                    tenantId,
+                                    tenantId: countTenantId ?? "",
                                 },
                             },
-
                             permissions: true,
                         },
                     },
