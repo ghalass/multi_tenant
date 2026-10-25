@@ -151,9 +151,7 @@ export async function deleteDatabaseBackupAction(
         return {
             success: false,
             message:
-                error instanceof Error
-                    ? error.message
-                    : "Impossible de supprimer cette sauvegarde.",
+                "Impossible de supprimer cette sauvegarde. Vérifie qu'elle existe, qu'il reste au moins une autre sauvegarde, puis consulte les journaux serveur si le problème persiste.",
         };
     }
 }
@@ -176,6 +174,21 @@ export async function uploadDatabaseBackupAction(formData: FormData) {
             };
         }
 
+        if (!file.name.toLowerCase().endsWith(".dump")) {
+            return {
+                success: false,
+                message: "Seuls les fichiers .dump sont autorisés.",
+            };
+        }
+
+        if (file.size === 0 || file.size > 100 * 1024 * 1024) {
+            return {
+                success: false,
+                message:
+                    "Le fichier doit avoir une taille comprise entre 1 octet et 100 Mo.",
+            };
+        }
+
         const backup = await importDatabaseBackup(file);
 
         return {
@@ -192,9 +205,7 @@ export async function uploadDatabaseBackupAction(formData: FormData) {
         return {
             success: false,
             message:
-                error instanceof Error
-                    ? error.message
-                    : "Impossible d'importer l'archive.",
+                "Impossible d'importer cette archive. Vérifie le fichier et consulte les journaux serveur si le problème persiste.",
         };
     }
 }
