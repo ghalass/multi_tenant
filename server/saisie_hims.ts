@@ -156,12 +156,15 @@ export async function importSaisieHims(data: any) {
         message: `Saisie HIM ${enginName} du ${dateFormater(du)} importé avec succès`,
       },
     ];
-  } catch (error: any) {
+  } catch (error: unknown) {
+    console.error("Erreur lors de l'import des saisies HIM :", error);
+
     return [
       {
         success: false,
         data: data,
-        message: `Erreur: ${error.message}`,
+        message:
+          "Une erreur interne est survenue lors de l'import des saisies HIM. Vérifiez les données et consultez les journaux serveur si le problème persiste.",
       },
     ];
   }
