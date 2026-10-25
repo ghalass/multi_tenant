@@ -154,12 +154,15 @@ export async function importParcs(data: any) {
         message: `Parc ${name} importé avec succès`,
       },
     ];
-  } catch (error: any) {
+  } catch (error: unknown) {
+    console.error("Erreur lors de l'import des parcs :", error);
+
     return [
       {
         success: false,
         data: data,
-        message: `Erreur: ${error.message}`,
+        message:
+          "Une erreur interne est survenue lors de l'import des parcs. Vérifiez les données et consultez les journaux serveur si le problème persiste.",
       },
     ];
   }
