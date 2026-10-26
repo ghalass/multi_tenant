@@ -1,2 +1,3 @@
-J’ai un fichier Excel qui contient beaucoup des données à saisir dans mon application (nextjs 16.3.8, Server Action, librairie xlsx, yup, PostgreSql, PrismaORM, tailwindCSS, ).
-Prépare le système complet d'Import de fichier + createMany + étape de preview
+analyse mon projet de gmao https://github.com/ghalass/multi_tenant
+
+et me faire des recommandations, mais reste objectif, efficace, fiable, précis, brève, sans être long (le plus court possible) et me proposer des solutions étape par étape, et avant de me donner des codes à changer il faut me faire un résumé de ce que tu propose et comment tu va le traiter 

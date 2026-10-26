@@ -8,9 +8,39 @@ import { guard } from "@/lib/rbac/middleware";
 import { ACTION } from "@/lib/enums";
 import { RESOURCE } from "@/lib/constantes";
 
+function hasValue(value: unknown): boolean {
+  return (
+    value !== null &&
+    value !== undefined &&
+    !(typeof value === "string" && value.trim() === "")
+  );
+}
+
+function parseNumber(value: unknown): number | null {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
+
+  if (typeof value !== "string" || !value.trim()) {
+    return null;
+  }
+
+  const normalized = value.trim().replace(",", ".");
+
+  if (!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(normalized)) {
+    return null;
+  }
+
+  const result = Number(normalized);
+  return Number.isFinite(result) ? result : null;
+}
+
 export async function importSaisieHrm(data: any) {
   try {
-    const permission = await guard(ACTION.IMPORT, RESOURCE.SAISIE_HRM);
+    const permission = await guard(
+      ACTION.IMPORT,
+      RESOURCE.SAISIE_HRM
+    );
 
     if (!permission.success) {
       return [{
@@ -21,155 +51,168 @@ export async function importSaisieHrm(data: any) {
     }
 
     const { currentTenantId } = await getSession();
-    if (!currentTenantId) {
-      return [
-        {
-          success: false,
-          data: data,
-          message: `Erreur: Aucun tenant actif pour l'import`,
-        },
-      ];
-    }
-    // 
-    const du = convertField(data.du, "date");
-    const hrm = convertField(data.hrm, "number") ?? 0;
-    const compteur = convertField(data.compteur, "number") ?? 0;
 
-    // Relations
-    const enginName = convertField(data.enginName, "string");
-    const siteName = convertField(data.siteName, "string");
+    if (!currentTenantId) {
+      return [{
+        success: false,
+        data,
+        message: "Aucun tenant actif pour l'import.",
+      }];
+    }
+
+    const du = convertField(data?.du, "date") as Date | null;
+
+    const rawHrm = data?.hrm;
+    const hrm = parseNumber(rawHrm);
+
+    const rawCompteur = data?.compteur;
+    const hasCompteur = hasValue(rawCompteur);
+    const compteur = hasCompteur
+      ? parseNumber(rawCompteur)
+      : null;
+
+    const enginName = convertField(data?.enginName, "string");
+    const siteName = convertField(data?.siteName, "string");
 
     if (!du) {
-      return [
-        {
-          success: false,
-          data: data,
-          message: `Erreur: Le champ 'du' est requis`,
-        },
-      ];
-    }
-    if (!enginName || enginName.trim() === "") {
-      return [
-        {
-          success: false,
-          data: data,
-          message: `Erreur: Le champ 'enginName' est requis`,
-        },
-      ];
-    }
-    if (!siteName || siteName.trim() === "") {
-      return [
-        {
-          success: false,
-          data: data,
-          message: `Erreur: Le champ 'siteName' est requis`,
-        },
-      ];
-    }
-    if (hrm === null) {
-      return [
-        {
-          success: false,
-          data: data,
-          message: `Erreur: Le champ 'hrm' est requis`,
-        },
-      ];
-    }
-    if (hrm > 24) {
-      return [
-        {
-          success: false,
-          data: data,
-          message: `Erreur: Le champ 'hrm' ne doit pas dépasser 24`,
-        },
-      ];
-    }
-    if (hrm < 0) {
-      return [
-        {
-          success: false,
-          data: data,
-          message: `Erreur: Le champ 'hrm' ne doit pas être positif`,
-        },
-      ];
+      return [{
+        success: false,
+        data,
+        message: "Le champ 'du' est obligatoire ou invalide.",
+      }];
     }
 
-    if (compteur < 0) {
-      return [
-        {
-          success: false,
-          data: data,
-          message: `Erreur: Le champ 'compteur' ne doit pas être positif`,
-        },
-      ];
+    if (typeof enginName !== "string" || !enginName.trim()) {
+      return [{
+        success: false,
+        data,
+        message: "Le champ 'enginName' est obligatoire.",
+      }];
+    }
+
+    if (typeof siteName !== "string" || !siteName.trim()) {
+      return [{
+        success: false,
+        data,
+        message: "Le champ 'siteName' est obligatoire.",
+      }];
+    }
+
+    if (!hasValue(rawHrm)) {
+      return [{
+        success: false,
+        data,
+        message: "Le champ 'hrm' est obligatoire.",
+      }];
+    }
+
+    if (hrm === null) {
+      return [{
+        success: false,
+        data,
+        message: "Le champ 'hrm' doit être un nombre valide.",
+      }];
+    }
+
+    if (hrm < 0 || hrm > 24) {
+      return [{
+        success: false,
+        data,
+        message: "Le champ 'hrm' doit être compris entre 0 et 24.",
+      }];
+    }
+
+    if (hasCompteur && compteur === null) {
+      return [{
+        success: false,
+        data,
+        message: "Le champ 'compteur' doit être un nombre valide.",
+      }];
+    }
+
+    if (compteur !== null && compteur < 0) {
+      return [{
+        success: false,
+        data,
+        message: "Le champ 'compteur' ne doit pas être négatif.",
+      }];
     }
 
     const [engin, site] = await Promise.all([
-      prisma.engin.findUnique({ where: { name_tenantId: { name: enginName, tenantId: currentTenantId } } }),
-      prisma.site.findUnique({ where: { name_tenantId: { name: siteName, tenantId: currentTenantId } } }),
+      prisma.engin.findUnique({
+        where: {
+          name_tenantId: {
+            name: enginName,
+            tenantId: currentTenantId,
+          },
+        },
+      }),
+      prisma.site.findUnique({
+        where: {
+          name_tenantId: {
+            name: siteName,
+            tenantId: currentTenantId,
+          },
+        },
+      }),
     ]);
 
     if (!engin) {
-      return [
-        {
-          success: false,
-          data: data,
-          message: `Engin "${enginName}" non trouvé`,
-        },
-      ];
+      return [{
+        success: false,
+        data,
+        message: `Engin "${enginName}" non trouvé.`,
+      }];
     }
+
     if (!site) {
-      return [
-        {
-          success: false,
-          data: data,
-          message: `Site "${siteName}" non trouvé`,
-        },
-      ];
+      return [{
+        success: false,
+        data,
+        message: `Site "${siteName}" non trouvé.`,
+      }];
     }
+
+    // Une valeur compteur absente ne remplace pas
+    // une valeur existante lors d'une mise à jour.
+    const compteurData =
+      hasCompteur && compteur !== null ? { compteur } : {};
 
     const saisie = await prisma.saisiehrm.upsert({
       where: {
         du_enginId_tenantId: {
-          // Utilisez le nom de la contrainte unique composée
-          du: du,
+          du,
           enginId: engin.id,
-          tenantId: currentTenantId
+          tenantId: currentTenantId,
         },
       },
       update: {
-        du: du,
-        enginId: engin.id,
         siteId: site.id,
         hrm,
-        compteur,
+        ...compteurData,
       },
       create: {
-        du: du,
+        du,
         enginId: engin.id,
         siteId: site.id,
         hrm,
-        compteur,
-        tenantId: currentTenantId
+        tenantId: currentTenantId,
+        ...compteurData,
       },
     });
-    return [
-      {
-        success: true,
-        data: saisie,
-        message: `Saisie HRM ${enginName} du ${dateFormater(du)} importé avec succès`,
-      },
-    ];
-  } catch (error: unknown) {
-    console.error("Erreur lors de l'import de la saisie HRM :", error);
 
-    return [
-      {
-        success: false,
-        data: data,
-        message:
-          "Une erreur interne est survenue lors de l'import de la saisie HRM. Vérifiez les données et consultez les journaux serveur si le problème persiste.",
-      },
-    ];
+    return [{
+      success: true,
+      data: saisie,
+      message: `Saisie HRM ${enginName} du ${dateFormater(du)} importée avec succès.`,
+    }];
+  } catch (error: unknown) {
+    console.error("Erreur lors de l'import HRM :", error);
+
+    return [{
+      success: false,
+      data,
+      message: "Échec de l'import HRM. Vérifiez les données et les journaux serveur.",
+    }];
   }
 }
