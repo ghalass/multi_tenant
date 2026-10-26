@@ -80,10 +80,14 @@ export function SaisieHrmForm({
     saisie,
     engins,
     sites,
+    defaultDate,
+    fixedDate,
 }: {
     saisie?: SaisieHrm;
     engins: Option[];
     sites: Option[];
+    defaultDate?: string;
+    fixedDate?: string;
 }) {
     const editing = Boolean(saisie);
     const [open, setOpen] = useState(false);
@@ -95,7 +99,7 @@ export function SaisieHrmForm({
     const form = useForm<FormValues>({
         resolver: yupResolver(schema),
         defaultValues: {
-            du: saisie?.du ?? new Date().toISOString().slice(0, 10),
+            du: fixedDate ?? saisie?.du ?? defaultDate ?? new Date().toISOString().slice(0, 10),
             enginId: saisie?.enginId ?? "",
             siteId: saisie?.siteId ?? "",
             hrm: saisie?.hrm ?? 0,
@@ -106,7 +110,7 @@ export function SaisieHrmForm({
     useEffect(() => {
         if (open) {
             form.reset({
-                du: saisie?.du ?? new Date().toISOString().slice(0, 10),
+                du: fixedDate ?? saisie?.du ?? defaultDate ?? new Date().toISOString().slice(0, 10),
                 enginId: saisie?.enginId ?? "",
                 siteId: saisie?.siteId ?? "",
                 hrm: saisie?.hrm ?? 0,
@@ -114,7 +118,7 @@ export function SaisieHrmForm({
             });
             setError("");
         }
-    }, [open, saisie, form]);
+    }, [open, saisie, form, defaultDate]);
 
     async function onSubmit(values: FormValues) {
         try {
@@ -123,7 +127,7 @@ export function SaisieHrmForm({
             await sleep();
 
             const payload = {
-                du: values.du,
+                du: fixedDate ?? values.du,
                 enginId: values.enginId,
                 siteId: values.siteId,
                 hrm: Number(values.hrm),
@@ -194,25 +198,45 @@ export function SaisieHrmForm({
 
                     <form onSubmit={form.handleSubmit(onSubmit)}>
                         <FieldGroup>
-                            <Controller
-                                name="du"
-                                control={form.control}
-                                render={({ field, fieldState }) => (
-                                    <Field data-invalid={fieldState.invalid}>
-                                        <FieldLabel htmlFor="hrm-date">Date</FieldLabel>
-                                        <Input
-                                            id="hrm-date"
-                                            type="date"
-                                            {...field}
-                                            disabled={loading}
-                                            aria-invalid={fieldState.invalid}
-                                        />
-                                        {fieldState.invalid && (
-                                            <FieldError errors={[fieldState.error]} />
+                            {fixedDate ? (
+                                <Field>
+                                    <FieldLabel>Date de saisie</FieldLabel>
+
+                                    <p className="rounded-md border bg-muted px-3 py-2 text-sm">
+                                        {new Date(`${fixedDate}T00:00:00.000Z`).toLocaleDateString(
+                                            "fr-FR",
+                                            { timeZone: "UTC" },
                                         )}
-                                    </Field>
-                                )}
-                            />
+                                    </p>
+
+                                    <input
+                                        type="hidden"
+                                        {...form.register("du")}
+                                        value={fixedDate}
+                                    />
+                                </Field>
+                            ) : (
+                                // Conserve ici le Controller actuel du champ date.
+                                <Controller
+                                    name="du"
+                                    control={form.control}
+                                    render={({ field, fieldState }) => (
+                                        <Field data-invalid={fieldState.invalid}>
+                                            <FieldLabel htmlFor="hrm-date">Date</FieldLabel>
+                                            <Input
+                                                id="hrm-date"
+                                                type="date"
+                                                {...field}
+                                                disabled={loading}
+                                                aria-invalid={fieldState.invalid}
+                                            />
+                                            {fieldState.invalid && (
+                                                <FieldError errors={[fieldState.error]} />
+                                            )}
+                                        </Field>
+                                    )}
+                                />
+                            )}
 
                             <Controller
                                 name="enginId"

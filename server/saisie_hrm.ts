@@ -12,6 +12,18 @@ export interface SaisieHrmSearchParams {
   name?: string;
   dateDu?: string;
   dateAu?: string;
+
+  // Filtres en cascade
+  typeparcId?: string;
+  parcId?: string;
+  enginId?: string;
+
+  // Déclenchement explicite de la recherche
+  search?: string;
+
+  // Date utilisée sur la page de saisie journalière
+  du?: string;
+
   currentPage?: number | string;
   itemsPerPage?: number | string;
 }
@@ -55,11 +67,18 @@ function parseSaisieHrmDate(value: string): Date | null {
 export async function getSaisieHrmOptions() {
   const permission = await guard(ACTION.READ, RESOURCE.SAISIE_HRM);
 
+  const emptyData = {
+    typeparcs: [],
+    parcs: [],
+    engins: [],
+    sites: [],
+  };
+
   if (!permission.success) {
     return {
       success: false,
       message: permission.message,
-      data: { engins: [], sites: [] },
+      data: emptyData,
     };
   }
 
@@ -69,19 +88,50 @@ export async function getSaisieHrmOptions() {
     return {
       success: false,
       message: "Aucun tenant actif.",
-      data: { engins: [], sites: [] },
+      data: emptyData,
     };
   }
 
-  const [engins, sites] = await Promise.all([
-    prisma.engin.findMany({
-      where: { tenantId, active: true },
+  const [typeparcs, parcs, engins, sites] = await Promise.all([
+    prisma.typeparc.findMany({
+      where: { tenantId },
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),
+
+    prisma.parc.findMany({
+      where: { tenantId },
+      select: {
+        id: true,
+        name: true,
+        typeparcId: true,
+      },
+      orderBy: { name: "asc" },
+    }),
+
+    prisma.engin.findMany({
+      where: {
+        tenantId,
+        active: true,
+      },
+      select: {
+        id: true,
+        name: true,
+        parcId: true,
+        siteId: true,
+      },
+      orderBy: { name: "asc" },
+    }),
+
     prisma.site.findMany({
-      where: { tenantId, active: true },
-      select: { id: true, name: true },
+      where: {
+        tenantId,
+        active: true,
+      },
+      select: {
+        id: true,
+        name: true,
+      },
       orderBy: { name: "asc" },
     }),
   ]);
@@ -89,7 +139,12 @@ export async function getSaisieHrmOptions() {
   return {
     success: true,
     message: "",
-    data: { engins, sites },
+    data: {
+      typeparcs,
+      parcs,
+      engins,
+      sites,
+    },
   };
 }
 
@@ -129,22 +184,50 @@ export async function getAllSaisieHrm(
     );
 
   const name = filters.name?.trim();
+  const typeparcId = filters.typeparcId?.trim();
+  const parcId = filters.parcId?.trim();
+  const enginId = filters.enginId?.trim();
+
   const dateDu = filters.dateDu
     ? parseSaisieHrmDate(filters.dateDu)
     : null;
+
   const dateAu = filters.dateAu
     ? parseSaisieHrmDate(filters.dateAu)
     : null;
 
-  const where = {
+  // Construire les filtres de l'engin sans imposer
+  // de sélectionner obligatoirement un type de parc.
+  const enginWhere: any = {};
+
+  if (name) {
+    enginWhere.name = {
+      contains: name,
+      mode: "insensitive",
+    };
+  }
+
+  if (enginId) {
+    enginWhere.id = enginId;
+  }
+
+  if (parcId) {
+    enginWhere.parcId = parcId;
+  }
+
+  if (typeparcId) {
+    enginWhere.parc = {
+      typeparcId,
+    };
+  }
+
+  const where: any = {
     tenantId,
-    ...(name
-      ? {
-        engin: {
-          name: { contains: name, mode: "insensitive" as const },
-        },
-      }
+
+    ...(Object.keys(enginWhere).length > 0
+      ? { engin: enginWhere }
       : {}),
+
     ...(dateDu || dateAu
       ? {
         du: {
