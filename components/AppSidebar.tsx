@@ -72,6 +72,7 @@ const configItems = {
   icon: Settings,
   list: [
     { title: "Sites", url: `/sites`, icon: MapPin, description: "Gérer les sites" },
+    { title: "Types de parcs", url: `/typeparcs`, icon: Boxes, description: "Gérer les types de parcs" },
     { title: "Utilisateurs", url: `/users`, icon: Users, description: "Gérer les utilisateurs" },
     { title: "Import", url: `/import`, icon: Upload, description: "Import" },
   ],
