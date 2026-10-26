@@ -93,6 +93,11 @@ const configItems = {
       url: "/typepannes",
       icon: Wrench,
       description: "Gérer les types de pannes",
+    }, {
+      title: "Pannes",
+      url: "/pannes",
+      icon: Wrench,
+      description: "Gérer les pannes",
     },
     { title: "Utilisateurs", url: `/users`, icon: Users, description: "Gérer les utilisateurs" },
     { title: "Import", url: `/import`, icon: Upload, description: "Import" },

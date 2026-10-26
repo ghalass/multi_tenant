@@ -5,7 +5,291 @@ import { getSession } from "@/lib/auth";
 import { convertField } from "@/lib/convertField";
 import { guard } from "@/lib/rbac/middleware";
 import { ACTION } from "@/lib/enums";
-import { RESOURCE } from "@/lib/constantes";
+import { PAGINATION_SETTINGS, RESOURCE } from "@/lib/constantes";
+
+export interface PannesSearchParams {
+  name?: string;
+  currentPage?: number;
+  itemsPerPage?: number;
+}
+
+type PanneInput = {
+  name: string;
+  description?: string | null;
+  typepanneId: string;
+  parcIds: string[];
+};
+
+async function getPanneTenantId() {
+  const { currentTenantId } = await getSession();
+
+  if (!currentTenantId) return null;
+
+  const tenant = await prisma.tenant.findFirst({
+    where: { id: currentTenantId, active: true },
+    select: { id: true },
+  });
+
+  return tenant?.id ?? null;
+}
+
+export async function getPanneOptions() {
+  const permission = await guard(ACTION.READ, RESOURCE.PANNE);
+  if (!permission.success) {
+    return { success: false, message: permission.message, data: null };
+  }
+
+  const tenantId = await getPanneTenantId();
+  if (!tenantId) {
+    return { success: false, message: "Aucun tenant actif.", data: null };
+  }
+
+  const [typepannes, parcs] = await Promise.all([
+    prisma.typepanne.findMany({
+      where: { tenantId },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+    prisma.parc.findMany({
+      where: { tenantId },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+  ]);
+
+  return { success: true, data: { typepannes, parcs } };
+}
+
+export async function getAllPannes(filters: PannesSearchParams = {}) {
+  const permission = await guard(ACTION.READ, RESOURCE.PANNE);
+  if (!permission.success) {
+    return { success: false, message: permission.message, data: [] };
+  }
+
+  const tenantId = await getPanneTenantId();
+  if (!tenantId) {
+    return { success: false, message: "Aucun tenant actif.", data: [] };
+  }
+
+  const currentPage = Math.max(Number(filters.currentPage) || 1, 1);
+  const itemsPerPage =
+    Number(filters.itemsPerPage) === 0
+      ? 0
+      : Math.max(
+        Number(filters.itemsPerPage) || PAGINATION_SETTINGS.itemsPerPage,
+        1,
+      );
+
+  const name = filters.name?.trim();
+
+  const where = {
+    tenantId,
+    ...(name
+      ? { name: { contains: name, mode: "insensitive" as const } }
+      : {}),
+  };
+
+  const [data, totalItems] = await Promise.all([
+    prisma.panne.findMany({
+      where,
+      orderBy: { name: "asc" },
+      skip: itemsPerPage === 0 ? 0 : (currentPage - 1) * itemsPerPage,
+      take: itemsPerPage === 0 ? undefined : itemsPerPage,
+      include: {
+        typepanne: { select: { id: true, name: true } },
+        parcs: { select: { id: true, name: true } },
+        tenant: { select: { name: true } },
+      },
+    }),
+    prisma.panne.count({ where }),
+  ]);
+
+  return {
+    success: true,
+    message: "Pannes récupérées avec succès.",
+    data,
+    meta: {
+      totalItems,
+      totalPages:
+        itemsPerPage === 0 ? 1 : Math.ceil(totalItems / itemsPerPage),
+      currentPage,
+      itemsPerPage,
+    },
+  };
+}
+
+async function validatePanneInput(input: PanneInput, tenantId: string) {
+  const name = input.name?.trim();
+  const typepanneId = input.typepanneId;
+  const parcIds = [...new Set(input.parcIds ?? [])];
+
+  if (!name) return { error: "Le nom de la panne est obligatoire." };
+  if (!typepanneId) return { error: "Sélectionnez un type de panne." };
+  if (parcIds.length === 0) return { error: "Sélectionnez au moins un parc." };
+
+  const [typepanne, parcs] = await Promise.all([
+    prisma.typepanne.findFirst({
+      where: { id: typepanneId, tenantId },
+      select: { id: true },
+    }),
+    prisma.parc.findMany({
+      where: { id: { in: parcIds }, tenantId },
+      select: { id: true },
+    }),
+  ]);
+
+  if (!typepanne) {
+    return { error: "Le type de panne sélectionné est invalide." };
+  }
+
+  if (parcs.length !== parcIds.length) {
+    return { error: "Un ou plusieurs parcs sont invalides." };
+  }
+
+  return { name, typepanneId, parcIds };
+}
+
+export async function createPanne(input: PanneInput) {
+  const permission = await guard(ACTION.CREATE, RESOURCE.PANNE);
+  if (!permission.success) {
+    return { success: false, message: permission.message };
+  }
+
+  const tenantId = await getPanneTenantId();
+  if (!tenantId) return { success: false, message: "Aucun tenant actif." };
+
+  try {
+    const validated = await validatePanneInput(input, tenantId);
+    if ("error" in validated) {
+      return { success: false, message: validated.error };
+    }
+
+    const duplicate = await prisma.panne.findFirst({
+      where: {
+        tenantId,
+        name: { equals: validated.name, mode: "insensitive" },
+      },
+      select: { id: true },
+    });
+
+    if (duplicate) {
+      return { success: false, message: "Cette panne existe déjà." };
+    }
+
+    await prisma.panne.create({
+      data: {
+        name: validated.name,
+        description: input.description?.trim() || null,
+        typepanneId: validated.typepanneId,
+        tenantId,
+        parcs: { connect: validated.parcIds.map((id) => ({ id })) },
+      },
+    });
+
+    return { success: true, message: "Panne créée avec succès." };
+  } catch (error) {
+    console.error("createPanne error:", error);
+    return { success: false, message: "Erreur lors de la création de la panne." };
+  }
+}
+
+export async function updatePanne(input: PanneInput & { id: string }) {
+  const permission = await guard(ACTION.UPDATE, RESOURCE.PANNE);
+  if (!permission.success) {
+    return { success: false, message: permission.message };
+  }
+
+  const { userId } = await getSession();
+  const tenantId = await getPanneTenantId();
+
+  if (!userId) return { success: false, message: "Utilisateur non authentifié." };
+  if (!tenantId) return { success: false, message: "Aucun tenant actif." };
+
+  try {
+    const existing = await prisma.panne.findFirst({
+      where: { id: input.id, tenantId },
+      select: { id: true },
+    });
+
+    if (!existing) {
+      return { success: false, message: "Panne introuvable." };
+    }
+
+    const validated = await validatePanneInput(input, tenantId);
+    if ("error" in validated) {
+      return { success: false, message: validated.error };
+    }
+
+    const duplicate = await prisma.panne.findFirst({
+      where: {
+        tenantId,
+        name: { equals: validated.name, mode: "insensitive" },
+        NOT: { id: input.id },
+      },
+      select: { id: true },
+    });
+
+    if (duplicate) {
+      return { success: false, message: "Une autre panne porte déjà ce nom." };
+    }
+
+    await prisma.panne.update({
+      where: { id: input.id },
+      data: {
+        name: validated.name,
+        description: input.description?.trim() || null,
+        typepanneId: validated.typepanneId,
+        parcs: { set: validated.parcIds.map((id) => ({ id })) },
+      },
+    });
+
+    return { success: true, message: "Panne modifiée avec succès." };
+  } catch (error) {
+    console.error("updatePanne error:", error);
+    return { success: false, message: "Erreur lors de la modification de la panne." };
+  }
+}
+
+export async function deletePanne(id: string) {
+  const permission = await guard(ACTION.DELETE, RESOURCE.PANNE);
+  if (!permission.success) {
+    return { success: false, message: permission.message };
+  }
+
+  const { userId } = await getSession();
+  const tenantId = await getPanneTenantId();
+
+  if (!userId) return { success: false, message: "Utilisateur non authentifié." };
+  if (!tenantId) return { success: false, message: "Aucun tenant actif." };
+
+  try {
+    const existing = await prisma.panne.findFirst({
+      where: { id, tenantId },
+      select: { id: true },
+    });
+
+    if (!existing) {
+      return { success: false, message: "Panne introuvable." };
+    }
+
+    const used = await prisma.saisiehim.count({
+      where: { panneId: id, tenantId },
+    });
+
+    if (used > 0) {
+      return {
+        success: false,
+        message: "Suppression impossible : cette panne est utilisée dans des saisies HIM.",
+      };
+    }
+
+    await prisma.panne.delete({ where: { id } });
+    return { success: true, message: "Panne supprimée avec succès." };
+  } catch (error) {
+    console.error("deletePanne error:", error);
+    return { success: false, message: "Erreur lors de la suppression de la panne." };
+  }
+}
 
 export async function importPannes(data: any) {
   try {
