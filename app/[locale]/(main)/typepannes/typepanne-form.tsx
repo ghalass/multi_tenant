@@ -155,7 +155,7 @@ export function TypePanneForm({
                     <DisplayError error={error} />
 
                     <form onSubmit={form.handleSubmit(onSubmit)}>
-                        <FieldGroup>
+                        <FieldGroup className="gap-2">
                             <Field data-invalid={Boolean(form.formState.errors.name)}>
                                 <FieldLabel htmlFor="typepanne-name">Nom</FieldLabel>
                                 <Input

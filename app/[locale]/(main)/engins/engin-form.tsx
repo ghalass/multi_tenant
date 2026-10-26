@@ -139,7 +139,7 @@ function EnginForm({
                     </DialogHeader>
 
                     <form onSubmit={form.handleSubmit(onSubmit)}>
-                        <FieldGroup>
+                        <FieldGroup className="gap-2">
                             <Controller name="name" control={form.control} render={({ field, fieldState }) => (
                                 <Field data-invalid={fieldState.invalid}>
                                     <FieldLabel>Nom de l'engin</FieldLabel>
