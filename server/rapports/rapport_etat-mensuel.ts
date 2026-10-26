@@ -1,4 +1,3 @@
-
 "use server";
 
 import { prisma } from "@/lib/prisma";
@@ -11,6 +10,8 @@ import { ActionResponse } from "@/lib/types";
 export interface SearchParamsRapportEtatMensuel {
     mois?: number;
     annee?: number;
+    typeParcId?: string;
+    parcId?: string;
 }
 
 type RawMetrics = {
@@ -42,10 +43,11 @@ const safeNumber = (value: unknown): number => {
 const round = (value: number): number =>
     Math.round((value + Number.EPSILON) * 100) / 100;
 
-function calculateMetrics(
-    raw: RawMetrics,
-    nho: number,
-): Metrics {
+function emptyRawMetrics(): RawMetrics {
+    return { him: 0, hrm: 0, ni: 0 };
+}
+
+function calculateMetrics(raw: RawMetrics, nho: number): Metrics {
     const { him, hrm, ni } = raw;
     const hrd = nho - (him + hrm);
 
@@ -76,8 +78,85 @@ function createPeriodMetrics(
     };
 }
 
-function emptyRawMetrics(): RawMetrics {
-    return { him: 0, hrm: 0, ni: 0 };
+function addRawMetrics(target: RawMetrics, source: RawMetrics) {
+    target.him += source.him;
+    target.hrm += source.hrm;
+    target.ni += source.ni;
+}
+
+export async function getOptionsRapportEtatMensuel(): Promise<ActionResponse> {
+    const permission = await guard(ACTION.READ, RESOURCE.RAPPORT);
+
+    if (!permission.success) {
+        return {
+            data: [],
+            success: false,
+            message: permission.message,
+        };
+    }
+
+    const { currentTenantId } = await getSession();
+
+    if (!currentTenantId) {
+        return {
+            data: [],
+            success: false,
+            message: "Sélectionnez un tenant avant de consulter ce rapport.",
+        };
+    }
+
+    const tenant = await prisma.tenant.findFirst({
+        where: { id: currentTenantId, active: true },
+        select: { id: true },
+    });
+
+    if (!tenant) {
+        return {
+            data: [],
+            success: false,
+            message: "Le tenant sélectionné est introuvable ou désactivé.",
+        };
+    }
+
+    const typeParcs = await prisma.typeparc.findMany({
+        where: { tenantId: currentTenantId },
+        select: {
+            id: true,
+            name: true,
+            parcs: {
+                where: { tenantId: currentTenantId },
+                select: {
+                    id: true,
+                    name: true,
+                    engins: {
+                        where: {
+                            tenantId: currentTenantId,
+                            active: true,
+                        },
+                        select: {
+                            id: true,
+                            name: true,
+                        },
+                        orderBy: { name: "asc" },
+                    },
+                },
+                orderBy: { name: "asc" },
+            },
+        },
+        orderBy: { name: "asc" },
+    });
+
+    return {
+        data: typeParcs,
+        success: true,
+        message: "Options récupérées avec succès.",
+        meta: {
+            totalItems: typeParcs.length,
+            totalPages: 1,
+            currentPage: 1,
+            itemsPerPage: typeParcs.length,
+        },
+    };
 }
 
 export async function getRapportEtatMensuel(
@@ -104,10 +183,7 @@ export async function getRapportEtatMensuel(
     }
 
     const tenant = await prisma.tenant.findFirst({
-        where: {
-            id: currentTenantId,
-            active: true,
-        },
+        where: { id: currentTenantId, active: true },
         select: { id: true },
     });
 
@@ -121,6 +197,8 @@ export async function getRapportEtatMensuel(
 
     const mois = Number(filters?.mois);
     const annee = Number(filters?.annee);
+    const typeParcId = filters?.typeParcId;
+    const parcId = filters?.parcId;
 
     if (
         !Number.isInteger(mois) ||
@@ -137,15 +215,19 @@ export async function getRapportEtatMensuel(
         };
     }
 
-    // Les bornes sont en UTC et la date de fin est exclusive.
+    if (!typeParcId || !parcId) {
+        return {
+            data: [],
+            success: false,
+            message: "Sélectionnez un type de parc et un parc.",
+        };
+    }
+
     const debutMois = new Date(Date.UTC(annee, mois - 1, 1));
     const finMois = new Date(Date.UTC(annee, mois, 1));
     const debutAnnee = new Date(Date.UTC(annee, 0, 1));
 
-    const joursMois = new Date(
-        Date.UTC(annee, mois, 0),
-    ).getUTCDate();
-
+    const joursMois = new Date(Date.UTC(annee, mois, 0)).getUTCDate();
     const joursCumules =
         (finMois.getTime() - debutAnnee.getTime()) /
         (24 * 60 * 60 * 1000);
@@ -153,20 +235,18 @@ export async function getRapportEtatMensuel(
     const heuresMois = joursMois * 24;
     const heuresCumulees = joursCumules * 24;
 
-    // Les engins et toutes les données liées sont limités au tenant courant.
+    // Tous les engins actifs du parc sélectionné.
     const engins = await prisma.engin.findMany({
         where: {
             tenantId: currentTenantId,
             active: true,
+            parcId,
             parc: {
                 tenantId: currentTenantId,
-                typeparc: {
-                    tenantId: currentTenantId,
-                },
+                typeparcId: typeParcId,
+                typeparc: { tenantId: currentTenantId },
             },
-            site: {
-                tenantId: currentTenantId,
-            },
+            site: { tenantId: currentTenantId },
         },
         select: {
             id: true,
@@ -186,16 +266,14 @@ export async function getRapportEtatMensuel(
                 },
             },
         },
-        orderBy: {
-            name: "asc",
-        },
+        orderBy: { name: "asc" },
     });
 
     if (engins.length === 0) {
         return {
             data: [],
             success: true,
-            message: "Aucun engin actif trouvé pour ce tenant.",
+            message: "Aucun engin actif trouvé pour ce parc.",
             meta: {
                 totalItems: 0,
                 totalPages: 0,
@@ -207,7 +285,6 @@ export async function getRapportEtatMensuel(
 
     const enginIds = engins.map((engin) => engin.id);
 
-    // Récupérer HRM et les HIM/NI associés en une seule lecture.
     const saisies = await prisma.saisiehrm.findMany({
         where: {
             tenantId: currentTenantId,
@@ -222,9 +299,7 @@ export async function getRapportEtatMensuel(
             enginId: true,
             hrm: true,
             saisiehim: {
-                where: {
-                    tenantId: currentTenantId,
-                },
+                where: { tenantId: currentTenantId },
                 select: {
                     him: true,
                     ni: true,
@@ -269,13 +344,13 @@ export async function getRapportEtatMensuel(
         }
     }
 
-    // Les objectifs sont définis par année, parc et site.
     const objectifs = await prisma.objectif.findMany({
         where: {
             tenantId: currentTenantId,
             annee,
             parc: { tenantId: currentTenantId },
             site: { tenantId: currentTenantId },
+            parcId,
         },
         select: {
             parcId: true,
@@ -292,159 +367,99 @@ export async function getRapportEtatMensuel(
         ]),
     );
 
-    // Regrouper les engins par type de parc, puis par parc.
-    const groupes = new Map<
-        string,
+    const typeParc = engins[0].parc.typeparc;
+    const parc = engins[0].parc;
+
+    const rawParcMois = emptyRawMetrics();
+    const rawParcAnnee = emptyRawMetrics();
+
+    let objectifDispoTotal = 0;
+    let objectifDispoCount = 0;
+    let objectifUtilTotal = 0;
+    let objectifUtilCount = 0;
+
+    const enginsResult = engins.map((engin) => {
+        const cumul = cumulParEngin.get(engin.id)!;
+
+        addRawMetrics(rawParcMois, cumul.mois);
+        addRawMetrics(rawParcAnnee, cumul.annee);
+
+        const objectif = objectifsParParcSite.get(
+            `${engin.parcId}:${engin.siteId}`,
+        );
+
+        if (objectif?.dispo != null) {
+            objectifDispoTotal += safeNumber(objectif.dispo);
+            objectifDispoCount++;
+        }
+
+        if (objectif?.tdm != null) {
+            objectifUtilTotal += safeNumber(objectif.tdm);
+            objectifUtilCount++;
+        }
+
+        const mensuel = createPeriodMetrics(cumul.mois, 1, heuresMois);
+        const annuel = createPeriodMetrics(cumul.annee, 1, heuresCumulees);
+
+        return {
+            enginId: engin.id,
+            enginName: engin.name,
+            nbreEngins: 1,
+            nhoMois: mensuel.nho,
+            nhoAnnee: annuel.nho,
+            aggregatesMois: mensuel.metrics,
+            aggregatesAnnee: annuel.metrics,
+            objectifDispo:
+                objectif?.dispo != null ? round(safeNumber(objectif.dispo)) : null,
+            objectifUtil:
+                objectif?.tdm != null ? round(safeNumber(objectif.tdm)) : null,
+        };
+    });
+
+    const parcMensuel = createPeriodMetrics(
+        rawParcMois,
+        engins.length,
+        heuresMois,
+    );
+    const parcAnnuel = createPeriodMetrics(
+        rawParcAnnee,
+        engins.length,
+        heuresCumulees,
+    );
+
+    const result = [
         {
-            typeParcId: string;
-            typeParcName: string;
-            parcs: Map<string, typeof engins>;
-        }
-    >();
-
-    for (const engin of engins) {
-        const typeParc = engin.parc.typeparc;
-
-        if (!groupes.has(typeParc.id)) {
-            groupes.set(typeParc.id, {
-                typeParcId: typeParc.id,
-                typeParcName: typeParc.name,
-                parcs: new Map(),
-            });
-        }
-
-        const groupe = groupes.get(typeParc.id)!;
-
-        if (!groupe.parcs.has(engin.parcId)) {
-            groupe.parcs.set(engin.parcId, []);
-        }
-
-        groupe.parcs.get(engin.parcId)!.push(engin);
-    }
-
-    const result = [...groupes.values()]
-        .sort((a, b) => a.typeParcName.localeCompare(b.typeParcName))
-        .map((groupe) => {
-            const parcs = [...groupe.parcs.entries()]
-                .map(([parcId, parcEngins]) => {
-                    const parc = parcEngins[0].parc;
-                    const nbreEngins = parcEngins.length;
-
-                    const rawMois = emptyRawMetrics();
-                    const rawAnnee = emptyRawMetrics();
-
-                    let objectifDispoTotal = 0;
-                    let objectifDispoCount = 0;
-                    let objectifUtilTotal = 0;
-                    let objectifUtilCount = 0;
-
-                    for (const engin of parcEngins) {
-                        const cumul = cumulParEngin.get(engin.id);
-                        if (!cumul) continue;
-
-                        rawMois.him += cumul.mois.him;
-                        rawMois.hrm += cumul.mois.hrm;
-                        rawMois.ni += cumul.mois.ni;
-
-                        rawAnnee.him += cumul.annee.him;
-                        rawAnnee.hrm += cumul.annee.hrm;
-                        rawAnnee.ni += cumul.annee.ni;
-
-                        const objectif = objectifsParParcSite.get(
-                            `${parcId}:${engin.siteId}`,
-                        );
-
-                        if (objectif?.dispo != null) {
-                            objectifDispoTotal += objectif.dispo;
-                            objectifDispoCount++;
-                        }
-
-                        if (objectif?.tdm != null) {
-                            objectifUtilTotal += objectif.tdm;
-                            objectifUtilCount++;
-                        }
-                    }
-
-                    const mensuel = createPeriodMetrics(
-                        rawMois,
-                        nbreEngins,
-                        heuresMois,
-                    );
-
-                    const annuel = createPeriodMetrics(
-                        rawAnnee,
-                        nbreEngins,
-                        heuresCumulees,
-                    );
-
-                    return {
-                        parcId,
-                        parcName: parc.name,
-                        nbreEngins,
-                        nhoMois: mensuel.nho,
-                        nhoAnnee: annuel.nho,
-                        aggregatesMois: mensuel.metrics,
-                        aggregatesAnnee: annuel.metrics,
-                        objectifDispo:
-                            objectifDispoCount > 0
-                                ? round(objectifDispoTotal / objectifDispoCount)
-                                : null,
-                        objectifUtil:
-                            objectifUtilCount > 0
-                                ? round(objectifUtilTotal / objectifUtilCount)
-                                : null,
-                    };
-                })
-                .sort((a, b) => a.parcName.localeCompare(b.parcName));
-
-            const totalRawMois = parcs.reduce(
-                (total, parc) => ({
-                    him: total.him + parc.aggregatesMois.him,
-                    hrm: total.hrm + parc.aggregatesMois.hrm,
-                    ni: total.ni + parc.aggregatesMois.ni,
-                }),
-                emptyRawMetrics(),
-            );
-
-            const totalRawAnnee = parcs.reduce(
-                (total, parc) => ({
-                    him: total.him + parc.aggregatesAnnee.him,
-                    hrm: total.hrm + parc.aggregatesAnnee.hrm,
-                    ni: total.ni + parc.aggregatesAnnee.ni,
-                }),
-                emptyRawMetrics(),
-            );
-
-            const totalEngins = parcs.reduce(
-                (total, parc) => total + parc.nbreEngins,
-                0,
-            );
-
-            const totalMois = createPeriodMetrics(
-                totalRawMois,
-                totalEngins,
-                heuresMois,
-            );
-
-            const totalAnnee = createPeriodMetrics(
-                totalRawAnnee,
-                totalEngins,
-                heuresCumulees,
-            );
-
-            return {
-                typeParcId: groupe.typeParcId,
-                typeParcName: groupe.typeParcName,
-                parcs,
-                totalTypeParc: {
-                    nbreEngins: totalEngins,
-                    nhoMois: totalMois.nho,
-                    nhoAnnee: totalAnnee.nho,
-                    aggregatesMois: totalMois.metrics,
-                    aggregatesAnnee: totalAnnee.metrics,
+            typeParcId: typeParc.id,
+            typeParcName: typeParc.name,
+            parcs: [
+                {
+                    parcId: parc.id,
+                    parcName: parc.name,
+                    nbreEngins: engins.length,
+                    nhoMois: parcMensuel.nho,
+                    nhoAnnee: parcAnnuel.nho,
+                    aggregatesMois: parcMensuel.metrics,
+                    aggregatesAnnee: parcAnnuel.metrics,
+                    objectifDispo:
+                        objectifDispoCount > 0
+                            ? round(objectifDispoTotal / objectifDispoCount)
+                            : null,
+                    objectifUtil:
+                        objectifUtilCount > 0
+                            ? round(objectifUtilTotal / objectifUtilCount)
+                            : null,
+                    engins: enginsResult,
                 },
-            };
-        });
+            ],
+            totalTypeParc: {
+                nbreEngins: engins.length,
+                nhoMois: parcMensuel.nho,
+                nhoAnnee: parcAnnuel.nho,
+                aggregatesMois: parcMensuel.metrics,
+                aggregatesAnnee: parcAnnuel.metrics,
+            },
+        },
+    ];
 
     return {
         data: result,

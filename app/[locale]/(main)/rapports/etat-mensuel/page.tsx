@@ -1,4 +1,3 @@
-
 import { CalendarDays } from "lucide-react";
 
 import CanAccess from "@/components/can-access";
@@ -7,6 +6,7 @@ import { ExportExcel } from "@/components/export-excel";
 import { ACTION } from "@/lib/enums";
 import { RESOURCE } from "@/lib/constantes";
 import {
+    getOptionsRapportEtatMensuel,
     getRapportEtatMensuel,
 } from "@/server/rapports/rapport_etat-mensuel";
 
@@ -25,14 +25,16 @@ export default async function RapportEtatMensuel({
     const filters = await searchParams;
 
     const moisParam =
-        typeof filters.mois === "string"
-            ? Number(filters.mois)
-            : NaN;
+        typeof filters.mois === "string" ? Number(filters.mois) : NaN;
 
     const anneeParam =
-        typeof filters.annee === "string"
-            ? Number(filters.annee)
-            : NaN;
+        typeof filters.annee === "string" ? Number(filters.annee) : NaN;
+
+    const typeParcId =
+        typeof filters.typeParcId === "string" ? filters.typeParcId : "";
+
+    const parcId =
+        typeof filters.parcId === "string" ? filters.parcId : "";
 
     const hasValidPeriod =
         Number.isInteger(moisParam) &&
@@ -42,16 +44,35 @@ export default async function RapportEtatMensuel({
         anneeParam >= 2000 &&
         anneeParam <= 9999;
 
-    let response;
+    const hasValidFilters =
+        hasValidPeriod && Boolean(typeParcId) && Boolean(parcId);
 
-    if (hasValidPeriod) {
-        response = await getRapportEtatMensuel({
-            mois: moisParam,
-            annee: anneeParam,
-        });
-    }
+    const [optionsResponse, reportResponse] = await Promise.all([
+        getOptionsRapportEtatMensuel(),
+        hasValidFilters
+            ? getRapportEtatMensuel({
+                mois: moisParam,
+                annee: anneeParam,
+                typeParcId,
+                parcId,
+            })
+            : Promise.resolve(undefined),
+    ]);
 
-    const rapport = (response?.data ?? []) as any[];
+    const typeParcs = optionsResponse.success
+        ? (optionsResponse.data as {
+            id: string;
+            name: string;
+            parcs: {
+                id: string;
+                name: string;
+                engins: { id: string; name: string }[];
+            }[];
+        }[])
+        : [];
+
+    const rapport = (reportResponse?.data ?? []) as any[];
+    const periode = `${String(moisParam).padStart(2, "0")}/${anneeParam}`;
 
     return (
         <div className="space-y-5">
@@ -59,12 +80,12 @@ export default async function RapportEtatMensuel({
                 <div>
                     <h1 className="flex items-center gap-2 text-2xl font-bold md:text-3xl">
                         <CalendarDays className="size-7 text-primary" />
-                        État Mensuel des Engins
+                        État mensuel des engins
                     </h1>
 
                     <p className="mt-1 text-sm text-muted-foreground">
-                        Analyse des performances par type de parc et par parc,
-                        avec comparaison mensuelle et cumul annuel.
+                        Indicateurs du parc et résultats individuels de chaque
+                        engin, pour le mois sélectionné et le cumul annuel.
                     </p>
                 </div>
 
@@ -83,40 +104,40 @@ export default async function RapportEtatMensuel({
                 resource={RESOURCE.RAPPORT}
                 action={ACTION.READ}
             >
-                <SelectParams />
-
-                {response && !response.success && (
+                {!optionsResponse.success && (
                     <DisplayError
                         className="mt-4"
-                        error={response.message}
+                        error={optionsResponse.message}
                     />
                 )}
 
-                {!hasValidPeriod && (
+                <SelectParams typeParcs={typeParcs} />
+
+                {reportResponse && !reportResponse.success && (
+                    <DisplayError
+                        className="mt-4"
+                        error={reportResponse.message}
+                    />
+                )}
+
+                {!hasValidFilters && (
                     <div className="rounded-lg border border-dashed p-8 text-center">
                         <CalendarDays className="mx-auto mb-3 size-8 text-muted-foreground" />
 
                         <h2 className="font-semibold">
-                            Sélectionnez une période
+                            Sélectionnez les paramètres du rapport
                         </h2>
 
                         <p className="mt-1 text-sm text-muted-foreground">
-                            Choisissez un mois pour afficher les indicateurs
-                            mensuels et le cumul depuis janvier.
+                            Choisissez un mois, une année, un type de parc et
+                            un parc, puis cliquez sur « Générer le rapport ».
                         </p>
                     </div>
                 )}
 
-                {hasValidPeriod && response?.success && (
-                    <div className="space-y-3">
-                        <div className="text-sm text-muted-foreground">
-                            Période :{" "}
-                            <span className="font-medium text-foreground">
-                                {String(moisParam).padStart(2, "0")}/{anneeParam}
-                            </span>
-                        </div>
-
-                        <EtatMensuelTable data={rapport} />
+                {hasValidFilters && reportResponse?.success && (
+                    <div className="space-y-2">
+                        <EtatMensuelTable data={rapport} periode={periode} />
                     </div>
                 )}
             </CanAccess>
