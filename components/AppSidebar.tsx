@@ -18,7 +18,7 @@ import {
   NotepadText,
   BookOpenCheck,
   Boxes,
-  Wrench,
+  Wrench, Gauge
 } from "lucide-react";
 
 import {
@@ -98,6 +98,12 @@ const configItems = {
       url: "/pannes",
       icon: Wrench,
       description: "Gérer les pannes",
+    },
+    {
+      title: "Saisies HRM",
+      url: "/saisie-hrm",
+      icon: Gauge,
+      description: "Gérer les saisies HRM",
     },
     { title: "Utilisateurs", url: `/users`, icon: Users, description: "Gérer les utilisateurs" },
     { title: "Import", url: `/import`, icon: Upload, description: "Import" },

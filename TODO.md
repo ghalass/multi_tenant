@@ -7,5 +7,6 @@ ne modifie jamais jamais jamais jamais jamais jamais mon repo, mais plutôt me d
 
 
 ok ok tout fonctionne, 
+lire tout les fichiers du projet https://github.com/ghalass/multi_tenant
 faire:
--rajoute une page pour gestion des types des pannes "pannes" s'inspire de ce qui est fait avec sites, users, parcs, engins,typepannes (page complète avec ajoute du lien dans le sidebar des configurations)
+-rajoute une page pour gestion des saisie_hrm,  s'inspire de ce qui est fait avec sites, users, parcs, engins,typepannes,pannes (page complète avec ajoute du lien dans le sidebar des configurations, respecte la même architecture)
