@@ -303,12 +303,6 @@ export default function EtatMensuelTable({
                     ))}
                 </section>
             ))}
-
-            <p className="text-xs text-muted-foreground">
-                DISPO et UTIL sont comparés aux objectifs disponibles. SW reste
-                à 0 tant que sa formule et ses données sources ne sont pas
-                définies.
-            </p>
         </div>
     );
 }

@@ -37,6 +37,7 @@ type SelectParamsProps = {
 
 export default function SelectParams({ typeParcs }: SelectParamsProps) {
     const [isPending, startTransition] = useTransition();
+
     const searchParams = useSearchParams();
     const pathname = usePathname();
     const router = useRouter();
@@ -49,9 +50,11 @@ export default function SelectParams({ typeParcs }: SelectParamsProps) {
             ? `${initialAnnee}-${initialMois.padStart(2, "0")}`
             : "",
     );
+
     const [typeParcId, setTypeParcId] = useState(
         searchParams.get("typeParcId") ?? "",
     );
+
     const [parcId, setParcId] = useState(
         searchParams.get("parcId") ?? "",
     );
@@ -60,6 +63,43 @@ export default function SelectParams({ typeParcs }: SelectParamsProps) {
         typeParcs.find((typeParc) => typeParc.id === typeParcId)?.parcs ?? [];
 
     const selectedParc = parcs.find((parc) => parc.id === parcId);
+
+    /**
+     * Supprime les paramètres du rapport dès qu'un filtre change.
+     * Le tableau disparaît immédiatement après la mise à jour de l'URL.
+     */
+    function clearReportParams() {
+        const params = new URLSearchParams(searchParams.toString());
+
+        params.delete("mois");
+        params.delete("annee");
+        params.delete("typeParcId");
+        params.delete("parcId");
+        params.delete("enginId");
+
+        const query = params.toString();
+        const url = query ? `${pathname}?${query}` : pathname;
+
+        startTransition(() => {
+            router.replace(url, { scroll: false });
+        });
+    }
+
+    function handleMonthChange(value: string) {
+        setMonthValue(value);
+        clearReportParams();
+    }
+
+    function handleTypeParcChange(value: string) {
+        setTypeParcId(value);
+        setParcId("");
+        clearReportParams();
+    }
+
+    function handleParcChange(value: string) {
+        setParcId(value);
+        clearReportParams();
+    }
 
     function generateReport() {
         if (!monthValue || !typeParcId || !parcId) return;
@@ -71,10 +111,14 @@ export default function SelectParams({ typeParcs }: SelectParamsProps) {
         params.set("mois", String(Number(mois)));
         params.set("typeParcId", typeParcId);
         params.set("parcId", parcId);
+
+        // Aucun filtre individuel par engin.
         params.delete("enginId");
 
         startTransition(() => {
-            router.replace(`${pathname}?${params.toString()}`);
+            router.replace(`${pathname}?${params.toString()}`, {
+                scroll: false,
+            });
         });
     }
 
@@ -87,11 +131,14 @@ export default function SelectParams({ typeParcs }: SelectParamsProps) {
                     <Label htmlFor="etat-mensuel-date">
                         Mois et année
                     </Label>
+
                     <Input
                         id="etat-mensuel-date"
                         type="month"
                         value={monthValue}
-                        onChange={(event) => setMonthValue(event.target.value)}
+                        onChange={(event) =>
+                            handleMonthChange(event.target.value)
+                        }
                         disabled={isPending}
                         className="w-full"
                     />
@@ -99,17 +146,16 @@ export default function SelectParams({ typeParcs }: SelectParamsProps) {
 
                 <div className="w-full space-y-2 sm:w-56">
                     <Label>Type de parc</Label>
+
                     <Select
                         value={typeParcId}
-                        onValueChange={(value) => {
-                            setTypeParcId(value);
-                            setParcId("");
-                        }}
+                        onValueChange={handleTypeParcChange}
                         disabled={isPending || typeParcs.length === 0}
                     >
                         <SelectTrigger className="w-full">
                             <SelectValue placeholder="Choisir un type de parc" />
                         </SelectTrigger>
+
                         <SelectContent>
                             {typeParcs.map((typeParc) => (
                                 <SelectItem
@@ -125,14 +171,20 @@ export default function SelectParams({ typeParcs }: SelectParamsProps) {
 
                 <div className="w-full space-y-2 sm:w-56">
                     <Label>Parc</Label>
+
                     <Select
                         value={parcId}
-                        onValueChange={setParcId}
-                        disabled={isPending || !typeParcId || parcs.length === 0}
+                        onValueChange={handleParcChange}
+                        disabled={
+                            isPending ||
+                            !typeParcId ||
+                            parcs.length === 0
+                        }
                     >
                         <SelectTrigger className="w-full">
                             <SelectValue placeholder="Choisir un parc" />
                         </SelectTrigger>
+
                         <SelectContent>
                             {parcs.map((parc) => (
                                 <SelectItem key={parc.id} value={parc.id}>
