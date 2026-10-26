@@ -19,6 +19,7 @@ import {
   BookOpenCheck,
   Boxes,
   Wrench, Gauge, ClipboardList,
+  BarChart3,
 } from "lucide-react";
 
 import {
@@ -153,7 +154,7 @@ const rapportsItems = {
     {
       title: "Paretos",
       url: "/rapports/pareto",
-      icon: Boxes,
+      icon: BarChart3,
       description: "Paretos",
     },
   ],
