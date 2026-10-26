@@ -92,6 +92,7 @@ export default async function SaisieHrmPage({
         typeParcs={options.typeParcs}
         parcs={options.parcs}
         engins={options.engins}
+        sites={options.sites}
       />
 
       {!hasSearched && (

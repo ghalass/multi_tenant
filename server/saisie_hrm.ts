@@ -17,6 +17,7 @@ export interface SaisieHrmSearchParams {
   typeparcId?: string;
   parcId?: string;
   enginId?: string;
+  siteId?: string;
 
   // Déclenchement explicite de la recherche
   search?: string;
@@ -171,6 +172,7 @@ export async function getAllSaisieHrm(
     };
   }
 
+
   const currentPage = Math.max(Number(filters.currentPage) || 1, 1);
   const requestedItems = Number(
     filters.itemsPerPage ?? PAGINATION_SETTINGS.itemsPerPage,
@@ -187,6 +189,7 @@ export async function getAllSaisieHrm(
   const typeparcId = filters.typeparcId?.trim();
   const parcId = filters.parcId?.trim();
   const enginId = filters.enginId?.trim();
+  const siteId = filters.siteId?.trim();
 
   const dateDu = filters.dateDu
     ? parseSaisieHrmDate(filters.dateDu)
@@ -213,6 +216,10 @@ export async function getAllSaisieHrm(
 
   if (parcId) {
     enginWhere.parcId = parcId;
+  }
+
+  if (siteId) {
+    enginWhere.siteId = siteId;
   }
 
   if (typeparcId) {
@@ -300,21 +307,45 @@ async function validateSaisieHrmInput(
 
   const [engin, site] = await Promise.all([
     prisma.engin.findFirst({
-      where: { id: values.enginId, tenantId, active: true },
-      select: { id: true },
+      where: {
+        id: values.enginId,
+        tenantId,
+        active: true,
+      },
+      select: {
+        id: true,
+        siteId: true,
+      },
     }),
+
     prisma.site.findFirst({
-      where: { id: values.siteId, tenantId, active: true },
-      select: { id: true },
+      where: {
+        id: values.siteId,
+        tenantId,
+        active: true,
+      },
+      select: {
+        id: true,
+      },
     }),
   ]);
 
   if (!engin) {
-    return { error: "L'engin sélectionné est invalide ou inactif." };
+    return {
+      error: "L'engin sélectionné est invalide ou inactif.",
+    };
   }
 
   if (!site) {
-    return { error: "Le site sélectionné est invalide ou inactif." };
+    return {
+      error: "Le site sélectionné est invalide ou inactif.",
+    };
+  }
+
+  if (engin.siteId !== site.id) {
+    return {
+      error: "Le site sélectionné doit correspondre au site de l'engin.",
+    };
   }
 
   return { du, hrm, compteur };

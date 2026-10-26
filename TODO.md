@@ -10,7 +10,7 @@ faire:
 --------
 ok ok tout fonctionne, 
 lire tout les fichiers du projet https://github.com/ghalass/multi_tenant
-ne modifie jamais jamais jamais jamais jamais jamais mon repo, mais plutôt me donner la version finale des codes à modifier en local
+ne modifie jamais jamais jamais jamais jamais jamais mon repo, mais plutôt me donner ici (pas en téléchargement ) la version finale des codes à modifier en local
 faire:
 -la gestion saisie_hrm doit être séparer en deux page : la 1ière juste pour afficher, filtrer, modifier, supprimer (n'affiche rien au chargement de la page, mais seulement en cliquant sur un button avec ou sans filter) et la 2ième juste pour ajouter une saisie_hrm (n'affiche rien au chargement de la page, mais seulement en filtrant une date"jour" les saisie_hrm de ce jour est afficher et on peut les modifier ou rajouter d'autres)
 -aussi il faut rajouter une filtration par typeparc => parc => engin à toutes les deux pages afin de faciliter la recherche et la saisie
