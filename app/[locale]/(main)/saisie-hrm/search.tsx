@@ -179,10 +179,10 @@ export default function Search({
 
       <form
         onSubmit={applySearch}
-        className="my-4 space-y-4 rounded-md border p-4"
+        className="my-3 space-y-3 rounded-md border p-3 md:p-4"
       >
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <div className="space-y-1">
+        <div className="flex flex-wrap items-end gap-x-3 gap-y-3 gap-2">
+          <div className="min-w-45 max-w-65 flex-[1_1_180px] space-y-1">
             <label
               htmlFor="hrm-site"
               className="text-sm font-medium"
@@ -201,7 +201,8 @@ export default function Search({
             >
               <SelectTrigger
                 id="hrm-site"
-                className="w-full"
+                size="sm"
+                className="w-full min-w-0"
               >
                 <SelectValue placeholder="Tous les sites" />
               </SelectTrigger>
@@ -218,7 +219,7 @@ export default function Search({
             </Select>
           </div>
 
-          <div className="space-y-1">
+          <div className="min-w-45 max-w-65 flex-[1_1_180px] space-y-1">
             <label
               htmlFor="hrm-typeparc"
               className="text-sm font-medium"
@@ -237,7 +238,8 @@ export default function Search({
             >
               <SelectTrigger
                 id="hrm-typeparc"
-                className="w-full"
+                size="sm"
+                className="w-full min-w-0"
               >
                 <SelectValue placeholder="Tous les types de parc" />
               </SelectTrigger>
@@ -259,7 +261,7 @@ export default function Search({
             </Select>
           </div>
 
-          <div className="space-y-1">
+          <div className="min-w-45 max-w-65 flex-[1_1_180px] space-y-1">
             <label
               htmlFor="hrm-parc"
               className="text-sm font-medium"
@@ -277,7 +279,8 @@ export default function Search({
             >
               <SelectTrigger
                 id="hrm-parc"
-                className="w-full"
+                size="sm"
+                className="w-full min-w-0"
               >
                 <SelectValue placeholder="Tous les parcs" />
               </SelectTrigger>
@@ -294,7 +297,7 @@ export default function Search({
             </Select>
           </div>
 
-          <div className="space-y-1">
+          <div className="min-w-45 max-w-65 flex-[1_1_180px] space-y-1">
             <label
               htmlFor="hrm-engin"
               className="text-sm font-medium"
@@ -309,7 +312,8 @@ export default function Search({
             >
               <SelectTrigger
                 id="hrm-engin"
-                className="w-full"
+                size="sm"
+                className="w-full min-w-0"
               >
                 <SelectValue placeholder="Tous les engins" />
               </SelectTrigger>
@@ -327,8 +331,8 @@ export default function Search({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div className="space-y-1">
+        <div className="flex flex-wrap items-end gap-x-4 gap-y-3 gap-2">
+          <div className="min-w-45 max-w-65 flex-[1_1_180px] space-y-1">
             <label
               htmlFor="hrm-date-du"
               className="text-sm font-medium"
@@ -346,7 +350,7 @@ export default function Search({
             />
           </div>
 
-          <div className="space-y-1">
+          <div className="min-w-45 max-w-65 flex-[1_1_180px] space-y-1">
             <label
               htmlFor="hrm-date-au"
               className="text-sm font-medium"
