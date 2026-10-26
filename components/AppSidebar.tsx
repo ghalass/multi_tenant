@@ -18,7 +18,7 @@ import {
   NotepadText,
   BookOpenCheck,
   Boxes,
-  Wrench, Gauge
+  Wrench, Gauge, ClipboardList,
 } from "lucide-react";
 
 import {
@@ -104,6 +104,11 @@ const configItems = {
       url: "/saisie-hrm",
       icon: Gauge,
       description: "Consulter, filtrer et modifier les saisies HRM",
+    }, {
+      title: "Saisies HIM",
+      url: "/saisie-him",
+      icon: ClipboardList,
+      description: "Gérer les saisies HIM",
     },
     { title: "Utilisateurs", url: `/users`, icon: Users, description: "Gérer les utilisateurs" },
     { title: "Import", url: `/import`, icon: Upload, description: "Import" },

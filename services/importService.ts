@@ -2,7 +2,7 @@
 import { importEngins } from "@/server/engins";
 import { importPannes } from "@/server/pannes";
 import { importParcs } from "@/server/parcs";
-import { importSaisieHims } from "@/server/saisie_hims";
+import { importSaisieHim } from "@/server/saisie_him";
 import { importSaisieHrm } from "@/server/saisie_hrm";
 import { importSites } from "@/server/sites";
 import { importTypePannes } from "@/server/typepannes";
@@ -60,7 +60,7 @@ export class ImportService {
 
         // SAISIE HRM & HIMS
         case IMPORT_RESOURCES.SAISIE_HRM: return await importSaisieHrm(data);
-        case IMPORT_RESOURCES.SAISIE_HIMS: return await importSaisieHims(data);
+        case IMPORT_RESOURCES.SAISIE_HIMS: return await importSaisieHim(data);
         default:
           return [
             {

@@ -319,7 +319,7 @@ export function SaisieHrmForm({
           <DisplayError error={error} />
 
           <form onSubmit={form.handleSubmit(onSubmit)}>
-            <FieldGroup>
+            <FieldGroup className="gap-2">
               <Controller
                 name="du"
                 control={form.control}

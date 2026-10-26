@@ -16,3 +16,11 @@ faire:
 -aussi il faut rajouter une filtration par typeparc => parc => engin à toutes les deux pages afin de faciliter la recherche et la saisie
 dans la page saisie-hrm ==> je doit consulter les saisie_hrm entre deux dates
 dans la page saisie-hrm/saisie ==> je doit consulter les saisie_hrm d'une date précise et pouvoir faire le crud de saisie_hrm à cette date
+--------
+ok ok tout fonctionne, 
+lire tout les fichiers du projet https://github.com/ghalass/multi_tenant
+ne modifie jamais jamais jamais jamais jamais jamais mon repo, mais plutôt me donner ici (pas en téléchargement ) la version finale des codes à modifier en local
+faire:
+-rajoute une page pour gestion des saisie_him,  s'inspire de ce qui est fait avec saisie_hrm (page complète avec ajoute du lien dans le sidebar des configurations, respecte la même architecture)
+
+
