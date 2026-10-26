@@ -67,6 +67,7 @@ type EnginOption = Option & {
 
 type PanneOption = Option & {
     description?: string | null;
+    typepanneId: string;
     parcs: Option[];
 };
 
@@ -89,6 +90,7 @@ const schema = yup.object({
     typeparcId: yup.string().required("Sélectionnez un type de parc."),
     parcId: yup.string().required("Sélectionnez un parc."),
     enginId: yup.string().required("Sélectionnez un engin."),
+    typepanneId: yup.string().required("Sélectionnez un type de panne."),
     panneId: yup.string().required("Sélectionnez une panne."),
     him: yup
         .number()
@@ -113,6 +115,7 @@ type FormValues = yup.InferType<typeof schema>;
 export function SaisieHimForm({
     saisie,
     typeParcs,
+    typePannes,
     parcs,
     engins,
     sites,
@@ -120,6 +123,7 @@ export function SaisieHimForm({
 }: {
     saisie?: SaisieHimItem;
     typeParcs: Option[];
+    typePannes: Option[];
     parcs: ParcOption[];
     engins: EnginOption[];
     sites: Option[];
@@ -148,6 +152,8 @@ export function SaisieHimForm({
             du: saisie?.du ?? new Date().toISOString().slice(0, 10),
             siteId: saisie?.siteId ?? "",
             typeparcId: saisie?.typeparcId ?? "",
+            typepanneId:
+                pannes.find((panne) => panne.id === saisie?.panneId)?.typepanneId ?? "",
             parcId: saisie?.parcId ?? "",
             enginId: saisie?.enginId ?? "",
             panneId: saisie?.panneId ?? "",
@@ -160,6 +166,7 @@ export function SaisieHimForm({
     const selectedSiteId = form.watch("siteId");
     const selectedTypeParcId = form.watch("typeparcId");
     const selectedParcId = form.watch("parcId");
+    const selectedTypePanneId = form.watch("typepanneId");
 
     const filteredParcs = useMemo(
         () =>
@@ -199,12 +206,12 @@ export function SaisieHimForm({
 
     const filteredPannes = useMemo(
         () =>
-            pannes.filter((panne) =>
-                panne.parcs.some(
-                    (parc) => parc.id === selectedParcId,
-                ),
+            pannes.filter(
+                (panne) =>
+                    panne.typepanneId === selectedTypePanneId &&
+                    panne.parcs.some((parc) => parc.id === selectedParcId),
             ),
-        [pannes, selectedParcId],
+        [pannes, selectedTypePanneId, selectedParcId],
     );
 
     useEffect(() => {
@@ -218,6 +225,8 @@ export function SaisieHimForm({
                 new Date().toISOString().slice(0, 10),
             siteId: currentSaisie?.siteId ?? "",
             typeparcId: currentSaisie?.typeparcId ?? "",
+            typepanneId:
+                pannes.find((panne) => panne.id === currentSaisie?.panneId)?.typepanneId ?? "",
             parcId: currentSaisie?.parcId ?? "",
             enginId: currentSaisie?.enginId ?? "",
             panneId: currentSaisie?.panneId ?? "",
@@ -261,9 +270,15 @@ export function SaisieHimForm({
         }
 
         if (
-            !filteredPannes.some((panne) => panne.id === values.panneId)
+            !filteredPannes.some(
+                (panne) =>
+                    panne.id === values.panneId &&
+                    panne.typepanneId === values.typepanneId,
+            )
         ) {
-            setError("Choisissez une panne associée au parc sélectionné.");
+            setError(
+                "Choisissez une panne correspondant au type de panne et au parc sélectionnés.",
+            );
             return;
         }
 
@@ -471,6 +486,7 @@ export function SaisieHimForm({
                                                 field.onChange(value === "none" ? "" : value);
                                                 form.setValue("enginId", "");
                                                 form.setValue("panneId", "");
+                                                form.setValue("typepanneId", "");
                                             }}
                                             disabled={loading || filteredParcs.length === 0}
                                         >
@@ -521,6 +537,7 @@ export function SaisieHimForm({
                                                 field.onChange(engin.id);
                                                 form.setValue("siteId", engin.siteId);
                                                 form.setValue("parcId", engin.parcId);
+                                                form.setValue("typepanneId", "");
 
                                                 const parc = parcs.find(
                                                     (item) => item.id === engin.parcId,
@@ -548,6 +565,51 @@ export function SaisieHimForm({
                                                 ))}
                                             </SelectContent>
                                         </Select>
+                                        {fieldState.invalid && (
+                                            <FieldError errors={[fieldState.error]} />
+                                        )}
+                                    </Field>
+                                )}
+                            />
+
+                            <Controller
+                                name="typepanneId"
+                                control={form.control}
+                                render={({ field, fieldState }) => (
+                                    <Field data-invalid={fieldState.invalid}>
+                                        <FieldLabel>Type de panne</FieldLabel>
+
+                                        <Select
+                                            value={field.value || "none"}
+                                            onValueChange={(value) => {
+                                                field.onChange(value === "none" ? "" : value);
+                                                form.setValue("panneId", "");
+                                            }}
+                                            disabled={loading || !selectedParcId || !selectedTypePanneId}
+                                        >
+                                            <SelectTrigger
+                                                className="w-full"
+                                                aria-invalid={fieldState.invalid}
+                                            >
+                                                <SelectValue placeholder="Sélectionner un type de panne" />
+                                            </SelectTrigger>
+
+                                            <SelectContent>
+                                                <SelectItem value="none">
+                                                    Sélectionner un type de panne
+                                                </SelectItem>
+
+                                                {typePannes.map((typePanne) => (
+                                                    <SelectItem
+                                                        key={typePanne.id}
+                                                        value={typePanne.id}
+                                                    >
+                                                        {typePanne.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+
                                         {fieldState.invalid && (
                                             <FieldError errors={[fieldState.error]} />
                                         )}

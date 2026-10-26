@@ -77,6 +77,7 @@ export async function getSaisieHimOptions() {
 
     const emptyData = {
         typeParcs: [],
+        typePannes: [],
         parcs: [],
         engins: [],
         sites: [],
@@ -101,9 +102,15 @@ export async function getSaisieHimOptions() {
         };
     }
 
-    const [typeParcs, parcs, engins, sites, pannes] =
+    const [typeParcs, typePannes, parcs, engins, sites, pannes] =
         await Promise.all([
             prisma.typeparc.findMany({
+                where: { tenantId },
+                select: { id: true, name: true },
+                orderBy: { name: "asc" },
+            }),
+
+            prisma.typepanne.findMany({
                 where: { tenantId },
                 select: { id: true, name: true },
                 orderBy: { name: "asc" },
@@ -144,6 +151,7 @@ export async function getSaisieHimOptions() {
                 select: {
                     id: true,
                     name: true, description: true,
+                    typepanneId: true,
                     parcs: {
                         select: { id: true, name: true },
                     },
@@ -157,6 +165,7 @@ export async function getSaisieHimOptions() {
         message: "",
         data: {
             typeParcs,
+            typePannes,
             parcs,
             engins,
             sites,

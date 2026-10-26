@@ -42,11 +42,13 @@ type EnginOption = Option & {
 };
 
 type PanneOption = Option & {
+    typepanneId: string;
     parcs: Option[];
 };
 
 type Options = {
     typeParcs: Option[];
+    typePannes: Option[];
     parcs: ParcOption[];
     engins: EnginOption[];
     sites: Option[];
@@ -55,6 +57,7 @@ type Options = {
 
 const EMPTY_OPTIONS: Options = {
     typeParcs: [],
+    typePannes: [],
     parcs: [],
     engins: [],
     sites: [],
@@ -98,6 +101,7 @@ export default async function SaisieHimPage({
                     >
                         <SaisieHimForm
                             typeParcs={options.typeParcs}
+                            typePannes={options.typePannes}
                             parcs={options.parcs}
                             engins={options.engins}
                             sites={options.sites}
@@ -233,6 +237,7 @@ export default async function SaisieHimPage({
                                                         <SaisieHimForm
                                                             saisie={formSaisie}
                                                             typeParcs={options.typeParcs}
+                                                            typePannes={options.typePannes}
                                                             parcs={options.parcs}
                                                             engins={options.engins}
                                                             sites={options.sites}
