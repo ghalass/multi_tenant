@@ -12,11 +12,14 @@ export interface SearchParamsRapportPareto {
     annee?: number;
     typeParcId?: string;
     parcId?: string;
+    siteId?: string;
 }
 
 export interface EnginParetoOption {
     id: string;
     name: string;
+    siteId: string;
+    siteName: string;
 }
 
 export interface ParcParetoOption {
@@ -54,7 +57,7 @@ export interface ParetoIndisponibiliteItem {
 
 export interface ParetoMtbfItem {
     mois: string;
-    mtbf: number;
+    mtbf: number | null;
     engins_actifs: number;
     objectif_mtbf: number | null;
 }
@@ -64,10 +67,15 @@ export interface RapportParetoData {
     typeParcName: string;
     parcId: string;
     parcName: string;
+    siteId: string | null;
+    siteName: string | null;
     mois: number;
     annee: number;
     enginsActifs: number;
     nho: number;
+    hrmTotalAnnee: number;
+    niTotalAnnee: number;
+    mtbfAnnuel: number | null;
     indisponibilites: ParetoIndisponibiliteItem[];
     evolutionMtbf: ParetoMtbfItem[];
 }
@@ -93,15 +101,6 @@ type MonthlyAccumulator = {
     ni: number;
 };
 
-function safeNumber(value: unknown): number {
-    const number = Number(value);
-    return Number.isFinite(number) ? number : 0;
-}
-
-function round(value: number): number {
-    return Math.round((value + Number.EPSILON) * 100) / 100;
-}
-
 const MONTH_NAMES = [
     "janv.",
     "févr.",
@@ -117,9 +116,15 @@ const MONTH_NAMES = [
     "déc.",
 ];
 
-/**
- * Vérifie le tenant actif de la session.
- */
+function safeNumber(value: unknown): number {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : 0;
+}
+
+function round(value: number): number {
+    return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
 async function getActiveTenantId(): Promise<
     | { success: true; tenantId: string }
     | { success: false; message: string }
@@ -158,7 +163,7 @@ async function getActiveTenantId(): Promise<
 
 /**
  * Options du formulaire :
- * type de parc -> parc.
+ * Type de parc -> Parc -> Site (facultatif).
  */
 export async function getOptionsRapportPareto(): Promise<ActionResponse> {
     const permission = await guard(ACTION.READ, RESOURCE.RAPPORT);
@@ -185,16 +190,12 @@ export async function getOptionsRapportPareto(): Promise<ActionResponse> {
         const tenantId = tenantResult.tenantId;
 
         const typeParcs = await prisma.typeparc.findMany({
-            where: {
-                tenantId,
-            },
+            where: { tenantId },
             select: {
                 id: true,
                 name: true,
                 parcs: {
-                    where: {
-                        tenantId,
-                    },
+                    where: { tenantId },
                     select: {
                         id: true,
                         name: true,
@@ -202,24 +203,25 @@ export async function getOptionsRapportPareto(): Promise<ActionResponse> {
                             where: {
                                 tenantId,
                                 active: true,
+                                site: { tenantId },
                             },
                             select: {
                                 id: true,
                                 name: true,
+                                siteId: true,
+                                site: {
+                                    select: {
+                                        name: true,
+                                    },
+                                },
                             },
-                            orderBy: {
-                                name: "asc",
-                            },
+                            orderBy: { name: "asc" },
                         },
                     },
-                    orderBy: {
-                        name: "asc",
-                    },
+                    orderBy: { name: "asc" },
                 },
             },
-            orderBy: {
-                name: "asc",
-            },
+            orderBy: { name: "asc" },
         });
 
         const data: TypeParcParetoOption[] = typeParcs
@@ -234,6 +236,8 @@ export async function getOptionsRapportPareto(): Promise<ActionResponse> {
                         engins: parc.engins.map((engin) => ({
                             id: engin.id,
                             name: engin.name,
+                            siteId: engin.siteId,
+                            siteName: engin.site.name,
                         })),
                     })),
             }))
@@ -263,8 +267,11 @@ export async function getOptionsRapportPareto(): Promise<ActionResponse> {
 
 /**
  * Génère :
- * - le Pareto des indisponibilités pour le mois sélectionné ;
- * - l'évolution du MTBF pour les 12 mois de l'année sélectionnée.
+ * - le Pareto HIM pour le mois choisi ;
+ * - l'évolution du MTBF mensuel sur toute l'année choisie ;
+ * - le MTBF annuel global = HRM annuel / NI annuel.
+ *
+ * Si siteId est vide, tous les sites du parc sont inclus.
  */
 export async function getRapportPareto(
     filters?: SearchParamsRapportPareto,
@@ -296,6 +303,7 @@ export async function getRapportPareto(
         const annee = Number(filters?.annee);
         const typeParcId = filters?.typeParcId;
         const parcId = filters?.parcId;
+        const siteId = filters?.siteId || undefined;
 
         if (
             !Number.isInteger(mois) ||
@@ -320,18 +328,12 @@ export async function getRapportPareto(
             };
         }
 
-        /*
-         * Vérifier que le parc correspond au type de parc choisi
-         * et au tenant actif.
-         */
         const parc = await prisma.parc.findFirst({
             where: {
                 id: parcId,
                 typeparcId: typeParcId,
                 tenantId,
-                typeparc: {
-                    tenantId,
-                },
+                typeparc: { tenantId },
             },
             select: {
                 id: true,
@@ -356,7 +358,6 @@ export async function getRapportPareto(
 
         const debutAnnee = new Date(Date.UTC(annee, 0, 1));
         const finAnnee = new Date(Date.UTC(annee + 1, 0, 1));
-
         const debutMois = new Date(Date.UTC(annee, mois - 1, 1));
         const finMois = new Date(Date.UTC(annee, mois, 1));
 
@@ -367,33 +368,49 @@ export async function getRapportPareto(
         const heuresMois = joursDansMois * 24;
 
         /*
-         * Tous les engins actifs du parc sélectionné.
+         * Récupération de tous les engins actifs du parc.
+         * Le site est filtré ensuite, après validation de son appartenance.
          */
-        const engins = await prisma.engin.findMany({
+        const tousLesEngins = await prisma.engin.findMany({
             where: {
                 tenantId,
                 parcId,
                 active: true,
-                site: {
-                    tenantId,
-                },
+                site: { tenantId },
                 parc: {
                     tenantId,
                     typeparcId: typeParcId,
-                    typeparc: {
-                        tenantId,
-                    },
+                    typeparc: { tenantId },
                 },
             },
             select: {
                 id: true,
                 name: true,
                 siteId: true,
+                site: {
+                    select: {
+                        name: true,
+                    },
+                },
             },
-            orderBy: {
-                name: "asc",
-            },
+            orderBy: { name: "asc" },
         });
+
+        if (
+            siteId &&
+            !tousLesEngins.some((engin) => engin.siteId === siteId)
+        ) {
+            return {
+                data: [],
+                success: false,
+                message:
+                    "Le site sélectionné ne contient aucun engin actif dans ce parc.",
+            };
+        }
+
+        const engins = siteId
+            ? tousLesEngins.filter((engin) => engin.siteId === siteId)
+            : tousLesEngins;
 
         const enginIds = engins.map((engin) => engin.id);
 
@@ -402,53 +419,49 @@ export async function getRapportPareto(
         );
 
         /*
-         * Une seule récupération des saisies sur l'année entière.
-         * HIM, NI et les pannes sont récupérés à travers SaisieHRM,
-         * car SaisieHIM n'a pas directement de champ enginId.
+         * Récupération des saisies de l'année uniquement pour
+         * les engins compris dans le périmètre sélectionné.
+         *
+         * NI doit être la somme de saisiehim.ni, et pas le nombre
+         * de lignes SaisieHIM.
          */
-        const saisies = enginIds.length > 0
-            ? await prisma.saisiehrm.findMany({
-                where: {
-                    tenantId,
-                    enginId: {
-                        in: enginIds,
-                    },
-                    du: {
-                        gte: debutAnnee,
-                        lt: finAnnee,
-                    },
-                },
-                select: {
-                    du: true,
-                    enginId: true,
-                    hrm: true,
-                    saisiehim: {
-                        where: {
-                            tenantId,
-                            panne: {
-                                tenantId,
-                            },
+        const saisies =
+            enginIds.length > 0
+                ? await prisma.saisiehrm.findMany({
+                    where: {
+                        tenantId,
+                        enginId: { in: enginIds },
+                        du: {
+                            gte: debutAnnee,
+                            lt: finAnnee,
                         },
-                        select: {
-                            panneId: true,
-                            him: true,
-                            ni: true,
-                            panne: {
-                                select: {
-                                    id: true,
-                                    name: true,
-                                    description: true,
+                    },
+                    select: {
+                        du: true,
+                        enginId: true,
+                        hrm: true,
+                        saisiehim: {
+                            where: {
+                                tenantId,
+                                panne: { tenantId },
+                            },
+                            select: {
+                                panneId: true,
+                                him: true,
+                                ni: true,
+                                panne: {
+                                    select: {
+                                        id: true,
+                                        name: true,
+                                        description: true,
+                                    },
                                 },
                             },
                         },
                     },
-                },
-            })
-            : [];
+                })
+                : [];
 
-        /*
-         * Totaux HRM et NI par mois pour le calcul MTBF.
-         */
         const monthlyStats: MonthlyAccumulator[] = Array.from(
             { length: 12 },
             () => ({
@@ -457,16 +470,13 @@ export async function getRapportPareto(
             }),
         );
 
-        /*
-         * Accumulation des HIM et NI par panne uniquement
-         * sur le mois sélectionné.
-         */
         const pannesMap = new Map<string, PanneAccumulator>();
 
         for (const saisie of saisies) {
             const indexMois = saisie.du.getUTCMonth();
             const hrm = safeNumber(saisie.hrm);
 
+            // HRM du mois, toutes pannes confondues.
             monthlyStats[indexMois].hrm += hrm;
 
             const estMoisSelectionne =
@@ -477,19 +487,18 @@ export async function getRapportPareto(
                 const him = safeNumber(saisieHim.him);
                 const ni = safeNumber(saisieHim.ni);
 
+                // Somme des interventions déclarées pour ce mois.
                 monthlyStats[indexMois].ni += ni;
 
                 if (!estMoisSelectionne) {
                     continue;
                 }
 
-                const panneId = saisieHim.panneId;
-
-                let panne = pannesMap.get(panneId);
+                let panne = pannesMap.get(saisieHim.panneId);
 
                 if (!panne) {
                     panne = {
-                        panneId,
+                        panneId: saisieHim.panneId,
                         panne: saisieHim.panne.name,
                         panneDescription:
                             saisieHim.panne.description ?? "",
@@ -498,7 +507,7 @@ export async function getRapportPareto(
                         engins: new Map(),
                     };
 
-                    pannesMap.set(panneId, panne);
+                    pannesMap.set(saisieHim.panneId, panne);
                 }
 
                 panne.himTotal += him;
@@ -507,27 +516,22 @@ export async function getRapportPareto(
                 const enginName =
                     enginNameById.get(saisie.enginId) ?? "Inconnu";
 
-                const enginAccumulator = panne.engins.get(
-                    saisie.enginId,
-                ) ?? {
+                const enginPanne = panne.engins.get(saisie.enginId) ?? {
                     name: enginName,
                     him: 0,
                     ni: 0,
                 };
 
-                enginAccumulator.him += him;
-                enginAccumulator.ni += ni;
+                enginPanne.him += him;
+                enginPanne.ni += ni;
 
-                panne.engins.set(
-                    saisie.enginId,
-                    enginAccumulator,
-                );
+                panne.engins.set(saisie.enginId, enginPanne);
             }
         }
 
         /*
-         * Le NHO représente le nombre d'heures du mois multiplié
-         * par le nombre d'engins actifs du parc.
+         * NHO = nombre d'heures du mois × nombre d'engins actifs
+         * du périmètre choisi.
          */
         const nho = heuresMois * engins.length;
 
@@ -554,18 +558,16 @@ export async function getRapportPareto(
                         }))
                         .sort((a, b) => b.ni - a.ni);
 
-                    const indispo =
-                        nho > 0
-                            ? round((100 * panne.himTotal) / nho)
-                            : 0;
-
                     return {
                         panneId: panne.panneId,
                         panne: panne.panne,
                         panneDescription: panne.panneDescription,
                         himTotal: round(panne.himTotal),
                         niTotal: panne.niTotal,
-                        indispo,
+                        indispo:
+                            nho > 0
+                                ? round((100 * panne.himTotal) / nho)
+                                : 0,
                         engins: enginsParHim,
                         engins_mtbf: enginsParNi,
                     };
@@ -573,37 +575,37 @@ export async function getRapportPareto(
                 .sort((a, b) => b.indispo - a.indispo);
 
         /*
-         * Objectif MTBF : dans multi_tenant, l'objectif est défini
-         * par année, parc et site. On calcule la moyenne des objectifs
-         * MTBF disponibles sur les sites utilisés par les engins actifs.
+         * Objectif MTBF défini par parc + site + année.
+         * Si un site est choisi, on utilise l'objectif de ce site.
+         * Sinon, on calcule la moyenne des objectifs définis pour les
+         * sites qui disposent d'engins actifs dans le périmètre.
          */
         const siteIds = Array.from(
             new Set(engins.map((engin) => engin.siteId)),
         );
 
-        const objectifs = siteIds.length > 0
-            ? await prisma.objectif.findMany({
-                where: {
-                    tenantId,
-                    annee,
-                    parcId,
-                    siteId: {
-                        in: siteIds,
+        const objectifs =
+            siteIds.length > 0
+                ? await prisma.objectif.findMany({
+                    where: {
+                        tenantId,
+                        annee,
+                        parcId,
+                        siteId: { in: siteIds },
                     },
-                },
-                select: {
-                    siteId: true,
-                    mtbf: true,
-                },
-            })
-            : [];
+                    select: {
+                        siteId: true,
+                        mtbf: true,
+                    },
+                })
+                : [];
 
         const objectifsMtbf = objectifs
             .map((objectif) => objectif.mtbf)
             .filter(
-                (valeur): valeur is number =>
-                    valeur != null &&
-                    Number.isFinite(Number(valeur)),
+                (value): value is number =>
+                    value !== null &&
+                    Number.isFinite(Number(value)),
             )
             .map(safeNumber);
 
@@ -611,12 +613,16 @@ export async function getRapportPareto(
             objectifsMtbf.length > 0
                 ? round(
                     objectifsMtbf.reduce(
-                        (total, valeur) => total + valeur,
+                        (total, value) => total + value,
                         0,
                     ) / objectifsMtbf.length,
                 )
                 : null;
 
+        /*
+         * MTBF mensuel = HRM total du mois / NI total du mois.
+         * Si NI = 0, le MTBF est null : il ne peut pas être calculé.
+         */
         const evolutionMtbf: ParetoMtbfItem[] = MONTH_NAMES.map(
             (nomMois, index) => {
                 const stats = monthlyStats[index];
@@ -626,22 +632,52 @@ export async function getRapportPareto(
                     mtbf:
                         stats.ni > 0
                             ? round(stats.hrm / stats.ni)
-                            : 0,
+                            : null,
                     engins_actifs: engins.length,
                     objectif_mtbf: objectifMtbfMoyen,
                 };
             },
         );
 
+        const hrmTotalAnnee = monthlyStats.reduce(
+            (total, stats) => total + stats.hrm,
+            0,
+        );
+
+        const niTotalAnnee = monthlyStats.reduce(
+            (total, stats) => total + stats.ni,
+            0,
+        );
+
+        /*
+         * MTBF annuel correct :
+         * HRM total de l'année / NI total de l'année.
+         * Ne pas faire la moyenne des MTBF mensuels.
+         */
+        const mtbfAnnuel =
+            niTotalAnnee > 0
+                ? round(hrmTotalAnnee / niTotalAnnee)
+                : null;
+
+        const siteName =
+            siteId && engins.length > 0
+                ? engins[0].site.name
+                : null;
+
         const result: RapportParetoData = {
             typeParcId: parc.typeparc.id,
             typeParcName: parc.typeparc.name,
             parcId: parc.id,
             parcName: parc.name,
+            siteId: siteId ?? null,
+            siteName,
             mois,
             annee,
             enginsActifs: engins.length,
             nho,
+            hrmTotalAnnee: round(hrmTotalAnnee),
+            niTotalAnnee,
+            mtbfAnnuel,
             indisponibilites,
             evolutionMtbf,
         };

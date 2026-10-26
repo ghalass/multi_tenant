@@ -55,6 +55,10 @@ export default function SelectParams({
         searchParams.get("parcId") ?? "",
     );
 
+    const [siteId, setSiteId] = useState(
+        searchParams.get("siteId") ?? "",
+    );
+
     const parcs =
         typeParcs.find(
             (typeParc) => typeParc.id === typeParcId,
@@ -63,6 +67,24 @@ export default function SelectParams({
     const selectedParc = parcs.find(
         (parc) => parc.id === parcId,
     );
+
+    const sites = selectedParc
+        ? Array.from(
+            new Map(
+                selectedParc.engins.map((engin) => [
+                    engin.siteId,
+                    {
+                        id: engin.siteId,
+                        name: engin.siteName,
+                    },
+                ]),
+            ).values(),
+        ).sort((a, b) =>
+            a.name.localeCompare(b.name, "fr", {
+                numeric: true,
+            }),
+        )
+        : [];
 
     function clearReportParams() {
         const params = new URLSearchParams(
@@ -73,6 +95,7 @@ export default function SelectParams({
         params.delete("annee");
         params.delete("typeParcId");
         params.delete("parcId");
+        params.delete("siteId");
 
         const query = params.toString();
         const url = query
@@ -92,11 +115,18 @@ export default function SelectParams({
     function handleTypeParcChange(value: string) {
         setTypeParcId(value);
         setParcId("");
+        setSiteId("");
         clearReportParams();
     }
 
     function handleParcChange(value: string) {
         setParcId(value);
+        setSiteId("");
+        clearReportParams();
+    }
+
+    function handleSiteChange(value: string) {
+        setSiteId(value === "all" ? "" : value);
         clearReportParams();
     }
 
@@ -119,6 +149,12 @@ export default function SelectParams({
         params.set("mois", String(Number(mois)));
         params.set("typeParcId", typeParcId);
         params.set("parcId", parcId);
+
+        if (siteId) {
+            params.set("siteId", siteId);
+        } else {
+            params.delete("siteId");
+        }
 
         startTransition(() => {
             router.replace(
@@ -207,6 +243,39 @@ export default function SelectParams({
                     </Select>
                 </div>
 
+                <div className="w-full space-y-2 sm:w-56">
+                    <Label>Site (optionnel)</Label>
+
+                    <Select
+                        value={siteId || "all"}
+                        onValueChange={handleSiteChange}
+                        disabled={
+                            isPending ||
+                            !parcId ||
+                            sites.length === 0
+                        }
+                    >
+                        <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Tous les sites" />
+                        </SelectTrigger>
+
+                        <SelectContent>
+                            <SelectItem value="all">
+                                Tous les sites
+                            </SelectItem>
+
+                            {sites.map((site) => (
+                                <SelectItem
+                                    key={site.id}
+                                    value={site.id}
+                                >
+                                    {site.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+
                 <Button
                     type="button"
                     onClick={generateReport}
@@ -222,8 +291,9 @@ export default function SelectParams({
 
                 {selectedParc && (
                     <p className="w-full text-sm text-muted-foreground">
-                        {selectedParc.engins.length} engin(s) actif(s)
-                        dans ce parc.
+                        {siteId
+                            ? `${selectedParc.engins.filter((engin) => engin.siteId === siteId).length} engin(s) actif(s) dans le site sélectionné.`
+                            : `${selectedParc.engins.length} engin(s) actif(s) dans ce parc.`}
                     </p>
                 )}
             </div>

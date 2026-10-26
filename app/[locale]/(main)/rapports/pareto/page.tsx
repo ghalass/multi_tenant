@@ -47,6 +47,11 @@ export default async function RapportPareto({
             ? params.parcId
             : "";
 
+    const siteId =
+        typeof params.siteId === "string"
+            ? params.siteId
+            : "";
+
     const hasValidPeriod =
         Number.isInteger(moisParam) &&
         moisParam >= 1 &&
@@ -69,6 +74,7 @@ export default async function RapportPareto({
                 annee: anneeParam,
                 typeParcId,
                 parcId,
+                siteId: siteId || undefined,
             })
             : Promise.resolve(undefined),
     ]);
@@ -131,7 +137,7 @@ export default async function RapportPareto({
 
                         <p className="mt-1 text-sm text-muted-foreground">
                             Choisissez le mois, l’année, le type de parc
-                            et le parc, puis cliquez sur « Générer les rapports ».
+                            et le parc. Le site est facultatif.
                         </p>
                     </div>
                 )}
@@ -140,7 +146,7 @@ export default async function RapportPareto({
                     reportResponse?.success &&
                     rapport && (
                         <ParetoResult
-                            key={`${parcId}-${anneeParam}-${moisParam}`}
+                            key={`${parcId}-${siteId}-${anneeParam}-${moisParam}`}
                             data={rapport}
                             periode={periode}
                         />
