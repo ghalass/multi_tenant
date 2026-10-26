@@ -11,25 +11,36 @@ import { ActionResponse } from "@/lib/types";
 export interface SearchParamsAnalyseIndispoParc {
     mois?: number;
     annee?: number;
+    typeParcId?: string;
+    parcId?: string;
 }
 
-type ValeursPanne = {
+type ValeursBrutes = {
     niMois: number;
     niAnnee: number;
     himMois: number;
     himAnnee: number;
 };
 
-type TotauxPanne = ValeursPanne & {
+type TotauxPanne = ValeursBrutes & {
     coeffNiMois: number;
     coeffNiAnnee: number;
     coeffHimMois: number;
     coeffHimAnnee: number;
 };
 
+type PanneDefinition = {
+    id: string;
+    name: string;
+    description: string | null;
+    typepanneId: string;
+    typepanneName: string;
+};
+
 type PanneResult = {
     panneId: string;
     panneName: string;
+    description: string | null;
 } & TotauxPanne;
 
 type TypePanneResult = {
@@ -39,44 +50,50 @@ type TypePanneResult = {
     totalTypePanne: TotauxPanne;
 };
 
-type TotauxParc = TotauxPanne & {
+type TotauxScope = TotauxPanne & {
     nhoMois: number;
     nhoAnnee: number;
     indispMois: number;
     indispAnnee: number;
 };
 
-type ParcResult = {
-    parcId: string;
-    parcName: string;
+type ScopeResult = {
+    scopeId: string;
+    scopeName: string;
     nbreEngins: number;
     nhoMois: number;
     nhoAnnee: number;
     pannes: TypePanneResult[];
-    totalParc: TotauxParc;
+    total: TotauxScope;
 };
 
 type TypeParcResult = {
     typeParcId: string;
     typeParcName: string;
-    parcs: ParcResult[];
-    totalTypeParc: TotauxParc;
+    parc: ScopeResult;
+    engins: ScopeResult[];
 };
 
-const round = (value: number) =>
+const round = (value: number): number =>
     Math.round((value + Number.EPSILON) * 100) / 100;
 
-const numberOrZero = (value: unknown) => {
-    const valueAsNumber = Number(value);
-    return Number.isFinite(valueAsNumber) ? valueAsNumber : 0;
+const safeNumber = (value: unknown): number => {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : 0;
 };
 
-function emptyPanneTotals(): TotauxPanne {
+function emptyValeurs(): ValeursBrutes {
     return {
         niMois: 0,
         niAnnee: 0,
         himMois: 0,
         himAnnee: 0,
+    };
+}
+
+function emptyTotaux(): TotauxPanne {
+    return {
+        ...emptyValeurs(),
         coeffNiMois: 0,
         coeffNiAnnee: 0,
         coeffHimMois: 0,
@@ -84,9 +101,9 @@ function emptyPanneTotals(): TotauxPanne {
     };
 }
 
-function emptyParcTotals(): TotauxParc {
+function emptyTotauxScope(): TotauxScope {
     return {
-        ...emptyPanneTotals(),
+        ...emptyTotaux(),
         nhoMois: 0,
         nhoAnnee: 0,
         indispMois: 0,
@@ -94,21 +111,25 @@ function emptyParcTotals(): TotauxParc {
     };
 }
 
-function addPanneTotals(
-    target: TotauxPanne,
-    source: ValeursPanne & Partial<TotauxPanne>,
-) {
+function addValeurs(target: ValeursBrutes, source: ValeursBrutes) {
     target.niMois += source.niMois;
     target.niAnnee += source.niAnnee;
     target.himMois += source.himMois;
     target.himAnnee += source.himAnnee;
-    target.coeffNiMois += source.coeffNiMois ?? 0;
-    target.coeffNiAnnee += source.coeffNiAnnee ?? 0;
-    target.coeffHimMois += source.coeffHimMois ?? 0;
-    target.coeffHimAnnee += source.coeffHimAnnee ?? 0;
 }
 
-function roundPanneTotals(target: TotauxPanne) {
+function addTotaux(target: TotauxPanne, source: TotauxPanne) {
+    target.niMois += source.niMois;
+    target.niAnnee += source.niAnnee;
+    target.himMois += source.himMois;
+    target.himAnnee += source.himAnnee;
+    target.coeffNiMois += source.coeffNiMois;
+    target.coeffNiAnnee += source.coeffNiAnnee;
+    target.coeffHimMois += source.coeffHimMois;
+    target.coeffHimAnnee += source.coeffHimAnnee;
+}
+
+function roundTotaux(target: TotauxPanne) {
     target.niMois = round(target.niMois);
     target.niAnnee = round(target.niAnnee);
     target.himMois = round(target.himMois);
@@ -119,18 +140,123 @@ function roundPanneTotals(target: TotauxPanne) {
     target.coeffHimAnnee = round(target.coeffHimAnnee);
 }
 
-function roundParcTotals(target: TotauxParc) {
-    roundPanneTotals(target);
-    target.nhoMois = round(target.nhoMois);
-    target.nhoAnnee = round(target.nhoAnnee);
-    target.indispMois = round(target.indispMois);
-    target.indispAnnee = round(target.indispAnnee);
+function buildScopeResult({
+    scopeId,
+    scopeName,
+    nbreEngins,
+    heuresMois,
+    heuresAnnee,
+    definitions,
+    valeursParPanne,
+}: {
+    scopeId: string;
+    scopeName: string;
+    nbreEngins: number;
+    heuresMois: number;
+    heuresAnnee: number;
+    definitions: PanneDefinition[];
+    valeursParPanne: Map<string, ValeursBrutes>;
+}): ScopeResult {
+    const nhoMois = nbreEngins * heuresMois;
+    const nhoAnnee = nbreEngins * heuresAnnee;
+
+    const totalBrut = emptyValeurs();
+
+    for (const panne of definitions) {
+        const valeurs = valeursParPanne.get(panne.id) ?? emptyValeurs();
+        addValeurs(totalBrut, valeurs);
+    }
+
+    const indispMois =
+        nhoMois > 0 ? (totalBrut.himMois / nhoMois) * 100 : 0;
+
+    const indispAnnee =
+        nhoAnnee > 0 ? (totalBrut.himAnnee / nhoAnnee) * 100 : 0;
+
+    const typePannesMap = new Map<string, TypePanneResult>();
+
+    for (const definition of definitions) {
+        if (!typePannesMap.has(definition.typepanneId)) {
+            typePannesMap.set(definition.typepanneId, {
+                typepanneId: definition.typepanneId,
+                typepanneName: definition.typepanneName,
+                pannes: [],
+                totalTypePanne: emptyTotaux(),
+            });
+        }
+
+        const valeurs = valeursParPanne.get(definition.id) ?? emptyValeurs();
+
+        const ligne: PanneResult = {
+            panneId: definition.id,
+            panneName: definition.name,
+            description: definition.description,
+            ...valeurs,
+            coeffNiMois:
+                totalBrut.niMois > 0
+                    ? (valeurs.niMois * indispMois) / totalBrut.niMois
+                    : 0,
+            coeffNiAnnee:
+                totalBrut.niAnnee > 0
+                    ? (valeurs.niAnnee * indispAnnee) / totalBrut.niAnnee
+                    : 0,
+            coeffHimMois:
+                totalBrut.himMois > 0
+                    ? (valeurs.himMois * indispMois) / totalBrut.himMois
+                    : 0,
+            coeffHimAnnee:
+                totalBrut.himAnnee > 0
+                    ? (valeurs.himAnnee * indispAnnee) / totalBrut.himAnnee
+                    : 0,
+        };
+
+        const typePanne = typePannesMap.get(definition.typepanneId);
+        if (!typePanne) continue;
+
+        typePanne.pannes.push(ligne);
+        addTotaux(typePanne.totalTypePanne, ligne);
+    }
+
+    const pannes = Array.from(typePannesMap.values())
+        .map((typePanne) => {
+            typePanne.pannes.sort((a, b) =>
+                a.panneName.localeCompare(b.panneName, "fr"),
+            );
+
+            roundTotaux(typePanne.totalTypePanne);
+            return typePanne;
+        })
+        .sort((a, b) =>
+            a.typepanneName.localeCompare(b.typepanneName, "fr"),
+        );
+
+    const total: TotauxScope = {
+        ...emptyTotaux(),
+        nhoMois,
+        nhoAnnee,
+        niMois: round(totalBrut.niMois),
+        niAnnee: round(totalBrut.niAnnee),
+        himMois: round(totalBrut.himMois),
+        himAnnee: round(totalBrut.himAnnee),
+        indispMois: round(indispMois),
+        indispAnnee: round(indispAnnee),
+        coeffNiMois: round(indispMois),
+        coeffNiAnnee: round(indispAnnee),
+        coeffHimMois: round(indispMois),
+        coeffHimAnnee: round(indispAnnee),
+    };
+
+    return {
+        scopeId,
+        scopeName,
+        nbreEngins,
+        nhoMois,
+        nhoAnnee,
+        pannes,
+        total,
+    };
 }
 
-/**
- * Récupère les types de parc, les parcs et le nombre d'engins actifs.
- * Toutes les données sont limitées au tenant de la session.
- */
 export async function getOptionsRapportAnalyseIndispoParc(): Promise<ActionResponse> {
     const permission = await guard(ACTION.READ, RESOURCE.RAPPORT);
 
@@ -153,10 +279,7 @@ export async function getOptionsRapportAnalyseIndispoParc(): Promise<ActionRespo
     }
 
     const tenant = await prisma.tenant.findFirst({
-        where: {
-            id: currentTenantId,
-            active: true,
-        },
+        where: { id: currentTenantId, active: true },
         select: { id: true },
     });
 
@@ -169,16 +292,12 @@ export async function getOptionsRapportAnalyseIndispoParc(): Promise<ActionRespo
     }
 
     const typeParcs = await prisma.typeparc.findMany({
-        where: {
-            tenantId: currentTenantId,
-        },
+        where: { tenantId: currentTenantId },
         select: {
             id: true,
             name: true,
             parcs: {
-                where: {
-                    tenantId: currentTenantId,
-                },
+                where: { tenantId: currentTenantId },
                 select: {
                     id: true,
                     name: true,
@@ -186,8 +305,10 @@ export async function getOptionsRapportAnalyseIndispoParc(): Promise<ActionRespo
                         where: {
                             tenantId: currentTenantId,
                             active: true,
+                            site: { tenantId: currentTenantId },
                         },
-                        select: { id: true },
+                        select: { id: true, name: true },
+                        orderBy: { name: "asc" },
                     },
                 },
                 orderBy: { name: "asc" },
@@ -199,22 +320,16 @@ export async function getOptionsRapportAnalyseIndispoParc(): Promise<ActionRespo
     return {
         success: true,
         message: "Options récupérées avec succès.",
-        data: typeParcs.map((typeParc) => ({
-            id: typeParc.id,
-            name: typeParc.name,
-            parcs: typeParc.parcs.map((parc) => ({
-                id: parc.id,
-                name: parc.name,
-                nbreEngins: parc.engins.length,
-            })),
-        })),
+        data: typeParcs,
+        meta: {
+            totalItems: typeParcs.length,
+            totalPages: 1,
+            currentPage: 1,
+            itemsPerPage: typeParcs.length,
+        },
     };
 }
 
-/**
- * Analyse les indisponibilités du mois et du cumul annuel
- * jusqu'à la fin du mois sélectionné.
- */
 export async function getRapportAnalyseIndispoParc(
     filters: SearchParamsAnalyseIndispoParc,
 ): Promise<ActionResponse> {
@@ -239,10 +354,7 @@ export async function getRapportAnalyseIndispoParc(
     }
 
     const tenant = await prisma.tenant.findFirst({
-        where: {
-            id: currentTenantId,
-            active: true,
-        },
+        where: { id: currentTenantId, active: true },
         select: { id: true },
     });
 
@@ -256,6 +368,8 @@ export async function getRapportAnalyseIndispoParc(
 
     const mois = Number(filters.mois);
     const annee = Number(filters.annee);
+    const typeParcId = filters.typeParcId;
+    const parcId = filters.parcId;
 
     if (
         !Number.isInteger(mois) ||
@@ -272,343 +386,206 @@ export async function getRapportAnalyseIndispoParc(
         };
     }
 
+    if (!typeParcId || !parcId) {
+        return {
+            success: false,
+            message: "Sélectionnez un type de parc et un parc.",
+            data: [],
+        };
+    }
+
     const debutMois = new Date(Date.UTC(annee, mois - 1, 1));
-    const finMoisExclus = new Date(Date.UTC(annee, mois, 1));
+    const finMois = new Date(Date.UTC(annee, mois, 1));
     const debutAnnee = new Date(Date.UTC(annee, 0, 1));
 
-    const joursMois = new Date(Date.UTC(annee, mois, 0)).getUTCDate();
-    const joursCumules =
-        (finMoisExclus.getTime() - debutAnnee.getTime()) /
-        (24 * 60 * 60 * 1000);
+    const heuresMois =
+        new Date(Date.UTC(annee, mois, 0)).getUTCDate() * 24;
 
-    const heuresParEnginMois = joursMois * 24;
-    const heuresParEnginAnnee = joursCumules * 24;
+    const heuresAnnee =
+        (finMois.getTime() - debutAnnee.getTime()) /
+        (24 * 60 * 60 * 1000) *
+        24;
 
-    // Récupérer uniquement les parcs et les engins du tenant actif.
-    const typeParcs = await prisma.typeparc.findMany({
-        where: { tenantId: currentTenantId },
+    const parc = await prisma.parc.findFirst({
+        where: {
+            id: parcId,
+            tenantId: currentTenantId,
+            typeparcId: typeParcId,
+            typeparc: { tenantId: currentTenantId },
+        },
         select: {
             id: true,
             name: true,
-            parcs: {
+            typeparc: {
+                select: { id: true, name: true },
+            },
+            pannes: {
                 where: { tenantId: currentTenantId },
                 select: {
                     id: true,
                     name: true,
-                    engins: {
-                        where: {
-                            tenantId: currentTenantId,
-                            active: true,
-                            site: { tenantId: currentTenantId },
-                        },
-                        select: { id: true },
-                        orderBy: { name: "asc" },
-                    },
-                    pannes: {
-                        where: { tenantId: currentTenantId },
+                    description: true,
+                    typepanneId: true,
+                    typepanne: {
                         select: {
                             id: true,
                             name: true,
-                            typepanneId: true,
-                            typepanne: {
-                                select: {
-                                    id: true,
-                                    name: true,
-                                },
-                            },
                         },
-                        orderBy: { name: "asc" },
                     },
                 },
                 orderBy: { name: "asc" },
             },
-        },
-        orderBy: { name: "asc" },
-    });
-
-    const enginIds = typeParcs.flatMap((typeParc) =>
-        typeParc.parcs.flatMap((parc) =>
-            parc.engins.map((engin) => engin.id),
-        ),
-    );
-
-    // Les saisies sont limitées à la période cumulée et aux engins actifs
-    // du tenant courant.
-    const saisies = enginIds.length
-        ? await prisma.saisiehrm.findMany({
-            where: {
-                tenantId: currentTenantId,
-                enginId: { in: enginIds },
-                du: {
-                    gte: debutAnnee,
-                    lt: finMoisExclus,
-                },
-                engin: {
+            engins: {
+                where: {
                     tenantId: currentTenantId,
                     active: true,
                     site: { tenantId: currentTenantId },
-                    parc: { tenantId: currentTenantId },
                 },
-            },
-            select: {
-                du: true,
-                enginId: true,
-                saisiehim: {
-                    where: {
-                        tenantId: currentTenantId,
-                        panne: { tenantId: currentTenantId },
-                    },
-                    select: {
-                        panneId: true,
-                        him: true,
-                        ni: true,
-                    },
+                select: {
+                    id: true,
+                    name: true,
                 },
+                orderBy: { name: "asc" },
             },
-        })
-        : [];
+        },
+    });
 
-    const saisiesParParcEtPanne = new Map<
-        string,
-        ValeursPanne
-    >();
-
-    const enginParId = new Map<
-        string,
-        { parcId: string }
-    >();
-
-    for (const typeParc of typeParcs) {
-        for (const parc of typeParc.parcs) {
-            for (const engin of parc.engins) {
-                enginParId.set(engin.id, { parcId: parc.id });
-            }
-        }
+    if (!parc) {
+        return {
+            success: false,
+            message: "Le parc sélectionné n'existe pas dans ce tenant.",
+            data: [],
+        };
     }
+
+    if (parc.engins.length === 0) {
+        return {
+            success: true,
+            message: "Aucun engin actif trouvé dans ce parc.",
+            data: [],
+            meta: {
+                totalItems: 0,
+                totalPages: 0,
+                currentPage: 1,
+                itemsPerPage: 0,
+            },
+        };
+    }
+
+    const definitions: PanneDefinition[] = parc.pannes.map((panne) => ({
+        id: panne.id,
+        name: panne.name,
+        description: panne.description,
+        typepanneId: panne.typepanneId,
+        typepanneName: panne.typepanne.name,
+    }));
+
+    const enginIds = parc.engins.map((engin) => engin.id);
+
+    const saisies = await prisma.saisiehrm.findMany({
+        where: {
+            tenantId: currentTenantId,
+            enginId: { in: enginIds },
+            du: {
+                gte: debutAnnee,
+                lt: finMois,
+            },
+        },
+        select: {
+            du: true,
+            enginId: true,
+            saisiehim: {
+                where: {
+                    tenantId: currentTenantId,
+                    panne: { tenantId: currentTenantId },
+                },
+                select: {
+                    panneId: true,
+                    him: true,
+                    ni: true,
+                },
+            },
+        },
+    });
+
+    const parcValeurs = new Map<string, ValeursBrutes>();
+    const valeursParEngin = new Map<
+        string,
+        Map<string, ValeursBrutes>
+    >();
+
+    for (const engin of parc.engins) {
+        valeursParEngin.set(engin.id, new Map());
+    }
+
+    const panneIds = new Set(definitions.map((panne) => panne.id));
 
     for (const saisie of saisies) {
-        const engin = enginParId.get(saisie.enginId);
-        if (!engin) continue;
+        const dansLeMois =
+            saisie.du >= debutMois && saisie.du < finMois;
 
-        const estDansLeMois =
-            saisie.du >= debutMois && saisie.du < finMoisExclus;
+        for (const detail of saisie.saisiehim) {
+            if (!panneIds.has(detail.panneId)) continue;
 
-        for (const saisieHim of saisie.saisiehim) {
-            const key = `${engin.parcId}:${saisieHim.panneId}`;
+            const valeursParc =
+                parcValeurs.get(detail.panneId) ?? emptyValeurs();
 
-            const valeurs = saisiesParParcEtPanne.get(key) ?? {
-                niMois: 0,
-                niAnnee: 0,
-                himMois: 0,
-                himAnnee: 0,
-            };
+            const valeursEnginMap = valeursParEngin.get(saisie.enginId);
+            if (!valeursEnginMap) continue;
 
-            valeurs.niAnnee += numberOrZero(saisieHim.ni);
-            valeurs.himAnnee += numberOrZero(saisieHim.him);
+            const valeursEngin =
+                valeursEnginMap.get(detail.panneId) ?? emptyValeurs();
 
-            if (estDansLeMois) {
-                valeurs.niMois += numberOrZero(saisieHim.ni);
-                valeurs.himMois += numberOrZero(saisieHim.him);
+            const ni = safeNumber(detail.ni);
+            const him = safeNumber(detail.him);
+
+            valeursParc.niAnnee += ni;
+            valeursParc.himAnnee += him;
+            valeursEngin.niAnnee += ni;
+            valeursEngin.himAnnee += him;
+
+            if (dansLeMois) {
+                valeursParc.niMois += ni;
+                valeursParc.himMois += him;
+                valeursEngin.niMois += ni;
+                valeursEngin.himMois += him;
             }
 
-            saisiesParParcEtPanne.set(key, valeurs);
+            parcValeurs.set(detail.panneId, valeursParc);
+            valeursEnginMap.set(detail.panneId, valeursEngin);
         }
     }
 
-    const result: TypeParcResult[] = [];
+    const parcResult = buildScopeResult({
+        scopeId: parc.id,
+        scopeName: parc.name,
+        nbreEngins: parc.engins.length,
+        heuresMois,
+        heuresAnnee,
+        definitions,
+        valeursParPanne: parcValeurs,
+    });
 
-    for (const typeParc of typeParcs) {
-        const typeParcResult: TypeParcResult = {
-            typeParcId: typeParc.id,
-            typeParcName: typeParc.name,
-            parcs: [],
-            totalTypeParc: emptyParcTotals(),
-        };
+    const enginsResult = parc.engins.map((engin) =>
+        buildScopeResult({
+            scopeId: engin.id,
+            scopeName: engin.name,
+            nbreEngins: 1,
+            heuresMois,
+            heuresAnnee,
+            definitions,
+            valeursParPanne: valeursParEngin.get(engin.id) ?? new Map(),
+        }),
+    );
 
-        for (const parc of typeParc.parcs) {
-            const nbreEngins = parc.engins.length;
-
-            // Comme dans gmao_nextjs, un parc sans engin actif est ignoré.
-            if (nbreEngins === 0) continue;
-
-            const nhoMois = nbreEngins * heuresParEnginMois;
-            const nhoAnnee = nbreEngins * heuresParEnginAnnee;
-
-            const totalBrut: ValeursPanne = {
-                niMois: 0,
-                niAnnee: 0,
-                himMois: 0,
-                himAnnee: 0,
-            };
-
-            const typesPanneMap = new Map<
-                string,
-                {
-                    typepanneId: string;
-                    typepanneName: string;
-                    pannes: PanneResult[];
-                    totalTypePanne: TotauxPanne;
-                }
-            >();
-
-            // Première passe : totaux bruts du parc.
-            for (const panne of parc.pannes) {
-                const valeurs = saisiesParParcEtPanne.get(
-                    `${parc.id}:${panne.id}`,
-                ) ?? {
-                    niMois: 0,
-                    niAnnee: 0,
-                    himMois: 0,
-                    himAnnee: 0,
-                };
-
-                totalBrut.niMois += valeurs.niMois;
-                totalBrut.niAnnee += valeurs.niAnnee;
-                totalBrut.himMois += valeurs.himMois;
-                totalBrut.himAnnee += valeurs.himAnnee;
-
-                const typePanneId = panne.typepanneId;
-                const typePanneName = panne.typepanne?.name ?? "Sans type";
-
-                if (!typesPanneMap.has(typePanneId)) {
-                    typesPanneMap.set(typePanneId, {
-                        typepanneId: typePanneId,
-                        typepanneName: typePanneName,
-                        pannes: [],
-                        totalTypePanne: emptyPanneTotals(),
-                    });
-                }
-            }
-
-            const indispMois =
-                nhoMois > 0
-                    ? (totalBrut.himMois / nhoMois) * 100
-                    : 0;
-
-            const indispAnnee =
-                nhoAnnee > 0
-                    ? (totalBrut.himAnnee / nhoAnnee) * 100
-                    : 0;
-
-            // Deuxième passe : détails par panne et coefficients.
-            for (const panne of parc.pannes) {
-                const valeurs = saisiesParParcEtPanne.get(
-                    `${parc.id}:${panne.id}`,
-                ) ?? {
-                    niMois: 0,
-                    niAnnee: 0,
-                    himMois: 0,
-                    himAnnee: 0,
-                };
-
-                const ligne: PanneResult = {
-                    panneId: panne.id,
-                    panneName: panne.name,
-                    ...valeurs,
-                    coeffNiMois:
-                        totalBrut.niMois > 0
-                            ? (valeurs.niMois * indispMois) /
-                            totalBrut.niMois
-                            : 0,
-                    coeffNiAnnee:
-                        totalBrut.niAnnee > 0
-                            ? (valeurs.niAnnee * indispAnnee) /
-                            totalBrut.niAnnee
-                            : 0,
-                    coeffHimMois:
-                        totalBrut.himMois > 0
-                            ? (valeurs.himMois * indispMois) /
-                            totalBrut.himMois
-                            : 0,
-                    coeffHimAnnee:
-                        totalBrut.himAnnee > 0
-                            ? (valeurs.himAnnee * indispAnnee) /
-                            totalBrut.himAnnee
-                            : 0,
-                };
-
-                const typePanne = typesPanneMap.get(panne.typepanneId);
-                if (!typePanne) continue;
-
-                typePanne.pannes.push(ligne);
-                addPanneTotals(typePanne.totalTypePanne, ligne);
-            }
-
-            const pannesResult: TypePanneResult[] = [];
-
-            for (const typePanne of typesPanneMap.values()) {
-                roundPanneTotals(typePanne.totalTypePanne);
-
-                typePanne.pannes.sort((a, b) =>
-                    a.panneName.localeCompare(b.panneName, "fr"),
-                );
-
-                pannesResult.push(typePanne);
-            }
-
-            pannesResult.sort((a, b) =>
-                a.typepanneName.localeCompare(b.typepanneName, "fr"),
-            );
-
-            const totalParc: TotauxParc = {
-                ...emptyPanneTotals(),
-                nhoMois,
-                nhoAnnee,
-                indispMois: round(indispMois),
-                indispAnnee: round(indispAnnee),
-                niMois: round(totalBrut.niMois),
-                niAnnee: round(totalBrut.niAnnee),
-                himMois: round(totalBrut.himMois),
-                himAnnee: round(totalBrut.himAnnee),
-                // Le coefficient du total du parc correspond à son taux
-                // d'indisponibilité.
-                coeffNiMois: round(indispMois),
-                coeffNiAnnee: round(indispAnnee),
-                coeffHimMois: round(indispMois),
-                coeffHimAnnee: round(indispAnnee),
-            };
-
-            const parcResult: ParcResult = {
-                parcId: parc.id,
-                parcName: parc.name,
-                nbreEngins,
-                nhoMois,
-                nhoAnnee,
-                pannes: pannesResult,
-                totalParc,
-            };
-
-            typeParcResult.parcs.push(parcResult);
-
-            addPanneTotals(typeParcResult.totalTypeParc, totalParc);
-            typeParcResult.totalTypeParc.nhoMois += nhoMois;
-            typeParcResult.totalTypeParc.nhoAnnee += nhoAnnee;
-            typeParcResult.totalTypeParc.indispMois += indispMois;
-            typeParcResult.totalTypeParc.indispAnnee += indispAnnee;
-        }
-
-        // Calcul des totaux de type de parc.
-        const total = typeParcResult.totalTypeParc;
-
-        total.indispMois =
-            total.nhoMois > 0
-                ? (total.himMois / total.nhoMois) * 100
-                : 0;
-
-        total.indispAnnee =
-            total.nhoAnnee > 0
-                ? (total.himAnnee / total.nhoAnnee) * 100
-                : 0;
-
-        total.coeffNiMois = total.coeffHimMois = total.indispMois;
-        total.coeffNiAnnee = total.coeffHimAnnee = total.indispAnnee;
-
-        roundParcTotals(total);
-
-        if (typeParcResult.parcs.length > 0) {
-            result.push(typeParcResult);
-        }
-    }
+    const result: TypeParcResult[] = [
+        {
+            typeParcId: parc.typeparc.id,
+            typeParcName: parc.typeparc.name,
+            parc: parcResult,
+            engins: enginsResult,
+        },
+    ];
 
     return {
         success: true,

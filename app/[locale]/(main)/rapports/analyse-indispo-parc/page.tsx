@@ -32,6 +32,12 @@ export default async function RapportAnalyseIndispoParc({
     const annee =
         typeof params.annee === "string" ? Number(params.annee) : NaN;
 
+    const typeParcId =
+        typeof params.typeParcId === "string" ? params.typeParcId : "";
+
+    const parcId =
+        typeof params.parcId === "string" ? params.parcId : "";
+
     const hasValidPeriod =
         Number.isInteger(mois) &&
         mois >= 1 &&
@@ -40,28 +46,34 @@ export default async function RapportAnalyseIndispoParc({
         annee >= 2000 &&
         annee <= 9999;
 
+    const hasValidFilters =
+        hasValidPeriod && Boolean(typeParcId) && Boolean(parcId);
+
     const [optionsResponse, reportResponse] = await Promise.all([
         getOptionsRapportAnalyseIndispoParc(),
-        hasValidPeriod
-            ? getRapportAnalyseIndispoParc({ mois, annee })
+        hasValidFilters
+            ? getRapportAnalyseIndispoParc({
+                mois,
+                annee,
+                typeParcId,
+                parcId,
+            })
             : Promise.resolve(undefined),
     ]);
 
-    const options = optionsResponse.success
+    const typeParcs = optionsResponse.success
         ? (optionsResponse.data as {
             id: string;
             name: string;
             parcs: {
                 id: string;
                 name: string;
-                nbreEngins: number;
+                engins: { id: string; name: string }[];
             }[];
         }[])
         : [];
 
-    const rapport = reportResponse?.success
-        ? (reportResponse.data as any[])
-        : [];
+    const rapport = (reportResponse?.data ?? []) as any[];
 
     const periode = hasValidPeriod
         ? `${String(mois).padStart(2, "0")}/${annee}`
@@ -78,20 +90,21 @@ export default async function RapportAnalyseIndispoParc({
 
                     <p className="mt-1 text-sm text-muted-foreground">
                         Analyse des pannes, des heures d’immobilisation et des
-                        coefficients d’indisponibilité, par mois et en cumul
-                        annuel.
+                        coefficients d’indisponibilité du parc et de ses engins.
                     </p>
                 </div>
 
-                <CanAccess
-                    resource={RESOURCE.RAPPORT}
-                    action={ACTION.EXPORT}
-                >
-                    <ExportExcel
-                        tableName="rapport-analyse-indispo-parc-table"
-                        fileName={`Analyse indisponibilite ${periode || "parc"}`}
-                    />
-                </CanAccess>
+                {hasValidFilters && reportResponse?.success && (
+                    <CanAccess
+                        resource={RESOURCE.RAPPORT}
+                        action={ACTION.EXPORT}
+                    >
+                        <ExportExcel
+                            tableName="rapport-analyse-indispo-parc-table"
+                            fileName={`Analyse indisponibilite ${periode}`}
+                        />
+                    </CanAccess>
+                )}
             </div>
 
             <CanAccess
@@ -105,7 +118,7 @@ export default async function RapportAnalyseIndispoParc({
                     />
                 )}
 
-                <SelectParams />
+                <SelectParams typeParcs={typeParcs} />
 
                 {reportResponse && !reportResponse.success && (
                     <DisplayError
@@ -114,7 +127,7 @@ export default async function RapportAnalyseIndispoParc({
                     />
                 )}
 
-                {!hasValidPeriod && (
+                {!hasValidFilters && (
                     <div className="rounded-lg border border-dashed p-8 text-center">
                         <BarChart3 className="mx-auto mb-3 size-8 text-muted-foreground" />
 
@@ -123,16 +136,15 @@ export default async function RapportAnalyseIndispoParc({
                         </h2>
 
                         <p className="mt-1 text-sm text-muted-foreground">
-                            Choisissez un mois et une année, puis cliquez sur
-                            « Générer le rapport ».
+                            Choisissez un mois, une année, un type de parc et
+                            un parc, puis cliquez sur « Générer le rapport ».
                         </p>
                     </div>
                 )}
 
-                {hasValidPeriod && reportResponse?.success && (
+                {hasValidFilters && reportResponse?.success && (
                     <AnalyseIndispoParcTable
                         data={rapport}
-                        options={options}
                         periode={periode}
                     />
                 )}

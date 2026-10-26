@@ -38,7 +38,11 @@ export const exportExcel = (
 
   const worksheet: XLSX.WorkSheet = XLSX.utils.aoa_to_sheet(rows);
   const workbook: XLSX.WorkBook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, title);
+  XLSX.utils.book_append_sheet(
+    workbook,
+    worksheet,
+    title.replace(/[:\\/?*\[\]]/g, "-").slice(0, 31) || "Rapport"
+  );
 
   XLSX.writeFile(workbook, `${title}_${formattedDate}.xlsx`);
 };

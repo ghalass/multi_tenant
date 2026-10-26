@@ -1,10 +1,6 @@
 
 "use client";
 
-import { useMemo, useState } from "react";
-
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import {
     Table,
     TableBody,
@@ -13,6 +9,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
+import { Fragment } from "react/jsx-runtime";
 
 type Totaux = {
     niMois: number;
@@ -28,6 +25,7 @@ type Totaux = {
 type Panne = {
     panneId: string;
     panneName: string;
+    description: string | null;
 } & Totaux;
 
 type TypePanne = {
@@ -37,81 +35,47 @@ type TypePanne = {
     totalTypePanne: Totaux;
 };
 
-type TotauxParc = Totaux & {
+type TotauxScope = Totaux & {
     nhoMois: number;
     nhoAnnee: number;
     indispMois: number;
     indispAnnee: number;
 };
 
-type Parc = {
-    parcId: string;
-    parcName: string;
+type ScopeResult = {
+    scopeId: string;
+    scopeName: string;
     nbreEngins: number;
     nhoMois: number;
     nhoAnnee: number;
     pannes: TypePanne[];
-    totalParc: TotauxParc;
+    total: TotauxScope;
 };
 
-type TypeParc = {
+type TypeParcResult = {
     typeParcId: string;
     typeParcName: string;
-    parcs: Parc[];
-    totalTypeParc: TotauxParc;
-};
-
-type OptionParc = {
-    id: string;
-    name: string;
-    nbreEngins: number;
-};
-
-type OptionTypeParc = {
-    id: string;
-    name: string;
-    parcs: OptionParc[];
+    parc: ScopeResult;
+    engins: ScopeResult[];
 };
 
 type Props = {
-    data: TypeParc[];
-    options: OptionTypeParc[];
+    data: TypeParcResult[];
     periode: string;
 };
 
-type RowData = {
-    id: string;
-    kind: "header" | "parc" | "type" | "detail" | "subtotal" | "total";
-    categorie: string;
-    panne: string;
-    niMois?: number;
-    niAnnee?: number;
-    himMois?: number;
-    himAnnee?: number;
-    coeffNiMois?: number;
-    coeffNiAnnee?: number;
-    coeffHimMois?: number;
-    coeffHimAnnee?: number;
-};
-
 const COLUMNS = [
-    { key: "categorie", label: "CATÉGORIE", group: "identite" },
-    { key: "panne", label: "PANNE", group: "identite" },
-    { key: "niMois", label: "NI Mens", group: "ni" },
-    { key: "niAnnee", label: "NI Annuel", group: "ni" },
-    { key: "himMois", label: "HIM Mens", group: "him" },
-    { key: "himAnnee", label: "HIM Annuel", group: "him" },
-    { key: "coeffNiMois", label: "COEF NI Mens", group: "coeff" },
-    { key: "coeffNiAnnee", label: "COEF NI Annuel", group: "coeff" },
-    { key: "coeffHimMois", label: "COEF HIM Mens", group: "coeff" },
-    { key: "coeffHimAnnee", label: "COEF HIM Annuel", group: "coeff" },
+    { key: "niMois", label: "NI Mens." },
+    { key: "niAnnee", label: "NI Cumul annuel" },
+    { key: "himMois", label: "HIM Mens." },
+    { key: "himAnnee", label: "HIM Cumul annuel" },
+    { key: "coeffNiMois", label: "Coef. NI Mens. (%)" },
+    { key: "coeffNiAnnee", label: "Coef. NI annuel (%)" },
+    { key: "coeffHimMois", label: "Coef. HIM Mens. (%)" },
+    { key: "coeffHimAnnee", label: "Coef. HIM annuel (%)" },
 ] as const;
 
 type ColumnKey = (typeof COLUMNS)[number]["key"];
-
-const DEFAULT_COLUMNS: ColumnKey[] = COLUMNS.map(
-    (column) => column.key,
-);
 
 function formatNumber(value: number | undefined): string {
     if (value == null || !Number.isFinite(value)) return "—";
@@ -121,464 +85,245 @@ function formatNumber(value: number | undefined): string {
     }).format(value);
 }
 
-function formatCoefficient(value: number | undefined): string {
-    if (value == null || !Number.isFinite(value)) return "—";
-    return `${formatNumber(value)} %`;
+function formatPercent(value: number | undefined): string {
+    return value == null || !Number.isFinite(value)
+        ? "—"
+        : `${formatNumber(value)} %`;
 }
 
-function createRows(
-    data: TypeParc[],
-    selectedTypeParc: string,
-    selectedParc: string,
-): RowData[] {
-    const rows: RowData[] = [];
+function displayValue(row: Totaux, key: ColumnKey): string {
+    const value = row[key];
 
-    for (const typeParc of data) {
-        if (
-            selectedTypeParc !== "all" &&
-            typeParc.typeParcId !== selectedTypeParc
-        ) {
-            continue;
-        }
+    return key.startsWith("coeff")
+        ? formatPercent(value)
+        : formatNumber(value);
+}
 
-        rows.push({
-            id: `typeparc-${typeParc.typeParcId}`,
-            kind: "header",
-            categorie: typeParc.typeParcName.toUpperCase(),
-            panne: "",
-        });
+function TotalRow({
+    label,
+    total,
+    nhoMois,
+    nhoAnnee,
+    nbreEngins,
+}: {
+    label: string;
+    total: TotauxScope;
+    nhoMois: number;
+    nhoAnnee: number;
+    nbreEngins: number;
+}) {
+    return (
+        <TableRow className="bg-secondary/60 font-semibold">
+            <TableCell className="min-w-64">{label}</TableCell>
+            <TableCell className="text-right tabular-nums">
+                {formatNumber(nbreEngins)}
+            </TableCell>
+            <TableCell className="text-right tabular-nums">
+                {formatNumber(nhoMois)}
+            </TableCell>
+            <TableCell className="text-right tabular-nums">
+                {formatNumber(nhoAnnee)}
+            </TableCell>
 
-        for (const parc of typeParc.parcs) {
-            if (selectedParc !== "all" && parc.parcId !== selectedParc) {
-                continue;
-            }
+            {COLUMNS.map((column) => (
+                <TableCell
+                    key={column.key}
+                    className="text-right tabular-nums"
+                >
+                    {displayValue(total, column.key)}
+                </TableCell>
+            ))}
+        </TableRow>
+    );
+}
 
-            rows.push({
-                id: `parc-${parc.parcId}`,
-                kind: "parc",
-                categorie: "",
-                panne: `PARC : ${parc.parcName} (${parc.nbreEngins} engins)`,
-            });
+function ScopeRows({
+    scope,
+    label,
+}: {
+    scope: ScopeResult;
+    label: string;
+}) {
+    return (
+        <>
+            <TableRow className="border-t-2 bg-muted/50">
+                <TableCell
+                    colSpan={COLUMNS.length + 4}
+                    className="py-2 font-semibold"
+                >
+                    {label}
+                </TableCell>
+            </TableRow>
 
-            for (const typePanne of parc.pannes) {
-                rows.push({
-                    id: `type-panne-${parc.parcId}-${typePanne.typepanneId}`,
-                    kind: "type",
-                    categorie: typePanne.typepanneName,
-                    panne: "",
-                });
+            <TotalRow
+                label={`TOTAL ${scope.scopeName}`}
+                total={scope.total}
+                nbreEngins={scope.nbreEngins}
+                nhoMois={scope.nhoMois}
+                nhoAnnee={scope.nhoAnnee}
+            />
 
-                for (const panne of typePanne.pannes) {
-                    rows.push({
-                        id: `panne-${parc.parcId}-${panne.panneId}`,
-                        kind: "detail",
-                        categorie: typePanne.typepanneName,
-                        panne: panne.panneName,
-                        niMois: panne.niMois,
-                        niAnnee: panne.niAnnee,
-                        himMois: panne.himMois,
-                        himAnnee: panne.himAnnee,
-                        coeffNiMois: panne.coeffNiMois,
-                        coeffNiAnnee: panne.coeffNiAnnee,
-                        coeffHimMois: panne.coeffHimMois,
-                        coeffHimAnnee: panne.coeffHimAnnee,
-                    });
-                }
+            {scope.pannes.map((typePanne) => (
+                <Fragment key={`${scope.scopeId}-${typePanne.typepanneId}`}>
+                    <TableRow
+                        key={`type-${scope.scopeId}-${typePanne.typepanneId}`}
+                        className="bg-muted/20"
+                    >
+                        <TableCell
+                            colSpan={COLUMNS.length + 4}
+                            className="py-1 font-medium"
+                        >
+                            {typePanne.typepanneName}
+                        </TableCell>
+                    </TableRow>
 
-                rows.push({
-                    id: `subtotal-${parc.parcId}-${typePanne.typepanneId}`,
-                    kind: "subtotal",
-                    categorie: "",
-                    panne: `TOTAL ${typePanne.typepanneName.toUpperCase()}`,
-                    ...typePanne.totalTypePanne,
-                });
-            }
+                    {typePanne.pannes.map((panne) => (
+                        <TableRow
+                            key={`${scope.scopeId}-${panne.panneId}`}
+                            className="[&>td]:py-1"
+                        >
+                            <TableCell className="min-w-64 max-w-80">
+                                <div
+                                    className="line-clamp-2 whitespace-normal wrap-break-word text-xs"
+                                    title={
+                                        panne.description
+                                            ? `${panne.panneName} - ${panne.description}`
+                                            : panne.panneName
+                                    }
+                                >
+                                    {panne.description
+                                        ? `${panne.panneName} - ${panne.description}`
+                                        : panne.panneName}
+                                </div>
+                            </TableCell>
 
-            rows.push({
-                id: `total-parc-${parc.parcId}`,
-                kind: "total",
-                categorie: "",
-                panne: `TOTAL ${parc.parcName.toUpperCase()}`,
-                ...parc.totalParc,
-            });
-        }
+                            <TableCell className="text-right tabular-nums">
+                                —
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums">
+                                —
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums">
+                                —
+                            </TableCell>
 
-        // Le total du type de parc est affiché uniquement lorsque
-        // tous ses parcs sont sélectionnés.
-        if (selectedParc === "all") {
-            rows.push({
-                id: `total-typeparc-${typeParc.typeParcId}`,
-                kind: "total",
-                categorie: "",
-                panne: `TOTAL ${typeParc.typeParcName.toUpperCase()}`,
-                ...typeParc.totalTypeParc,
-            });
-        }
-    }
+                            {COLUMNS.map((column) => (
+                                <TableCell
+                                    key={column.key}
+                                    className="text-right tabular-nums"
+                                >
+                                    {displayValue(panne, column.key)}
+                                </TableCell>
+                            ))}
+                        </TableRow>
+                    ))}
 
-    return rows;
+                    <TableRow
+                        key={`subtotal-${scope.scopeId}-${typePanne.typepanneId}`}
+                        className="bg-muted/30 font-medium [&>td]:py-1"
+                    >
+                        <TableCell>
+                            TOTAL {typePanne.typepanneName}
+                        </TableCell>
+                        <TableCell />
+                        <TableCell />
+                        <TableCell />
+
+                        {COLUMNS.map((column) => (
+                            <TableCell
+                                key={column.key}
+                                className="text-right tabular-nums"
+                            >
+                                {displayValue(
+                                    typePanne.totalTypePanne,
+                                    column.key,
+                                )}
+                            </TableCell>
+                        ))}
+                    </TableRow>
+                </Fragment>
+            ))}
+        </>
+    );
 }
 
 export default function AnalyseIndispoParcTable({
     data,
-    options,
     periode,
 }: Props) {
-    const [selectedTypeParc, setSelectedTypeParc] = useState("all");
-    const [selectedParc, setSelectedParc] = useState("all");
-    const [search, setSearch] = useState("");
-    const [visibleColumns, setVisibleColumns] =
-        useState<ColumnKey[]>(DEFAULT_COLUMNS);
-    const [showColumnManager, setShowColumnManager] = useState(false);
-    const [compactMode, setCompactMode] = useState(true);
-    const [highlightCoefficients, setHighlightCoefficients] =
-        useState(true);
-
-    const parcs = useMemo(() => {
-        if (selectedTypeParc === "all") {
-            return options.flatMap((typeParc) => typeParc.parcs);
-        }
-
-        return (
-            options.find((typeParc) => typeParc.id === selectedTypeParc)
-                ?.parcs ?? []
-        );
-    }, [options, selectedTypeParc]);
-
-    const rows = useMemo(
-        () => createRows(data, selectedTypeParc, selectedParc),
-        [data, selectedTypeParc, selectedParc],
-    );
-
-    const filteredRows = useMemo(() => {
-        const query = search.trim().toLocaleLowerCase("fr");
-
-        if (!query) return rows;
-
-        // Conserver les lignes de détail correspondantes et les totaux.
-        // Les en-têtes restent affichés pour préserver la structure du tableau.
-        const details = rows.filter(
-            (row) =>
-                row.kind === "detail" &&
-                `${row.categorie} ${row.panne}`
-                    .toLocaleLowerCase("fr")
-                    .includes(query),
-        );
-
-        const detailIds = new Set(details.map((row) => row.id));
-        const matchingCategories = new Set(
-            details.map((row) => row.categorie),
-        );
-
-        return rows.filter((row) => {
-            if (detailIds.has(row.id)) return true;
-
-            if (
-                (row.kind === "header" || row.kind === "parc") &&
-                `${row.categorie} ${row.panne}`
-                    .toLocaleLowerCase("fr")
-                    .includes(query)
-            ) {
-                return true;
-            }
-
-            if (
-                row.kind === "type" &&
-                matchingCategories.has(row.categorie)
-            ) {
-                return true;
-            }
-
-            return (
-                row.kind === "subtotal" &&
-                matchingCategories.has(
-                    row.panne.replace(/^TOTAL /, ""),
-                )
-            );
-        });
-    }, [rows, search]);
-
-    function toggleColumn(key: ColumnKey) {
-        setVisibleColumns((current) =>
-            current.includes(key)
-                ? current.filter((column) => column !== key)
-                : [...current, key],
-        );
-    }
-
-    function resetColumns() {
-        setVisibleColumns([...DEFAULT_COLUMNS]);
-    }
-
-    function cellValue(row: RowData, key: ColumnKey) {
-        if (key === "categorie") return row.categorie;
-        if (key === "panne") return row.panne;
-
-        const value = row[key];
-
-        if (
-            key === "coeffNiMois" ||
-            key === "coeffNiAnnee" ||
-            key === "coeffHimMois" ||
-            key === "coeffHimAnnee"
-        ) {
-            return formatCoefficient(value);
-        }
-
-        return formatNumber(value);
-    }
-
-    function cellClass(key: ColumnKey, row: RowData) {
-        const isCoefficient = key.startsWith("coeff");
-
-        if (row.kind === "header") {
-            return "bg-primary/10 font-bold text-primary";
-        }
-
-        if (row.kind === "parc") {
-            return "bg-muted font-semibold";
-        }
-
-        if (row.kind === "type") {
-            return "bg-muted/50 font-medium";
-        }
-
-        if (row.kind === "total" || row.kind === "subtotal") {
-            return "bg-secondary font-semibold";
-        }
-
-        if (isCoefficient && highlightCoefficients) {
-            const value = row[key];
-
-            if (typeof value === "number" && value > 5) {
-                return "font-medium text-red-600 dark:text-red-400";
-            }
-
-            if (typeof value === "number" && value > 2) {
-                return "font-medium text-orange-600 dark:text-orange-400";
-            }
-        }
-
-        return "";
-    }
-
-    if (!data.length) {
+    if (!data || data.length === 0) {
         return (
             <p className="py-8 text-center text-sm text-muted-foreground">
-                Aucune donnée disponible pour cette période.
+                Aucun engin actif ou aucune donnée disponible pour cette
+                période et ce parc.
             </p>
         );
     }
 
     return (
-        <div className="space-y-4">
-            <div className="flex flex-wrap items-end gap-3 rounded-lg border p-4">
-                <div className="w-full space-y-2 sm:w-56">
-                    <label
-                        htmlFor="analyse-type-parc"
-                        className="text-sm font-medium"
-                    >
-                        Type de parc
-                    </label>
-
-                    <select
-                        id="analyse-type-parc"
-                        value={selectedTypeParc}
-                        onChange={(event) => {
-                            setSelectedTypeParc(event.target.value);
-                            setSelectedParc("all");
-                        }}
-                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    >
-                        <option value="all">Tous les types de parc</option>
-                        {options.map((typeParc) => (
-                            <option key={typeParc.id} value={typeParc.id}>
-                                {typeParc.name}
-                            </option>
-                        ))}
-                    </select>
-                </div>
-
-                <div className="w-full space-y-2 sm:w-56">
-                    <label
-                        htmlFor="analyse-parc"
-                        className="text-sm font-medium"
-                    >
-                        Parc
-                    </label>
-
-                    <select
-                        id="analyse-parc"
-                        value={selectedParc}
-                        onChange={(event) =>
-                            setSelectedParc(event.target.value)
-                        }
-                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    >
-                        <option value="all">Tous les parcs</option>
-                        {parcs.map((parc) => (
-                            <option key={parc.id} value={parc.id}>
-                                {parc.name}
-                            </option>
-                        ))}
-                    </select>
-                </div>
-
-                <div className="w-full space-y-2 sm:w-64">
-                    <label
-                        htmlFor="analyse-recherche"
-                        className="text-sm font-medium"
-                    >
-                        Rechercher une panne
-                    </label>
-
-                    <Input
-                        id="analyse-recherche"
-                        value={search}
-                        onChange={(event) => setSearch(event.target.value)}
-                        placeholder="Catégorie ou panne..."
-                    />
-                </div>
-
-                <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setCompactMode((current) => !current)}
+        <div className="w-full space-y-5">
+            {data.map((typeParc) => (
+                <section
+                    key={typeParc.typeParcId}
+                    className="space-y-3"
                 >
-                    {compactMode ? "Mode normal" : "Mode compact"}
-                </Button>
-
-                <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() =>
-                        setShowColumnManager((current) => !current)
-                    }
-                >
-                    {showColumnManager ? "Masquer colonnes" : "Colonnes"}
-                </Button>
-
-                <label className="flex items-center gap-2 text-sm">
-                    <input
-                        type="checkbox"
-                        checked={highlightCoefficients}
-                        onChange={(event) =>
-                            setHighlightCoefficients(event.target.checked)
-                        }
-                    />
-                    Surligner les coefficients élevés
-                </label>
-            </div>
-
-            {showColumnManager && (
-                <div className="space-y-3 rounded-lg border p-4">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="rounded-md border bg-muted/20 p-3">
                         <h2 className="font-semibold">
-                            Colonnes visibles
+                            {typeParc.typeParcName} — {typeParc.parc.scopeName}
                         </h2>
-
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={resetColumns}
-                        >
-                            Réinitialiser
-                        </Button>
+                        <p className="text-sm text-muted-foreground">
+                            Période : {periode} · Mensuel et cumul annuel
+                        </p>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
-                        {COLUMNS.map((column) => (
-                            <label
-                                key={column.key}
-                                className="flex items-center gap-2 text-sm"
-                            >
-                                <input
-                                    type="checkbox"
-                                    checked={visibleColumns.includes(
-                                        column.key,
-                                    )}
-                                    onChange={() =>
-                                        toggleColumn(column.key)
-                                    }
-                                />
-                                {column.label}
-                            </label>
-                        ))}
-                    </div>
-                </div>
-            )}
+                    <div className="overflow-hidden rounded-md border">
+                        <div className="w-full overflow-x-auto">
+                            <Table id="rapport-analyse-indispo-parc-table">
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead className="min-w-64">
+                                            Type de panne / panne
+                                        </TableHead>
+                                        <TableHead className="text-right">
+                                            NBRE
+                                        </TableHead>
+                                        <TableHead className="text-right">
+                                            NHO mens.
+                                        </TableHead>
+                                        <TableHead className="text-right">
+                                            NHO cumul
+                                        </TableHead>
 
-            <div className="text-sm text-muted-foreground">
-                Période : <span className="font-medium">{periode}</span>
-                {" · "}
-                {filteredRows.filter((row) => row.kind === "detail").length}
-                {" ligne(s) de panne affichée(s)"}
-            </div>
+                                        {COLUMNS.map((column) => (
+                                            <TableHead
+                                                key={column.key}
+                                                className="whitespace-nowrap text-right"
+                                            >
+                                                {column.label}
+                                            </TableHead>
+                                        ))}
+                                    </TableRow>
+                                </TableHeader>
 
-            <div className="w-full overflow-x-auto rounded-md border">
-                <Table id="rapport-analyse-indispo-parc-table">
-                    <TableHeader>
-                        <TableRow>
-                            {COLUMNS.filter((column) =>
-                                visibleColumns.includes(column.key),
-                            ).map((column) => (
-                                <TableHead
-                                    key={column.key}
-                                    className="whitespace-nowrap"
-                                >
-                                    {column.label}
-                                </TableHead>
-                            ))}
-                        </TableRow>
-                    </TableHeader>
+                                <TableBody>
+                                    <ScopeRows
+                                        scope={typeParc.parc}
+                                        label="ANALYSE DU PARC"
+                                    />
 
-                    <TableBody>
-                        {filteredRows.length === 0 ? (
-                            <TableRow>
-                                <TableCell
-                                    colSpan={Math.max(
-                                        visibleColumns.length,
-                                        1,
-                                    )}
-                                    className="py-8 text-center text-muted-foreground"
-                                >
-                                    Aucun résultat pour cette recherche.
-                                </TableCell>
-                            </TableRow>
-                        ) : (
-                            filteredRows.map((row) => (
-                                <TableRow
-                                    key={row.id}
-                                    className={
-                                        compactMode
-                                            ? "[&>td]:py-1 [&>td]:text-xs"
-                                            : ""
-                                    }
-                                >
-                                    {COLUMNS.filter((column) =>
-                                        visibleColumns.includes(column.key),
-                                    ).map((column) => (
-                                        <TableCell
-                                            key={column.key}
-                                            className={`whitespace-nowrap ${cellClass(
-                                                column.key,
-                                                row,
-                                            )} ${column.key !== "categorie" &&
-                                                column.key !== "panne"
-                                                ? "text-right tabular-nums"
-                                                : ""
-                                                }`}
-                                        >
-                                            {cellValue(row, column.key)}
-                                        </TableCell>
+                                    {typeParc.engins.map((engin) => (
+                                        <ScopeRows
+                                            key={engin.scopeId}
+                                            scope={engin}
+                                            label={`ENGIN : ${engin.scopeName}`}
+                                        />
                                     ))}
-                                </TableRow>
-                            ))
-                        )}
-                    </TableBody>
-                </Table>
-            </div>
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </div>
+                </section>
+            ))}
         </div>
     );
 }
