@@ -143,7 +143,7 @@ export async function getSaisieHimOptions() {
                 where: { tenantId },
                 select: {
                     id: true,
-                    name: true,
+                    name: true, description: true,
                     parcs: {
                         select: { id: true, name: true },
                     },

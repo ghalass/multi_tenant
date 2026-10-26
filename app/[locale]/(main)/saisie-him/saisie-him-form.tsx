@@ -66,6 +66,7 @@ type EnginOption = Option & {
 };
 
 type PanneOption = Option & {
+    description?: string | null;
     parcs: Option[];
 };
 
@@ -304,6 +305,12 @@ export function SaisieHimForm({
             setLoading(false);
         }
     }
+
+    const selectedPanneId = form.watch("panneId");
+
+    const selectedPanne = pannes.find(
+        (panne) => panne.id === selectedPanneId,
+    );
 
     return (
         <>
@@ -578,6 +585,12 @@ export function SaisieHimForm({
                                                 ))}
                                             </SelectContent>
                                         </Select>
+                                        {selectedPanne?.description?.trim() && (
+                                            <p className="text-sm text-muted-foreground">
+                                                <span className="font-medium"></span>{" "}
+                                                {selectedPanne.description}
+                                            </p>
+                                        )}
                                         {fieldState.invalid && (
                                             <FieldError errors={[fieldState.error]} />
                                         )}

@@ -67,10 +67,6 @@ export default function Search({
 
     const [pending, startTransition] = useTransition();
 
-    const [name, setName] = useState(
-        searchParams.get("name") ?? "",
-    );
-
     const [siteId, setSiteId] = useState(
         searchParams.get("siteId") ?? "all",
     );
@@ -102,7 +98,6 @@ export default function Search({
     const [error, setError] = useState("");
 
     useEffect(() => {
-        setName(searchParams.get("name") ?? "");
         setSiteId(searchParams.get("siteId") ?? "all");
         setTypeparcId(searchParams.get("typeparcId") ?? "all");
         setParcId(searchParams.get("parcId") ?? "all");
@@ -174,10 +169,6 @@ export default function Search({
         const params = new URLSearchParams();
         params.set("search", "1");
 
-        if (name.trim()) {
-            params.set("name", name.trim());
-        }
-
         if (siteId !== "all") {
             params.set("siteId", siteId);
         }
@@ -212,7 +203,6 @@ export default function Search({
     }
 
     function clearFilters() {
-        setName("");
         setSiteId("all");
         setTypeparcId("all");
         setParcId("all");
@@ -404,22 +394,6 @@ export default function Search({
                                 ))}
                             </SelectContent>
                         </Select>
-                    </div>
-
-                    {/* Recherche par panne ou engin */}
-                    <div className="min-w-45 max-w-65 flex-[1_1_180px] space-y-1">
-                        <label htmlFor="him-name" className="text-sm font-medium">
-                            Recherche
-                        </label>
-
-                        <Input
-                            id="him-name"
-                            value={name}
-                            onChange={(event) => setName(event.target.value)}
-                            placeholder="Panne ou engin..."
-                            className="h-8 w-full"
-                            disabled={pending}
-                        />
                     </div>
                 </div>
 
