@@ -30,7 +30,7 @@ ne modifie jamais jamais jamais jamais jamais jamais mon repo, mais plutôt me d
 
 s'inspirer du projet gmao_nextjs
 faire pour multi_tenant:
--rajoute une page pour gestion des rapports/etat-mensuel,  s'inspire de ce qui est fait avec unite-physique (page complète avec ajoute du lien dans le sidebar des configurations, respecte la même architecture) et du projet gmao_nextjs (faire la même fonctionalité)
+-rajoute une page pour gestion des rapports/analyse-indispo-parc,  s'inspire de ce qui est fait avec rapports/etat-mensuel (page complète avec ajoute du lien dans le sidebar des configurations, respecte la même architecture) et du projet gmao_nextjs (faire la même fonctionalité)
 
 
 
