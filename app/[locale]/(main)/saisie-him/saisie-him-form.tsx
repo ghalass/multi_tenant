@@ -96,6 +96,7 @@ const schema = yup.object({
         .number()
         .typeError("Saisissez une valeur numérique.")
         .min(0, "HIM doit être positif ou nul.")
+        .max(24, "HIM ne peut pas dépasser 24 heures.")
         .required("HIM est obligatoire."),
     ni: yup
         .number()
@@ -236,7 +237,7 @@ export function SaisieHimForm({
         });
 
         setError("");
-    }, [open, saisie, form]);
+    }, [open, saisie, form, pannes]);
 
     async function onSubmit(values: FormValues) {
         setError("");
@@ -657,7 +658,11 @@ export function SaisieHimForm({
                                         </Select>
                                         {selectedPanne?.description?.trim() && (
                                             <p className="text-sm text-muted-foreground">
-                                                <span className="font-medium"></span>{" "}
+                                                {selectedPanne?.description?.trim() && (
+                                                    <p className="text-sm text-muted-foreground">
+                                                        {selectedPanne.description}
+                                                    </p>
+                                                )}
                                                 {selectedPanne.description}
                                             </p>
                                         )}
@@ -678,6 +683,7 @@ export function SaisieHimForm({
                                             id="him-value"
                                             type="number"
                                             min={0}
+                                            max={24}
                                             step="any"
                                             value={field.value ?? ""}
                                             onChange={(event) =>
