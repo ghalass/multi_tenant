@@ -22,5 +22,17 @@ lire tout les fichiers du projet https://github.com/ghalass/multi_tenant
 ne modifie jamais jamais jamais jamais jamais jamais mon repo, mais plutôt me donner ici (pas en téléchargement ) la version finale des codes à modifier en local
 faire:
 -rajoute une page pour gestion des saisie_him,  s'inspire de ce qui est fait avec saisie_hrm (page complète avec ajoute du lien dans le sidebar des configurations, respecte la même architecture)
+--------
+ok ok tout fonctionne, 
+lire tout les fichiers du projet https://github.com/ghalass/multi_tenant
+bien lire https://github.com/ghalass/gmao_nextjs
+ne modifie jamais jamais jamais jamais jamais jamais mon repo, mais plutôt me donner ici (pas en téléchargement ) la version finale des codes à modifier en local
+
+s'inspirer du projet gmao_nextjs
+faire pour multi_tenant:
+-rajoute une page pour gestion des rapports/etat-mensuel,  s'inspire de ce qui est fait avec unite-physique (page complète avec ajoute du lien dans le sidebar des configurations, respecte la même architecture) et du projet gmao_nextjs (faire la même fonctionalité)
+
+
+
 
 
