@@ -18,6 +18,7 @@ import {
   NotepadText,
   BookOpenCheck,
   Boxes,
+  Wrench,
 } from "lucide-react";
 
 import {
@@ -87,6 +88,11 @@ const configItems = {
       url: "/engins",
       icon: Truck,
       description: "Gérer les engins",
+    }, {
+      title: "Types de pannes",
+      url: "/typepannes",
+      icon: Wrench,
+      description: "Gérer les types de pannes",
     },
     { title: "Utilisateurs", url: `/users`, icon: Users, description: "Gérer les utilisateurs" },
     { title: "Import", url: `/import`, icon: Upload, description: "Import" },

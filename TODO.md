@@ -8,4 +8,4 @@ ne modifie jamais jamais jamais jamais jamais jamais mon repo, mais plutôt me d
 
 ok ok tout fonctionne, 
 faire:
--rajoute une page pour gestion des types des parcs "parcs" s'inspire de ce qui est fait avec sites et users (page complète avec ajoute du lien dans le sidebar des configurations)
+-rajoute une page pour gestion des types des pannes "pannes" s'inspire de ce qui est fait avec sites, users, parcs, engins,typepannes (page complète avec ajoute du lien dans le sidebar des configurations)
