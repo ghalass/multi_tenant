@@ -11,369 +11,302 @@ import yup from "@/lib/yupFr";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
-    Field,
-    FieldError,
-    FieldGroup,
-    FieldLabel,
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
 } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
 import { GlobalLoader } from "@/components/global-loader";
 import DisplayError from "@/components/display-error";
 import { sleep } from "@/lib/utils";
-import {
-    createSaisieHrm,
-    updateSaisieHrm,
-} from "@/server/saisie_hrm";
+import { createSaisieHrm, updateSaisieHrm } from "@/server/saisie_hrm";
 
 type Option = { id: string; name: string };
 
 type SaisieHrm = {
-    id: string;
-    du: string;
-    enginId: string;
-    siteId: string;
-    hrm: number;
-    compteur: number | null;
+  id: string;
+  du: string;
+  enginId: string;
+  siteId: string;
+  hrm: number;
+  compteur: number | null;
 };
 
 const schema = yup.object({
-    du: yup.string().required("La date est obligatoire."),
-    enginId: yup.string().required("Sélectionnez un engin."),
-    siteId: yup.string().required("Sélectionnez un site."),
-    hrm: yup
-        .number()
-        .typeError("Saisissez une valeur numérique.")
-        .min(0, "La HRM ne peut pas être négative.")
-        .max(24, "La HRM ne peut pas dépasser 24 heures.")
-        .required("La HRM est obligatoire."),
-    compteur: yup
-        .number()
-        .transform((value, originalValue) =>
-            originalValue === "" || originalValue === null
-                ? null
-                : value,
-        )
-        .nullable()
-        .min(0, "Le compteur ne peut pas être négatif.")
-        .defined(),
+  du: yup.string().required("La date est obligatoire."),
+  enginId: yup.string().required("Sélectionnez un engin."),
+  siteId: yup.string().required("Sélectionnez un site."),
+  hrm: yup
+    .number()
+    .typeError("Saisissez une valeur numérique.")
+    .min(0, "La HRM ne peut pas être négative.")
+    .max(24, "La HRM ne peut pas dépasser 24 heures.")
+    .required("La HRM est obligatoire."),
+  compteur: yup
+    .number()
+    .transform((value, originalValue) =>
+      originalValue === "" || originalValue === null ? null : value,
+    )
+    .nullable()
+    .min(0, "Le compteur ne peut pas être négatif.")
+    .defined(),
 });
 
 type FormValues = yup.InferType<typeof schema>;
 
 export function SaisieHrmForm({
-    saisie,
-    engins,
-    sites,
-    defaultDate,
-    fixedDate,
+  saisie,
+  engins,
+  sites,
+  defaultDate,
+  fixedDate,
 }: {
-    saisie?: SaisieHrm;
-    engins: Option[];
-    sites: Option[];
-    defaultDate?: string;
-    fixedDate?: string;
+  saisie?: SaisieHrm;
+  engins: Option[];
+  sites: Option[];
+  defaultDate?: string;
+  fixedDate?: string;
 }) {
-    const editing = Boolean(saisie);
-    const [open, setOpen] = useState(false);
-    const [loading, setLoading] = useState(false);
-    const [pending, startTransition] = useTransition();
-    const [error, setError] = useState("");
-    const router = useRouter();
+  const editing = Boolean(saisie);
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState("");
+  const router = useRouter();
 
-    const form = useForm<FormValues>({
-        resolver: yupResolver(schema),
-        defaultValues: {
-            du: fixedDate ?? saisie?.du ?? defaultDate ?? new Date().toISOString().slice(0, 10),
-            enginId: saisie?.enginId ?? "",
-            siteId: saisie?.siteId ?? "",
-            hrm: saisie?.hrm ?? 0,
-            compteur: saisie?.compteur ?? null,
-        },
-    });
+  const form = useForm<FormValues>({
+    resolver: yupResolver(schema),
+    defaultValues: {
+      du: fixedDate ?? saisie?.du ?? defaultDate ?? new Date().toISOString().slice(0, 10),
+      enginId: saisie?.enginId ?? "",
+      siteId: saisie?.siteId ?? "",
+      hrm: saisie?.hrm ?? 0,
+      compteur: saisie?.compteur ?? null,
+    },
+  });
 
-    useEffect(() => {
-        if (open) {
-            form.reset({
-                du: fixedDate ?? saisie?.du ?? defaultDate ?? new Date().toISOString().slice(0, 10),
-                enginId: saisie?.enginId ?? "",
-                siteId: saisie?.siteId ?? "",
-                hrm: saisie?.hrm ?? 0,
-                compteur: saisie?.compteur ?? null,
-            });
-            setError("");
-        }
-    }, [open, saisie, form, defaultDate]);
-
-    async function onSubmit(values: FormValues) {
-        try {
-            setLoading(true);
-            setError("");
-            await sleep();
-
-            const payload = {
-                du: fixedDate ?? values.du,
-                enginId: values.enginId,
-                siteId: values.siteId,
-                hrm: Number(values.hrm),
-                compteur:
-                    values.compteur === null ||
-                        values.compteur === undefined ||
-                        !Number.isFinite(Number(values.compteur))
-                        ? null
-                        : Number(values.compteur),
-            };
-
-            const result = saisie
-                ? await updateSaisieHrm({ ...payload, id: saisie.id })
-                : await createSaisieHrm(payload);
-
-            if (!result.success) {
-                setError(result.message ?? "Une erreur est survenue.");
-                return;
-            }
-
-            toast.success(result.message ?? "Opération effectuée.");
-            setOpen(false);
-            startTransition(() => router.refresh());
-        } catch {
-            setError("Une erreur inattendue est survenue.");
-        } finally {
-            setLoading(false);
-        }
+  useEffect(() => {
+    if (open) {
+      form.reset({
+        du: fixedDate ?? saisie?.du ?? defaultDate ?? new Date().toISOString().slice(0, 10),
+        enginId: saisie?.enginId ?? "",
+        siteId: saisie?.siteId ?? "",
+        hrm: saisie?.hrm ?? 0,
+        compteur: saisie?.compteur ?? null,
+      });
+      setError("");
     }
+  }, [open, saisie, form, defaultDate, fixedDate]);
 
-    const disabled = loading || engins.length === 0 || sites.length === 0;
+  async function onSubmit(values: FormValues) {
+    try {
+      setLoading(true);
+      setError("");
+      await sleep();
 
-    return (
-        <>
-            <GlobalLoader show={pending} />
+      const payload = {
+        // Sur la page journalière, la date est imposée par la recherche.
+        du: fixedDate ?? values.du,
+        enginId: values.enginId,
+        siteId: values.siteId,
+        hrm: Number(values.hrm),
+        compteur:
+          values.compteur === null ||
+          values.compteur === undefined ||
+          !Number.isFinite(Number(values.compteur))
+            ? null
+            : Number(values.compteur),
+      };
 
-            <Dialog open={open} onOpenChange={setOpen}>
-                <DialogTrigger asChild>
-                    <Button
-                        type="button"
-                        size={editing ? "icon" : "sm"}
-                        variant={editing ? "ghost" : "default"}
-                        title={editing ? "Modifier la saisie" : "Ajouter une saisie"}
-                        disabled={disabled}
-                    >
-                        {editing ? (
-                            <Pencil className="size-4" />
-                        ) : (
-                            <>
-                                <Plus className="size-4" />
-                                Ajouter
-                            </>
-                        )}
-                    </Button>
-                </DialogTrigger>
+      const result = saisie
+        ? await updateSaisieHrm({ ...payload, id: saisie.id })
+        : await createSaisieHrm(payload);
 
-                <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
-                    <DialogHeader>
-                        <DialogTitle>
-                            {editing ? "Modifier une saisie HRM" : "Créer une saisie HRM"}
-                        </DialogTitle>
-                        <DialogDescription>
-                            Renseignez la date, l'engin, le site et les valeurs de la saisie.
-                        </DialogDescription>
-                    </DialogHeader>
+      if (!result.success) {
+        setError(result.message ?? "Une erreur est survenue.");
+        return;
+      }
 
-                    <DisplayError error={error} />
+      toast.success(result.message ?? "Opération effectuée.");
+      setOpen(false);
+      startTransition(() => router.refresh());
+    } catch {
+      setError("Une erreur inattendue est survenue.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
-                    <form onSubmit={form.handleSubmit(onSubmit)}>
-                        <FieldGroup>
-                            {fixedDate ? (
-                                <Field>
-                                    <FieldLabel>Date de saisie</FieldLabel>
+  const disabled = loading || engins.length === 0 || sites.length === 0;
 
-                                    <p className="rounded-md border bg-muted px-3 py-2 text-sm">
-                                        {new Date(`${fixedDate}T00:00:00.000Z`).toLocaleDateString(
-                                            "fr-FR",
-                                            { timeZone: "UTC" },
-                                        )}
-                                    </p>
+  return (
+    <>
+      <GlobalLoader show={pending} />
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild>
+          <Button
+            type="button"
+            size={editing ? "icon" : "sm"}
+            variant={editing ? "ghost" : "default"}
+            title={editing ? "Modifier la saisie" : "Ajouter une saisie"}
+            aria-label={editing ? "Modifier la saisie HRM" : "Ajouter une saisie HRM"}
+            disabled={disabled}
+          >
+            {editing ? <Pencil className="size-4" /> : <><Plus className="size-4" /> Ajouter</>}
+          </Button>
+        </DialogTrigger>
 
-                                    <input
-                                        type="hidden"
-                                        {...form.register("du")}
-                                        value={fixedDate}
-                                    />
-                                </Field>
-                            ) : (
-                                // Conserve ici le Controller actuel du champ date.
-                                <Controller
-                                    name="du"
-                                    control={form.control}
-                                    render={({ field, fieldState }) => (
-                                        <Field data-invalid={fieldState.invalid}>
-                                            <FieldLabel htmlFor="hrm-date">Date</FieldLabel>
-                                            <Input
-                                                id="hrm-date"
-                                                type="date"
-                                                {...field}
-                                                disabled={loading}
-                                                aria-invalid={fieldState.invalid}
-                                            />
-                                            {fieldState.invalid && (
-                                                <FieldError errors={[fieldState.error]} />
-                                            )}
-                                        </Field>
-                                    )}
-                                />
-                            )}
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{editing ? "Modifier une saisie HRM" : "Créer une saisie HRM"}</DialogTitle>
+            <DialogDescription>
+              Renseignez l'engin, le site, les heures de marche et le compteur.
+            </DialogDescription>
+          </DialogHeader>
 
-                            <Controller
-                                name="enginId"
-                                control={form.control}
-                                render={({ field, fieldState }) => (
-                                    <Field data-invalid={fieldState.invalid}>
-                                        <FieldLabel>Engin</FieldLabel>
-                                        <Select
-                                            value={field.value}
-                                            onValueChange={field.onChange}
-                                            disabled={loading}
-                                        >
-                                            <SelectTrigger aria-invalid={fieldState.invalid}>
-                                                <SelectValue placeholder="Sélectionner un engin" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {engins.map((engin) => (
-                                                    <SelectItem key={engin.id} value={engin.id}>
-                                                        {engin.name}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                        {fieldState.invalid && (
-                                            <FieldError errors={[fieldState.error]} />
-                                        )}
-                                    </Field>
-                                )}
-                            />
+          <DisplayError error={error} />
 
-                            <Controller
-                                name="siteId"
-                                control={form.control}
-                                render={({ field, fieldState }) => (
-                                    <Field data-invalid={fieldState.invalid}>
-                                        <FieldLabel>Site</FieldLabel>
-                                        <Select
-                                            value={field.value}
-                                            onValueChange={field.onChange}
-                                            disabled={loading}
-                                        >
-                                            <SelectTrigger aria-invalid={fieldState.invalid}>
-                                                <SelectValue placeholder="Sélectionner un site" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {sites.map((site) => (
-                                                    <SelectItem key={site.id} value={site.id}>
-                                                        {site.name}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                        {fieldState.invalid && (
-                                            <FieldError errors={[fieldState.error]} />
-                                        )}
-                                    </Field>
-                                )}
-                            />
+          <form onSubmit={form.handleSubmit(onSubmit)}>
+            <FieldGroup>
+              {fixedDate ? (
+                <Field>
+                  <FieldLabel>Date de saisie</FieldLabel>
+                  <p className="rounded-md border bg-muted px-3 py-2 text-sm">
+                    {new Date(`${fixedDate}T00:00:00.000Z`).toLocaleDateString("fr-FR", { timeZone: "UTC" })}
+                  </p>
+                  <input type="hidden" {...form.register("du")} value={fixedDate} />
+                </Field>
+              ) : (
+                <Controller
+                  name="du"
+                  control={form.control}
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor="hrm-date">Date</FieldLabel>
+                      <Input
+                        id="hrm-date"
+                        type="date"
+                        {...field}
+                        disabled={loading}
+                        aria-invalid={fieldState.invalid}
+                      />
+                      {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                    </Field>
+                  )}
+                />
+              )}
 
-                            <Controller
-                                name="hrm"
-                                control={form.control}
-                                render={({ field, fieldState }) => (
-                                    <Field data-invalid={fieldState.invalid}>
-                                        <FieldLabel htmlFor="hrm-value">
-                                            HRM (heures de marche)
-                                        </FieldLabel>
-                                        <Input
-                                            id="hrm-value"
-                                            type="number"
-                                            min={0}
-                                            max={24}
-                                            step="any"
-                                            value={field.value ?? ""}
-                                            onChange={(event) =>
-                                                field.onChange(
-                                                    event.target.value === ""
-                                                        ? ""
-                                                        : Number(event.target.value),
-                                                )
-                                            }
-                                            disabled={loading}
-                                            aria-invalid={fieldState.invalid}
-                                        />
-                                        {fieldState.invalid && (
-                                            <FieldError errors={[fieldState.error]} />
-                                        )}
-                                    </Field>
-                                )}
-                            />
+              <Controller
+                name="enginId"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel>Engin</FieldLabel>
+                    <Select value={field.value} onValueChange={field.onChange} disabled={loading}>
+                      <SelectTrigger aria-invalid={fieldState.invalid} className="w-full">
+                        <SelectValue placeholder="Sélectionner un engin" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {engins.map((engin) => (
+                          <SelectItem key={engin.id} value={engin.id}>{engin.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                  </Field>
+                )}
+              />
 
-                            <Controller
-                                name="compteur"
-                                control={form.control}
-                                render={({ field, fieldState }) => (
-                                    <Field data-invalid={fieldState.invalid}>
-                                        <FieldLabel htmlFor="hrm-compteur">
-                                            Compteur (optionnel)
-                                        </FieldLabel>
-                                        <Input
-                                            id="hrm-compteur"
-                                            type="number"
-                                            min={0}
-                                            step="any"
-                                            value={field.value ?? ""}
-                                            onChange={(event) =>
-                                                field.onChange(
-                                                    event.target.value === ""
-                                                        ? null
-                                                        : Number(event.target.value),
-                                                )
-                                            }
-                                            disabled={loading}
-                                            aria-invalid={fieldState.invalid}
-                                        />
-                                        {fieldState.invalid && (
-                                            <FieldError errors={[fieldState.error]} />
-                                        )}
-                                    </Field>
-                                )}
-                            />
-                        </FieldGroup>
+              <Controller
+                name="siteId"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel>Site</FieldLabel>
+                    <Select value={field.value} onValueChange={field.onChange} disabled={loading}>
+                      <SelectTrigger aria-invalid={fieldState.invalid} className="w-full">
+                        <SelectValue placeholder="Sélectionner un site" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {sites.map((site) => (
+                          <SelectItem key={site.id} value={site.id}>{site.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                  </Field>
+                )}
+              />
 
-                        <DialogFooter className="mt-4">
-                            <Button type="submit" disabled={loading}>
-                                {loading ? (
-                                    <Spinner className="size-4" />
-                                ) : editing ? (
-                                    "Modifier"
-                                ) : (
-                                    "Créer"
-                                )}
-                            </Button>
-                        </DialogFooter>
-                    </form>
-                </DialogContent>
-            </Dialog>
-        </>
-    );
+              <Controller
+                name="hrm"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor="hrm-value">HRM (heures de marche)</FieldLabel>
+                    <Input
+                      id="hrm-value"
+                      type="number"
+                      min={0}
+                      max={24}
+                      step="any"
+                      value={field.value ?? ""}
+                      onChange={(event) => field.onChange(event.target.value === "" ? "" : Number(event.target.value))}
+                      disabled={loading}
+                      aria-invalid={fieldState.invalid}
+                    />
+                    {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                  </Field>
+                )}
+              />
+
+              <Controller
+                name="compteur"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor="hrm-compteur">Compteur (optionnel)</FieldLabel>
+                    <Input
+                      id="hrm-compteur"
+                      type="number"
+                      min={0}
+                      step="any"
+                      value={field.value ?? ""}
+                      onChange={(event) => field.onChange(event.target.value === "" ? null : Number(event.target.value))}
+                      disabled={loading}
+                      aria-invalid={fieldState.invalid}
+                    />
+                    {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                  </Field>
+                )}
+              />
+            </FieldGroup>
+
+            <DialogFooter className="mt-4">
+              <Button type="submit" disabled={loading || engins.length === 0 || sites.length === 0}>
+                {loading ? <Spinner className="size-4" /> : editing ? "Modifier" : "Créer"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
 }
