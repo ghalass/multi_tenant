@@ -1,5 +1,4 @@
-import Link from "next/link";
-import { ClipboardPlus, Gauge } from "lucide-react";
+import { Gauge } from "lucide-react";
 
 import {
   Table,
@@ -9,12 +8,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
 import {
   getAllSaisieHrm,
-  getSaisieHrmOptions,
   type SaisieHrmSearchParams,
 } from "@/server/saisie_hrm";
+import {
+  getSaisieHrmPageOptions,
+  type SaisieHrmPageOptions,
+} from "@/server/saisie_hrm_options";
 import { SaisieHrmForm } from "./saisie-hrm-form";
 import { DeleteSaisieHrmForm } from "./delete-saisie-hrm-form";
 import Search from "./search";
@@ -25,14 +26,12 @@ import { ACTION } from "@/lib/enums";
 import { RESOURCE } from "@/lib/constantes";
 import { ExportExcel } from "@/components/export-excel";
 
-type Options = {
-  typeparcs: { id: string; name: string }[];
-  parcs: { id: string; name: string; typeparcId: string }[];
-  engins: { id: string; name: string; parcId: string; siteId: string }[];
-  sites: { id: string; name: string }[];
+const EMPTY_OPTIONS: SaisieHrmPageOptions = {
+  typeParcs: [],
+  parcs: [],
+  engins: [],
+  sites: [],
 };
-
-const EMPTY_OPTIONS: Options = { typeparcs: [], parcs: [], engins: [], sites: [] };
 
 export default async function SaisieHrmPage({
   searchParams,
@@ -43,12 +42,12 @@ export default async function SaisieHrmPage({
   const hasSearched = filters.search === "1";
 
   const [optionsResponse, response] = await Promise.all([
-    getSaisieHrmOptions(),
+    getSaisieHrmPageOptions(),
     hasSearched ? getAllSaisieHrm(filters) : Promise.resolve(null),
   ]);
 
-  const options: Options = optionsResponse.success
-    ? (optionsResponse.data as Options)
+  const options = optionsResponse.success
+    ? optionsResponse.data
     : EMPTY_OPTIONS;
   const saisies = response?.data ?? [];
 
@@ -57,15 +56,18 @@ export default async function SaisieHrmPage({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="flex items-center gap-2 text-3xl font-bold">
           <Gauge className="h-8 w-8" />
-          Consultation des saisies HRM
+          Gestion des saisies HRM
         </h1>
+
         <div className="flex flex-wrap items-center gap-3">
-          <Button asChild>
-            <Link href="/saisie-hrm/saisie">
-              <ClipboardPlus className="size-4" />
-              Saisie journalière
-            </Link>
-          </Button>
+          <CanAccess resource={RESOURCE.SAISIE_HRM} action={ACTION.CREATE}>
+            <SaisieHrmForm
+              parcs={options.parcs}
+              engins={options.engins}
+              sites={options.sites}
+            />
+          </CanAccess>
+
           {hasSearched && (
             <CanAccess resource={RESOURCE.SAISIE_HRM} action={ACTION.EXPORT}>
               <ExportExcel tableName="saisie-hrm-table" fileName="Saisies_HRM" />
@@ -75,27 +77,27 @@ export default async function SaisieHrmPage({
       </div>
 
       <p className="mt-1 text-muted-foreground">
-        Consultez les saisies entre deux dates. Les filtres Type de parc → Parc → Engin sont facultatifs.
+        Consultez les saisies entre deux dates, et filtrez par type de parc, parc ou engin.
       </p>
 
       {!optionsResponse.success && (
         <DisplayError
           className="mt-4"
-          error={`${optionsResponse.message} Les listes de filtres et la consultation nécessitent la permission « read:saisie_hrm » attribuée à votre rôle.`}
+          error={`${optionsResponse.message} Les listes de référence nécessitent la permission « read:saisie_hrm ».`}
         />
       )}
 
-      {/* Les filtres et le bouton restent visibles même si la permission READ manque. */}
+      {/* Affiché indépendamment du tableau : le filtre Type de parc utilise une liste dédiée. */}
       <Search
-        mode="list"
-        typeparcs={options.typeparcs}
+        typeParcs={options.typeParcs}
         parcs={options.parcs}
         engins={options.engins}
       />
 
       {!hasSearched && (
         <p className="rounded-md border p-6 text-center text-muted-foreground">
-          Choisissez éventuellement une période et des filtres, puis cliquez sur « Afficher les saisies ». Aucune saisie n'est chargée au premier affichage.
+          Choisissez éventuellement une période et des filtres, puis cliquez sur « Afficher les saisies ».
+          Aucune saisie HRM n'est chargée au premier affichage.
         </p>
       )}
 
@@ -145,6 +147,7 @@ export default async function SaisieHrmPage({
                               hrm: saisie.hrm,
                               compteur: saisie.compteur,
                             }}
+                            parcs={options.parcs}
                             engins={options.engins}
                             sites={options.sites}
                           />

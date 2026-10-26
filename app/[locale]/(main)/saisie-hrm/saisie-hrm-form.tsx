@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -26,12 +26,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Field,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
 import { GlobalLoader } from "@/components/global-loader";
 import DisplayError from "@/components/display-error";
@@ -39,6 +34,12 @@ import { sleep } from "@/lib/utils";
 import { createSaisieHrm, updateSaisieHrm } from "@/server/saisie_hrm";
 
 type Option = { id: string; name: string };
+type ParcOption = Option & { typeparcId: string };
+type EnginOption = Option & {
+  parcId: string;
+  siteId: string;
+  active: boolean;
+};
 
 type SaisieHrm = {
   id: string;
@@ -73,28 +74,40 @@ type FormValues = yup.InferType<typeof schema>;
 
 export function SaisieHrmForm({
   saisie,
+  parcs,
   engins,
   sites,
-  defaultDate,
-  fixedDate,
 }: {
   saisie?: SaisieHrm;
-  engins: Option[];
+  parcs: ParcOption[];
+  engins: EnginOption[];
   sites: Option[];
-  defaultDate?: string;
-  fixedDate?: string;
 }) {
   const editing = Boolean(saisie);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState("");
+  const [selectedParcId, setSelectedParcId] = useState(
+    () => engins.find((engin) => engin.id === saisie?.enginId)?.parcId ?? "",
+  );
   const router = useRouter();
+
+  // Un engin inactif reste sélectionnable pendant la modification de son historique,
+  // mais ne doit pas apparaître lors de la création d'une nouvelle saisie.
+  const selectableEngins = useMemo(
+    () => engins.filter((engin) => engin.active || engin.id === saisie?.enginId),
+    [engins, saisie?.enginId],
+  );
+
+  const filteredEngins = selectedParcId
+    ? selectableEngins.filter((engin) => engin.parcId === selectedParcId)
+    : [];
 
   const form = useForm<FormValues>({
     resolver: yupResolver(schema),
     defaultValues: {
-      du: fixedDate ?? saisie?.du ?? defaultDate ?? new Date().toISOString().slice(0, 10),
+      du: saisie?.du ?? new Date().toISOString().slice(0, 10),
       enginId: saisie?.enginId ?? "",
       siteId: saisie?.siteId ?? "",
       hrm: saisie?.hrm ?? 0,
@@ -103,27 +116,43 @@ export function SaisieHrmForm({
   });
 
   useEffect(() => {
-    if (open) {
-      form.reset({
-        du: fixedDate ?? saisie?.du ?? defaultDate ?? new Date().toISOString().slice(0, 10),
-        enginId: saisie?.enginId ?? "",
-        siteId: saisie?.siteId ?? "",
-        hrm: saisie?.hrm ?? 0,
-        compteur: saisie?.compteur ?? null,
-      });
-      setError("");
-    }
-  }, [open, saisie, form, defaultDate, fixedDate]);
+    if (!open) return;
+
+    form.reset({
+      du: saisie?.du ?? new Date().toISOString().slice(0, 10),
+      enginId: saisie?.enginId ?? "",
+      siteId: saisie?.siteId ?? "",
+      hrm: saisie?.hrm ?? 0,
+      compteur: saisie?.compteur ?? null,
+    });
+    setSelectedParcId(
+      engins.find((engin) => engin.id === saisie?.enginId)?.parcId ?? "",
+    );
+    setError("");
+  }, [open, saisie, engins, form]);
 
   async function onSubmit(values: FormValues) {
+    if (!selectedParcId) {
+      setError("Sélectionnez d'abord un parc.");
+      return;
+    }
+
+    const selectedEngin = selectableEngins.find(
+      (engin) => engin.id === values.enginId,
+    );
+
+    if (!selectedEngin || selectedEngin.parcId !== selectedParcId) {
+      setError("L'engin doit appartenir au parc sélectionné.");
+      return;
+    }
+
     try {
       setLoading(true);
       setError("");
       await sleep();
 
       const payload = {
-        // Sur la page journalière, la date est imposée par la recherche.
-        du: fixedDate ?? values.du,
+        du: values.du,
         enginId: values.enginId,
         siteId: values.siteId,
         hrm: Number(values.hrm),
@@ -154,7 +183,7 @@ export function SaisieHrmForm({
     }
   }
 
-  const disabled = loading || engins.length === 0 || sites.length === 0;
+  const disabled = loading || parcs.length === 0 || sites.length === 0 || selectableEngins.length === 0;
 
   return (
     <>
@@ -169,15 +198,15 @@ export function SaisieHrmForm({
             aria-label={editing ? "Modifier la saisie HRM" : "Ajouter une saisie HRM"}
             disabled={disabled}
           >
-            {editing ? <Pencil className="size-4" /> : <><Plus className="size-4" /> Ajouter</>}
+            {editing ? <Pencil className="size-4" /> : <><Plus className="size-4" /> Ajouter une saisie</>}
           </Button>
         </DialogTrigger>
 
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>{editing ? "Modifier une saisie HRM" : "Créer une saisie HRM"}</DialogTitle>
+            <DialogTitle>{editing ? "Modifier une saisie HRM" : "Ajouter une saisie HRM"}</DialogTitle>
             <DialogDescription>
-              Renseignez l'engin, le site, les heures de marche et le compteur.
+              Sélectionnez le parc puis l'engin, puis renseignez la date, le site et les valeurs HRM.
             </DialogDescription>
           </DialogHeader>
 
@@ -185,33 +214,53 @@ export function SaisieHrmForm({
 
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <FieldGroup>
-              {fixedDate ? (
-                <Field>
-                  <FieldLabel>Date de saisie</FieldLabel>
-                  <p className="rounded-md border bg-muted px-3 py-2 text-sm">
-                    {new Date(`${fixedDate}T00:00:00.000Z`).toLocaleDateString("fr-FR", { timeZone: "UTC" })}
-                  </p>
-                  <input type="hidden" {...form.register("du")} value={fixedDate} />
-                </Field>
-              ) : (
-                <Controller
-                  name="du"
-                  control={form.control}
-                  render={({ field, fieldState }) => (
-                    <Field data-invalid={fieldState.invalid}>
-                      <FieldLabel htmlFor="hrm-date">Date</FieldLabel>
-                      <Input
-                        id="hrm-date"
-                        type="date"
-                        {...field}
-                        disabled={loading}
-                        aria-invalid={fieldState.invalid}
-                      />
-                      {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-                    </Field>
-                  )}
-                />
-              )}
+              <Controller
+                name="du"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor="hrm-date">Date</FieldLabel>
+                    <Input
+                      id="hrm-date"
+                      type="date"
+                      {...field}
+                      disabled={loading}
+                      aria-invalid={fieldState.invalid}
+                    />
+                    {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                  </Field>
+                )}
+              />
+
+              <Field>
+                <FieldLabel htmlFor="hrm-parc-form">Parc</FieldLabel>
+                <Select
+                  value={selectedParcId || "none"}
+                  onValueChange={(value) => {
+                    const nextParcId = value === "none" ? "" : value;
+                    setSelectedParcId(nextParcId);
+
+                    const currentEnginId = form.getValues("enginId");
+                    const currentEngin = selectableEngins.find(
+                      (engin) => engin.id === currentEnginId,
+                    );
+                    if (!currentEngin || currentEngin.parcId !== nextParcId) {
+                      form.setValue("enginId", "", { shouldValidate: true });
+                    }
+                  }}
+                  disabled={loading}
+                >
+                  <SelectTrigger id="hrm-parc-form" className="w-full">
+                    <SelectValue placeholder="Sélectionner un parc" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sélectionner un parc</SelectItem>
+                    {parcs.map((parc) => (
+                      <SelectItem key={parc.id} value={parc.id}>{parc.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
 
               <Controller
                 name="enginId"
@@ -219,12 +268,16 @@ export function SaisieHrmForm({
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid}>
                     <FieldLabel>Engin</FieldLabel>
-                    <Select value={field.value} onValueChange={field.onChange} disabled={loading}>
-                      <SelectTrigger aria-invalid={fieldState.invalid} className="w-full">
-                        <SelectValue placeholder="Sélectionner un engin" />
+                    <Select
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      disabled={loading || !selectedParcId || filteredEngins.length === 0}
+                    >
+                      <SelectTrigger className="w-full" aria-invalid={fieldState.invalid}>
+                        <SelectValue placeholder={selectedParcId ? "Sélectionner un engin" : "Choisissez d'abord un parc"} />
                       </SelectTrigger>
                       <SelectContent>
-                        {engins.map((engin) => (
+                        {filteredEngins.map((engin) => (
                           <SelectItem key={engin.id} value={engin.id}>{engin.name}</SelectItem>
                         ))}
                       </SelectContent>
@@ -241,7 +294,7 @@ export function SaisieHrmForm({
                   <Field data-invalid={fieldState.invalid}>
                     <FieldLabel>Site</FieldLabel>
                     <Select value={field.value} onValueChange={field.onChange} disabled={loading}>
-                      <SelectTrigger aria-invalid={fieldState.invalid} className="w-full">
+                      <SelectTrigger className="w-full" aria-invalid={fieldState.invalid}>
                         <SelectValue placeholder="Sélectionner un site" />
                       </SelectTrigger>
                       <SelectContent>
@@ -300,7 +353,7 @@ export function SaisieHrmForm({
             </FieldGroup>
 
             <DialogFooter className="mt-4">
-              <Button type="submit" disabled={loading || engins.length === 0 || sites.length === 0}>
+              <Button type="submit" disabled={loading || !selectedParcId || filteredEngins.length === 0}>
                 {loading ? <Spinner className="size-4" /> : editing ? "Modifier" : "Créer"}
               </Button>
             </DialogFooter>

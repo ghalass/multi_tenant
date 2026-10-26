@@ -105,12 +105,6 @@ const configItems = {
       icon: Gauge,
       description: "Consulter, filtrer et modifier les saisies HRM",
     },
-    {
-      title: "Saisie journalière HRM",
-      url: "/saisie-hrm/saisie",
-      icon: Gauge,
-      description: "Afficher et compléter les saisies d'une journée",
-    },
     { title: "Utilisateurs", url: `/users`, icon: Users, description: "Gérer les utilisateurs" },
     { title: "Import", url: `/import`, icon: Upload, description: "Import" },
   ],
