@@ -136,7 +136,7 @@ function getDatabaseConfig() {
  * Vérifie que le répertoire de sauvegarde est hors du projet.
  */
 async function assertBackupDirectory(): Promise<string> {
-    const projectDirectory = path.resolve(process.cwd());
+    const projectDirectory = path.resolve(/*turbopackIgnore: true*/ process.cwd());
     const directory = getBackupDirectory();
 
     const relative = path.relative(projectDirectory, directory);

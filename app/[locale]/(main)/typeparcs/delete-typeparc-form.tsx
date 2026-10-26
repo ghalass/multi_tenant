@@ -1,0 +1,103 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import { deleteTypeParc } from "@/server/typeparcs";
+import { sleep } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog";
+import { Spinner } from "@/components/ui/spinner";
+import { GlobalLoader } from "@/components/global-loader";
+import DisplayError from "@/components/display-error";
+
+export function DeleteTypeParcForm({
+    typeParc,
+}: {
+    typeParc: { id: string; name: string };
+}) {
+    const [open, setOpen] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const [isPending, startTransition] = useTransition();
+    const [error, setError] = useState("");
+    const router = useRouter();
+
+    async function onDelete() {
+        try {
+            setIsLoading(true);
+            setError("");
+            await sleep();
+
+            const result = await deleteTypeParc(typeParc.id);
+
+            if (!result.success) {
+                setError(result.message ?? "Suppression impossible.");
+                return;
+            }
+
+            toast.success(result.message ?? "Type de parc supprimé.");
+            setOpen(false);
+            startTransition(() => router.refresh());
+        } catch {
+            toast.error("Une erreur inattendue est survenue.");
+        } finally {
+            setIsLoading(false);
+        }
+    }
+
+    return (
+        <>
+            <GlobalLoader show={isPending} />
+
+            <Dialog open={open} onOpenChange={setOpen}>
+                <DialogTrigger asChild>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Supprimer le type de parc"
+                        title="Supprimer"
+                    >
+                        <Trash2 className="size-4 text-destructive" />
+                    </Button>
+                </DialogTrigger>
+
+                <DialogContent className="sm:max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle>Supprimer le type de parc</DialogTitle>
+                        <DialogDescription>
+                            Voulez-vous vraiment supprimer le type de parc « {typeParc.name}
+                            » ? La suppression est impossible s’il est déjà utilisé par un
+                            parc.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <DisplayError error={error} />
+
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            variant="destructive"
+                            onClick={onDelete}
+                            disabled={isLoading}
+                        >
+                            {isLoading ? (
+                                <Spinner className="size-4" />
+                            ) : (
+                                "Supprimer"
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </>
+    );
+}

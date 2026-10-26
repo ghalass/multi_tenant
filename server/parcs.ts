@@ -1,99 +1,311 @@
+
 "use server";
 
 import { prisma } from "@/lib/prisma";
 import { guard } from "@/lib/rbac/middleware";
 import { ACTION } from "@/lib/enums";
-import { ActionResponse } from "@/lib/types"; import { getSession } from "@/lib/auth";
-import { ACTIVE, PAGINATION_SETTINGS, RESOURCE } from "@/lib/constantes";
+import type { ActionResponse } from "@/lib/types";
+import { getSession } from "@/lib/auth";
+import { PAGINATION_SETTINGS, RESOURCE } from "@/lib/constantes";
 import { convertField } from "@/lib/convertField";
 
-export interface searchParams {
+export interface SearchParamsParcs {
   name?: string;
-  active?: string;
-  currentPage?: number;
-  itemsPerPage?: number;
+  currentPage?: number | string;
+  itemsPerPage?: number | string;
 }
 
-export async function getAllParcs(filters: searchParams = { itemsPerPage: 0 }): Promise<ActionResponse> {
-  const g = await guard(ACTION.READ, RESOURCE.PARC);
-  if (!g.success) return { data: [], success: false, message: g.message };
-
+async function getTenantId() {
   const { currentTenantId } = await getSession();
 
-  if (!currentTenantId) {
-    return {
-      data: [],
-      success: false,
-      message: "Sélectionnez un tenant avant de consulter les parcs.",
-    };
-  }
+  if (!currentTenantId) return null;
 
   const tenant = await prisma.tenant.findFirst({
-    where: {
-      id: currentTenantId,
-      active: true,
-    },
-    select: {
-      id: true,
-    },
+    where: { id: currentTenantId, active: true },
+    select: { id: true },
   });
 
-  if (!tenant) {
+  return tenant?.id ?? null;
+}
+
+export async function getAllParcs(
+  filters: SearchParamsParcs = {}
+): Promise<ActionResponse> {
+  const permission = await guard(ACTION.READ, RESOURCE.PARC);
+
+  if (!permission.success) {
+    return { success: false, message: permission.message, data: [] };
+  }
+
+  const tenantId = await getTenantId();
+
+  if (!tenantId) {
     return {
-      data: [],
       success: false,
-      message: "Le tenant sélectionné est introuvable ou désactivé.",
+      message: "Sélectionnez un tenant actif.",
+      data: [],
     };
   }
 
-  // Pagination
-  const currentPage = Math.max(filters?.currentPage ?? 1, 1);
-  const isUnpaged = filters?.itemsPerPage === 0;
-  const itemsPerPage = isUnpaged
+  const currentPage = Math.max(Number(filters.currentPage) || 1, 1);
+  const requestedItems = filters.itemsPerPage === 0 ||
+    filters.itemsPerPage === "0"
     ? 0
-    : Math.max(filters?.itemsPerPage ?? PAGINATION_SETTINGS.itemsPerPage, 1);
+    : Math.max(
+      Number(filters.itemsPerPage) ||
+      PAGINATION_SETTINGS.itemsPerPage,
+      1
+    );
 
-  const name = filters?.name;
-  const active = filters?.active;
+  const isUnpaged = requestedItems === 0;
+  const itemsPerPage = requestedItems;
 
-  const where: any = { tenantId: currentTenantId };
+  const where: any = { tenantId };
+
+  const name = filters.name?.trim();
 
   if (name) {
-    where.OR = [
-      { name: { contains: name, mode: "insensitive" } },
-    ];
+    where.name = { contains: name, mode: "insensitive" };
   }
 
-  if (active === ACTIVE.YES) where.active = true;
-  if (active === ACTIVE.NO) where.active = false;
+  const [parcs, totalItems] = await Promise.all([
+    prisma.parc.findMany({
+      where,
+      orderBy: { name: "asc" },
+      skip: isUnpaged ? 0 : (currentPage - 1) * itemsPerPage,
+      take: isUnpaged ? undefined : itemsPerPage,
+      include: {
+        typeparc: { select: { id: true, name: true } },
+        tenant: { select: { id: true, name: true } },
+      },
+    }),
+    prisma.parc.count({ where }),
+  ]);
 
-
-  const skip = isUnpaged ? 0 : (currentPage - 1) * itemsPerPage;
-  const take = isUnpaged ? undefined : itemsPerPage;
-
-  const [parcs, totalItems] =
-    await Promise.all([
-      // 1. Récupérer les parcs de la page actuelle
-      prisma.parc.findMany({
-        where,
-        orderBy: { name: "asc" },
-        skip,
-        take,
-        // On ne renvoie que les champs utiles du tenant
-        include: {
-          tenant: { select: { id: true, name: true } },
-        },
-      }),
-      // 2. Compter tous les parcs correspondant aux filtres
-      prisma.parc.count({ where }),
-    ]);
-
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
   return {
+    success: true,
+    message: "Données récupérées avec succès.",
     data: parcs,
-    success: true, message: "Données récupérées avec succès!",
-    meta: { totalItems, totalPages, currentPage, itemsPerPage },
+    meta: {
+      totalItems,
+      totalPages: isUnpaged
+        ? 1
+        : Math.ceil(totalItems / itemsPerPage),
+      currentPage,
+      itemsPerPage,
+    },
   };
+}
+
+export async function getParcTypeOptions() {
+  const permission = await guard(ACTION.READ, RESOURCE.PARC);
+
+  if (!permission.success) {
+    return {
+      success: false,
+      message: permission.message,
+      data: [],
+    };
+  }
+
+  const tenantId = await getTenantId();
+
+  if (!tenantId) {
+    return {
+      success: false,
+      message: "Sélectionnez un tenant actif.",
+      data: [],
+    };
+  }
+
+  const data = await prisma.typeparc.findMany({
+    where: { tenantId },
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+  });
+
+  return { success: true, message: "", data };
+}
+
+export async function createParc(values: {
+  name: string;
+  typeparcId: string;
+}): Promise<ActionResponse> {
+  const permission = await guard(ACTION.CREATE, RESOURCE.PARC);
+
+  if (!permission.success) {
+    return { success: false, message: permission.message };
+  }
+
+  const tenantId = await getTenantId();
+
+  if (!tenantId) {
+    return { success: false, message: "Aucun tenant actif." };
+  }
+
+  const name = values.name.trim();
+  const typeparcId = values.typeparcId;
+
+  if (!name || !typeparcId) {
+    return {
+      success: false,
+      message: "Le nom et le type de parc sont obligatoires.",
+    };
+  }
+
+  try {
+    const typeparc = await prisma.typeparc.findFirst({
+      where: { id: typeparcId, tenantId },
+      select: { id: true },
+    });
+
+    if (!typeparc) {
+      return {
+        success: false,
+        message: "Le type de parc sélectionné est invalide.",
+      };
+    }
+
+    const duplicate = await prisma.parc.findFirst({
+      where: {
+        tenantId,
+        name: { equals: name, mode: "insensitive" },
+      },
+    });
+
+    if (duplicate) {
+      return { success: false, message: "Ce parc existe déjà." };
+    }
+
+    await prisma.parc.create({
+      data: { name, typeparcId, tenantId },
+    });
+
+    return { success: true, message: "Parc créé avec succès." };
+  } catch (error) {
+    console.error("createParc error:", error);
+
+    return {
+      success: false,
+      message: "Erreur lors de la création du parc.",
+    };
+  }
+}
+
+export async function updateParc(values: {
+  id: string;
+  name: string;
+  typeparcId: string;
+}): Promise<ActionResponse> {
+  const permission = await guard(ACTION.UPDATE, RESOURCE.PARC);
+
+  if (!permission.success) {
+    return { success: false, message: permission.message };
+  }
+
+  const tenantId = await getTenantId();
+
+  if (!tenantId) {
+    return { success: false, message: "Aucun tenant actif." };
+  }
+
+  const name = values.name.trim();
+
+  if (!values.id || !name || !values.typeparcId) {
+    return {
+      success: false,
+      message: "Tous les champs sont obligatoires.",
+    };
+  }
+
+  try {
+    const parc = await prisma.parc.findFirst({
+      where: { id: values.id, tenantId },
+      select: { id: true },
+    });
+
+    if (!parc) {
+      return { success: false, message: "Parc introuvable." };
+    }
+
+    const typeparc = await prisma.typeparc.findFirst({
+      where: { id: values.typeparcId, tenantId },
+      select: { id: true },
+    });
+
+    if (!typeparc) {
+      return {
+        success: false,
+        message: "Le type de parc sélectionné est invalide.",
+      };
+    }
+
+    const duplicate = await prisma.parc.findFirst({
+      where: {
+        tenantId,
+        name: { equals: name, mode: "insensitive" },
+        NOT: { id: values.id },
+      },
+    });
+
+    if (duplicate) {
+      return {
+        success: false,
+        message: "Un autre parc porte déjà ce nom.",
+      };
+    }
+
+    await prisma.parc.update({
+      where: { id: values.id },
+      data: { name, typeparcId: values.typeparcId },
+    });
+
+    return { success: true, message: "Parc modifié avec succès." };
+  } catch (error) {
+    console.error("updateParc error:", error);
+
+    return {
+      success: false,
+      message: "Erreur lors de la modification du parc.",
+    };
+  }
+}
+
+export async function deleteParc(id: string): Promise<ActionResponse> {
+  const permission = await guard(ACTION.DELETE, RESOURCE.PARC);
+
+  if (!permission.success) {
+    return { success: false, message: permission.message };
+  }
+
+  const tenantId = await getTenantId();
+
+  if (!tenantId) {
+    return { success: false, message: "Aucun tenant actif." };
+  }
+
+  try {
+    const parc = await prisma.parc.findFirst({
+      where: { id, tenantId },
+      select: { id: true },
+    });
+
+    if (!parc) {
+      return { success: false, message: "Parc introuvable." };
+    }
+
+    await prisma.parc.delete({ where: { id } });
+
+    return { success: true, message: "Parc supprimé avec succès." };
+  } catch (error) {
+    console.error("deleteParc error:", error);
+
+    return {
+      success: false,
+      message:
+        "Suppression impossible : ce parc est peut-être utilisé par des engins, des pannes ou des objectifs.",
+    };
+  }
 }
 
 export async function importParcs(data: any) {
@@ -110,86 +322,51 @@ export async function importParcs(data: any) {
 
     const name = convertField(data.name, "string");
     const typeparcName = convertField(data.typeparcName, "string");
+    const tenantId = await getTenantId();
 
-    if (!name || name.trim() === "") {
-      return [
-        {
-          success: false,
-          data: data,
-          message: `Erreur: Le champ 'name' est requis`,
-        },
-      ];
-    }
-    if (!typeparcName) {
-      return [
-        {
-          success: false,
-          data: data,
-          message: `Erreur: Le champ 'typeparcName' est requis`,
-        },
-      ];
+    if (!name?.trim() || !typeparcName || !tenantId) {
+      return [{
+        success: false,
+        data,
+        message: "Nom, type de parc et tenant actif obligatoires.",
+      }];
     }
 
-    const { currentTenantId } = await getSession();
-
-    if (!currentTenantId) {
-      return [
-        {
-          success: false,
-          data: data,
-          message: `Erreur: Aucun tenant actif pour l'import du typeparc`,
-        },
-      ];
-    }
-
-    const typeParc = await prisma.typeparc.findUnique({
-      where: { name_tenantId: { name: typeparcName, tenantId: currentTenantId } },
+    const typeparc = await prisma.typeparc.findFirst({
+      where: {
+        name: typeparcName,
+        tenantId,
+      },
     });
-    if (!typeParc) {
-      return [
-        {
-          success: false,
-          data: data,
-          message: `TypeParc "${typeparcName}" non trouvé`,
-        },
-      ];
+
+    if (!typeparc) {
+      return [{
+        success: false,
+        data,
+        message: `Type de parc "${typeparcName}" introuvable.`,
+      }];
     }
 
     const parc = await prisma.parc.upsert({
       where: {
-        name_tenantId: {
-          tenantId: currentTenantId,
-          name: name,
-        },
+        name_tenantId: { name, tenantId },
       },
-      update: {
-        name: name,
-        typeparcId: typeParc.id,
-      },
-      create: {
-        name: name,
-        typeparcId: typeParc.id,
-        tenantId: currentTenantId,
-      },
+      update: { typeparcId: typeparc.id },
+      create: { name, typeparcId: typeparc.id, tenantId },
     });
 
-    return [
-      {
-        success: true,
-        data: parc,
-        message: `Parc ${name} importé avec succès`,
-      },
-    ];
-  } catch (error: unknown) {
-    console.error("Erreur lors de l'import des parcs :", error);
+    return [{
+      success: true,
+      data: parc,
+      message: `Parc ${name} importé avec succès.`,
+    }];
+  } catch (error) {
+    console.error("importParcs error:", error);
 
-    return [
-      {
-        success: false,
-        data: data,
-        message:
-          "Une erreur interne est survenue lors de l'import des parcs. Vérifiez les données et consultez les journaux serveur si le problème persiste.",
-      },
-    ];
+    return [{
+      success: false,
+      data,
+      message: "Erreur lors de l'importation du parc.",
+    }];
   }
 }
