@@ -376,146 +376,149 @@ export function SaisieHimForm({
 
                     <form onSubmit={form.handleSubmit(onSubmit)}>
                         <FieldGroup className="gap-2">
-                            <Controller
-                                name="du"
-                                control={form.control}
-                                render={({ field, fieldState }) => (
-                                    <Field data-invalid={fieldState.invalid}>
-                                        <FieldLabel htmlFor="him-date">Date</FieldLabel>
-                                        <Input
-                                            id="him-date"
-                                            type="date"
-                                            {...field}
-                                            disabled={loading}
-                                            aria-invalid={fieldState.invalid}
-                                        />
-                                        {fieldState.invalid && (
-                                            <FieldError errors={[fieldState.error]} />
-                                        )}
-                                    </Field>
-                                )}
-                            />
-
-                            <Controller
-                                name="siteId"
-                                control={form.control}
-                                render={({ field, fieldState }) => (
-                                    <Field data-invalid={fieldState.invalid}>
-                                        <FieldLabel>Site</FieldLabel>
-                                        <Select
-                                            value={field.value || "none"}
-                                            onValueChange={(value) => {
-                                                field.onChange(value === "none" ? "" : value);
-                                                form.setValue("typeparcId", "");
-                                                form.setValue("parcId", "");
-                                                form.setValue("enginId", "");
-                                                form.setValue("typepanneId", "");
-                                                form.setValue("panneId", "");
-                                            }}
-                                            disabled={loading}
-                                        >
-                                            <SelectTrigger
-                                                className="w-full"
+                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                <Controller
+                                    name="du"
+                                    control={form.control}
+                                    render={({ field, fieldState }) => (
+                                        <Field data-invalid={fieldState.invalid}>
+                                            <FieldLabel htmlFor="him-date">Date</FieldLabel>
+                                            <Input
+                                                id="him-date"
+                                                type="date"
+                                                {...field}
+                                                disabled={loading}
                                                 aria-invalid={fieldState.invalid}
-                                            >
-                                                <SelectValue placeholder="Sélectionner un site" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="none">Sélectionner un site</SelectItem>
-                                                {sites.map((site) => (
-                                                    <SelectItem key={site.id} value={site.id}>
-                                                        {site.name}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                        {fieldState.invalid && (
-                                            <FieldError errors={[fieldState.error]} />
-                                        )}
-                                    </Field>
-                                )}
-                            />
+                                            />
+                                            {fieldState.invalid && (
+                                                <FieldError errors={[fieldState.error]} />
+                                            )}
+                                        </Field>
+                                    )}
+                                />
 
-                            <Controller
-                                name="typeparcId"
-                                control={form.control}
-                                render={({ field, fieldState }) => (
-                                    <Field data-invalid={fieldState.invalid}>
-                                        <FieldLabel>Type de parc</FieldLabel>
-                                        <Select
-                                            value={field.value || "none"}
-                                            onValueChange={(value) => {
-                                                field.onChange(value === "none" ? "" : value);
-                                                form.setValue("parcId", "");
-                                                form.setValue("enginId", "");
-                                                form.setValue("typepanneId", "");
-                                                form.setValue("panneId", "");
-                                            }}
-                                            disabled={loading || !selectedSiteId}
-                                        >
-                                            <SelectTrigger
-                                                className="w-full"
-                                                aria-invalid={fieldState.invalid}
+                                <Controller
+                                    name="siteId"
+                                    control={form.control}
+                                    render={({ field, fieldState }) => (
+                                        <Field data-invalid={fieldState.invalid}>
+                                            <FieldLabel>Site</FieldLabel>
+                                            <Select
+                                                value={field.value || "none"}
+                                                onValueChange={(value) => {
+                                                    field.onChange(value === "none" ? "" : value);
+                                                    form.setValue("typeparcId", "");
+                                                    form.setValue("parcId", "");
+                                                    form.setValue("enginId", "");
+                                                    form.setValue("typepanneId", "");
+                                                    form.setValue("panneId", "");
+                                                }}
+                                                disabled={loading}
                                             >
-                                                <SelectValue placeholder="Sélectionner un type" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="none">
-                                                    Sélectionner un type
-                                                </SelectItem>
-                                                {typeParcs.map((typeParc) => (
-                                                    <SelectItem key={typeParc.id} value={typeParc.id}>
-                                                        {typeParc.name}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                        {fieldState.invalid && (
-                                            <FieldError errors={[fieldState.error]} />
-                                        )}
-                                    </Field>
-                                )}
-                            />
+                                                <SelectTrigger
+                                                    className="w-full"
+                                                    aria-invalid={fieldState.invalid}
+                                                >
+                                                    <SelectValue placeholder="Sélectionner un site" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="none">Sélectionner un site</SelectItem>
+                                                    {sites.map((site) => (
+                                                        <SelectItem key={site.id} value={site.id}>
+                                                            {site.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            {fieldState.invalid && (
+                                                <FieldError errors={[fieldState.error]} />
+                                            )}
+                                        </Field>
+                                    )}
+                                />
+                            </div>
 
-                            <Controller
-                                name="parcId"
-                                control={form.control}
-                                render={({ field, fieldState }) => (
-                                    <Field data-invalid={fieldState.invalid}>
-                                        <FieldLabel>Parc</FieldLabel>
-                                        <Select
-                                            value={field.value || "none"}
-                                            onValueChange={(value) => {
-                                                field.onChange(value === "none" ? "" : value);
-                                                form.setValue("enginId", "");
-                                                form.setValue("panneId", "");
-                                                form.setValue("typepanneId", "");
-                                            }}
-                                            disabled={loading || filteredParcs.length === 0}
-                                        >
-                                            <SelectTrigger
-                                                className="w-full"
-                                                aria-invalid={fieldState.invalid}
+                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                <Controller
+                                    name="typeparcId"
+                                    control={form.control}
+                                    render={({ field, fieldState }) => (
+                                        <Field data-invalid={fieldState.invalid}>
+                                            <FieldLabel>Type de parc</FieldLabel>
+                                            <Select
+                                                value={field.value || "none"}
+                                                onValueChange={(value) => {
+                                                    field.onChange(value === "none" ? "" : value);
+                                                    form.setValue("parcId", "");
+                                                    form.setValue("enginId", "");
+                                                    form.setValue("typepanneId", "");
+                                                    form.setValue("panneId", "");
+                                                }}
+                                                disabled={loading || !selectedSiteId}
                                             >
-                                                <SelectValue placeholder="Sélectionner un parc" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="none">
-                                                    Sélectionner un parc
-                                                </SelectItem>
-                                                {filteredParcs.map((parc) => (
-                                                    <SelectItem key={parc.id} value={parc.id}>
-                                                        {parc.name}
+                                                <SelectTrigger
+                                                    className="w-full"
+                                                    aria-invalid={fieldState.invalid}
+                                                >
+                                                    <SelectValue placeholder="Sélectionner un type" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="none">
+                                                        Sélectionner un type
                                                     </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                        {fieldState.invalid && (
-                                            <FieldError errors={[fieldState.error]} />
-                                        )}
-                                    </Field>
-                                )}
-                            />
+                                                    {typeParcs.map((typeParc) => (
+                                                        <SelectItem key={typeParc.id} value={typeParc.id}>
+                                                            {typeParc.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            {fieldState.invalid && (
+                                                <FieldError errors={[fieldState.error]} />
+                                            )}
+                                        </Field>
+                                    )}
+                                />
+                                <Controller
+                                    name="parcId"
+                                    control={form.control}
+                                    render={({ field, fieldState }) => (
+                                        <Field data-invalid={fieldState.invalid}>
+                                            <FieldLabel>Parc</FieldLabel>
+                                            <Select
+                                                value={field.value || "none"}
+                                                onValueChange={(value) => {
+                                                    field.onChange(value === "none" ? "" : value);
+                                                    form.setValue("enginId", "");
+                                                    form.setValue("panneId", "");
+                                                    form.setValue("typepanneId", "");
+                                                }}
+                                                disabled={loading || filteredParcs.length === 0}
+                                            >
+                                                <SelectTrigger
+                                                    className="w-full"
+                                                    aria-invalid={fieldState.invalid}
+                                                >
+                                                    <SelectValue placeholder="Sélectionner un parc" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="none">
+                                                        Sélectionner un parc
+                                                    </SelectItem>
+                                                    {filteredParcs.map((parc) => (
+                                                        <SelectItem key={parc.id} value={parc.id}>
+                                                            {parc.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            {fieldState.invalid && (
+                                                <FieldError errors={[fieldState.error]} />
+                                            )}
+                                        </Field>
+                                    )}
+                                />
+                            </div>
 
                             <Controller
                                 name="enginId"
@@ -577,160 +580,159 @@ export function SaisieHimForm({
                                 )}
                             />
 
-                            <Controller
-                                name="typepanneId"
-                                control={form.control}
-                                render={({ field, fieldState }) => (
-                                    <Field data-invalid={fieldState.invalid}>
-                                        <FieldLabel>Type de panne</FieldLabel>
+                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                <Controller
+                                    name="typepanneId"
+                                    control={form.control}
+                                    render={({ field, fieldState }) => (
+                                        <Field data-invalid={fieldState.invalid}>
+                                            <FieldLabel>Type de panne</FieldLabel>
 
-                                        <Select
-                                            value={field.value || "none"}
-                                            onValueChange={(value) => {
-                                                field.onChange(value === "none" ? "" : value);
-                                                form.setValue("panneId", "");
-                                            }}
-                                            disabled={loading || !selectedParcId}
-                                        >
-                                            <SelectTrigger
-                                                className="w-full"
-                                                aria-invalid={fieldState.invalid}
+                                            <Select
+                                                value={field.value || "none"}
+                                                onValueChange={(value) => {
+                                                    field.onChange(value === "none" ? "" : value);
+                                                    form.setValue("panneId", "");
+                                                }}
+                                                disabled={loading || !selectedParcId}
                                             >
-                                                <SelectValue placeholder="Sélectionner un type de panne" />
-                                            </SelectTrigger>
+                                                <SelectTrigger
+                                                    className="w-full"
+                                                    aria-invalid={fieldState.invalid}
+                                                >
+                                                    <SelectValue placeholder="Sélectionner un type de panne" />
+                                                </SelectTrigger>
 
-                                            <SelectContent>
-                                                <SelectItem value="none">
-                                                    Sélectionner un type de panne
-                                                </SelectItem>
-
-                                                {typePannes.map((typePanne) => (
-                                                    <SelectItem
-                                                        key={typePanne.id}
-                                                        value={typePanne.id}
-                                                    >
-                                                        {typePanne.name}
+                                                <SelectContent>
+                                                    <SelectItem value="none">
+                                                        Sélectionner un type de panne
                                                     </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
 
-                                        {fieldState.invalid && (
-                                            <FieldError errors={[fieldState.error]} />
-                                        )}
-                                    </Field>
-                                )}
-                            />
+                                                    {typePannes.map((typePanne) => (
+                                                        <SelectItem
+                                                            key={typePanne.id}
+                                                            value={typePanne.id}
+                                                        >
+                                                            {typePanne.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
 
-                            <Controller
-                                name="panneId"
-                                control={form.control}
-                                render={({ field, fieldState }) => (
-                                    <Field data-invalid={fieldState.invalid}>
-                                        <FieldLabel>Panne</FieldLabel>
-                                        <Select
-                                            value={field.value || "none"}
-                                            onValueChange={(value) =>
-                                                field.onChange(value === "none" ? "" : value)
-                                            }
-                                            disabled={
-                                                loading ||
-                                                !selectedParcId ||
-                                                !selectedTypePanneId
-                                            }
-                                        >
-                                            <SelectTrigger
-                                                className="w-full"
-                                                aria-invalid={fieldState.invalid}
+                                            {fieldState.invalid && (
+                                                <FieldError errors={[fieldState.error]} />
+                                            )}
+                                        </Field>
+                                    )}
+                                />
+
+                                <Controller
+                                    name="panneId"
+                                    control={form.control}
+                                    render={({ field, fieldState }) => (
+                                        <Field data-invalid={fieldState.invalid}>
+                                            <FieldLabel>Panne</FieldLabel>
+                                            <Select
+                                                value={field.value || "none"}
+                                                onValueChange={(value) =>
+                                                    field.onChange(value === "none" ? "" : value)
+                                                }
+                                                disabled={
+                                                    loading ||
+                                                    !selectedParcId ||
+                                                    !selectedTypePanneId
+                                                }
                                             >
-                                                <SelectValue placeholder="Sélectionner une panne" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="none">
-                                                    Sélectionner une panne
-                                                </SelectItem>
-                                                {filteredPannes.map((panne) => (
-                                                    <SelectItem key={panne.id} value={panne.id}>
-                                                        {panne.name}
+                                                <SelectTrigger
+                                                    className="w-full"
+                                                    aria-invalid={fieldState.invalid}
+                                                >
+                                                    <SelectValue placeholder="Sélectionner une panne" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="none">
+                                                        Sélectionner une panne
                                                     </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                        {selectedPanne?.description?.trim() && (
-                                            <p className="text-sm text-muted-foreground">
-                                                {selectedPanne?.description?.trim() && (
-                                                    <p className="text-sm text-muted-foreground">
-                                                        {selectedPanne.description}
-                                                    </p>
-                                                )}
-                                                {selectedPanne.description}
-                                            </p>
-                                        )}
-                                        {fieldState.invalid && (
-                                            <FieldError errors={[fieldState.error]} />
-                                        )}
-                                    </Field>
-                                )}
-                            />
+                                                    {filteredPannes.map((panne) => (
+                                                        <SelectItem key={panne.id} value={panne.id}>
+                                                            {panne.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            {selectedPanne?.description?.trim() && (
+                                                <p className="text-sm text-muted-foreground">
+                                                    {selectedPanne.description}
+                                                </p>
+                                            )}
+                                            {fieldState.invalid && (
+                                                <FieldError errors={[fieldState.error]} />
+                                            )}
+                                        </Field>
+                                    )}
+                                />
+                            </div>
 
-                            <Controller
-                                name="him"
-                                control={form.control}
-                                render={({ field, fieldState }) => (
-                                    <Field data-invalid={fieldState.invalid}>
-                                        <FieldLabel htmlFor="him-value">HIM (heures)</FieldLabel>
-                                        <Input
-                                            id="him-value"
-                                            type="number"
-                                            min={0}
-                                            max={24}
-                                            step="any"
-                                            value={field.value ?? ""}
-                                            onChange={(event) =>
-                                                field.onChange(
-                                                    event.target.value === ""
-                                                        ? ""
-                                                        : Number(event.target.value),
-                                                )
-                                            }
-                                            disabled={loading}
-                                            aria-invalid={fieldState.invalid}
-                                        />
-                                        {fieldState.invalid && (
-                                            <FieldError errors={[fieldState.error]} />
-                                        )}
-                                    </Field>
-                                )}
-                            />
+                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                <Controller
+                                    name="him"
+                                    control={form.control}
+                                    render={({ field, fieldState }) => (
+                                        <Field data-invalid={fieldState.invalid}>
+                                            <FieldLabel htmlFor="him-value">HIM (heures)</FieldLabel>
+                                            <Input
+                                                id="him-value"
+                                                type="number"
+                                                min={0}
+                                                max={24}
+                                                step="any"
+                                                value={field.value ?? ""}
+                                                onChange={(event) =>
+                                                    field.onChange(
+                                                        event.target.value === ""
+                                                            ? ""
+                                                            : Number(event.target.value),
+                                                    )
+                                                }
+                                                disabled={loading}
+                                                aria-invalid={fieldState.invalid}
+                                            />
+                                            {fieldState.invalid && (
+                                                <FieldError errors={[fieldState.error]} />
+                                            )}
+                                        </Field>
+                                    )}
+                                />
 
-                            <Controller
-                                name="ni"
-                                control={form.control}
-                                render={({ field, fieldState }) => (
-                                    <Field data-invalid={fieldState.invalid}>
-                                        <FieldLabel htmlFor="him-ni">NI (nombre d'interventions)</FieldLabel>
-                                        <Input
-                                            id="him-ni"
-                                            type="number"
-                                            min={0}
-                                            step={1}
-                                            value={field.value ?? ""}
-                                            onChange={(event) =>
-                                                field.onChange(
-                                                    event.target.value === ""
-                                                        ? ""
-                                                        : Number(event.target.value),
-                                                )
-                                            }
-                                            disabled={loading}
-                                            aria-invalid={fieldState.invalid}
-                                        />
-                                        {fieldState.invalid && (
-                                            <FieldError errors={[fieldState.error]} />
-                                        )}
-                                    </Field>
-                                )}
-                            />
+                                <Controller
+                                    name="ni"
+                                    control={form.control}
+                                    render={({ field, fieldState }) => (
+                                        <Field data-invalid={fieldState.invalid}>
+                                            <FieldLabel htmlFor="him-ni">NI (nombre d'interventions)</FieldLabel>
+                                            <Input
+                                                id="him-ni"
+                                                type="number"
+                                                min={0}
+                                                step={1}
+                                                value={field.value ?? ""}
+                                                onChange={(event) =>
+                                                    field.onChange(
+                                                        event.target.value === ""
+                                                            ? ""
+                                                            : Number(event.target.value),
+                                                    )
+                                                }
+                                                disabled={loading}
+                                                aria-invalid={fieldState.invalid}
+                                            />
+                                            {fieldState.invalid && (
+                                                <FieldError errors={[fieldState.error]} />
+                                            )}
+                                        </Field>
+                                    )}
+                                />
+                            </div>
 
                             <Controller
                                 name="obs"
