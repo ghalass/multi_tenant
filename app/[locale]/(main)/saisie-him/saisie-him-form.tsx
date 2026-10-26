@@ -408,6 +408,7 @@ export function SaisieHimForm({
                                                 form.setValue("typeparcId", "");
                                                 form.setValue("parcId", "");
                                                 form.setValue("enginId", "");
+                                                form.setValue("typepanneId", "");
                                                 form.setValue("panneId", "");
                                             }}
                                             disabled={loading}
@@ -446,6 +447,7 @@ export function SaisieHimForm({
                                                 field.onChange(value === "none" ? "" : value);
                                                 form.setValue("parcId", "");
                                                 form.setValue("enginId", "");
+                                                form.setValue("typepanneId", "");
                                                 form.setValue("panneId", "");
                                             }}
                                             disabled={loading || !selectedSiteId}
@@ -525,6 +527,8 @@ export function SaisieHimForm({
                                             onValueChange={(value) => {
                                                 if (value === "none") {
                                                     field.onChange("");
+                                                    form.setValue("typepanneId", "");
+                                                    form.setValue("panneId", "");
                                                     return;
                                                 }
 
@@ -585,7 +589,7 @@ export function SaisieHimForm({
                                                 field.onChange(value === "none" ? "" : value);
                                                 form.setValue("panneId", "");
                                             }}
-                                            disabled={loading || !selectedParcId || !selectedTypePanneId}
+                                            disabled={loading || !selectedParcId}
                                         >
                                             <SelectTrigger
                                                 className="w-full"
@@ -628,7 +632,11 @@ export function SaisieHimForm({
                                             onValueChange={(value) =>
                                                 field.onChange(value === "none" ? "" : value)
                                             }
-                                            disabled={loading || !selectedParcId}
+                                            disabled={
+                                                loading ||
+                                                !selectedParcId ||
+                                                !selectedTypePanneId
+                                            }
                                         >
                                             <SelectTrigger
                                                 className="w-full"
