@@ -3,8 +3,9 @@
 import { prisma } from "@/lib/prisma";
 import { guard } from "@/lib/rbac/middleware";
 import { ACTION } from "@/lib/enums";
-import { ActionResponse } from "@/lib/types"; import { getSession } from "@/lib/auth";
-import { ACTIVE, PAGINATION_SETTINGS, RESOURCE } from "@/lib/constantes";
+import type { ActionResponse } from "@/lib/types";
+import { getSession } from "@/lib/auth";
+import { PAGINATION_SETTINGS, RESOURCE } from "@/lib/constantes";
 
 export interface searchParamsRapportRje {
   date?: string;
@@ -14,14 +15,21 @@ export interface searchParamsRapportRje {
   itemsPerPage?: number;
 }
 
-
-export async function getRapportRje(filters?: searchParamsRapportRje): Promise<ActionResponse> {
+export async function getRapportRje(
+  filters?: searchParamsRapportRje,
+): Promise<ActionResponse> {
   const g = await guard(ACTION.READ, RESOURCE.RAPPORT);
-  if (!g.success) return { data: [], success: false, message: g.message };
+
+  if (!g.success) {
+    return {
+      data: [],
+      success: false,
+      message: g.message,
+    };
+  }
 
   const { currentTenantId } = await getSession();
 
-  // Un rapport doit toujours être limité à un tenant précis.
   if (!currentTenantId) {
     return {
       data: [],
@@ -30,7 +38,6 @@ export async function getRapportRje(filters?: searchParamsRapportRje): Promise<A
     };
   }
 
-  // Vérifier que le tenant sélectionné existe et est actif.
   const tenant = await prisma.tenant.findFirst({
     where: {
       id: currentTenantId,
@@ -49,9 +56,12 @@ export async function getRapportRje(filters?: searchParamsRapportRje): Promise<A
     };
   }
 
-  // Pagination
+  // Pagination : conservée pour compatibilité avec le rapport existant.
   const currentPage = Math.max(filters?.currentPage ?? 1, 1);
-  const itemsPerPage = Math.max(filters?.itemsPerPage ?? PAGINATION_SETTINGS.itemsPerPage, 1);
+  const itemsPerPage = Math.max(
+    filters?.itemsPerPage ?? PAGINATION_SETTINGS.itemsPerPage,
+    1,
+  );
 
   const date = filters?.date;
   const parc = filters?.parc;
@@ -60,94 +70,158 @@ export async function getRapportRje(filters?: searchParamsRapportRje): Promise<A
   let finalData: any[] = [];
 
   if (date && parc) {
-
     const dateCible = new Date(`${date}T00:00:00.000Z`);
-    // ---------- CALCUL DES PÉRIODES ----------
-    const debutMois = new Date(Date.UTC(
-      dateCible.getUTCFullYear(),
-      dateCible.getUTCMonth(),
-      1
-    ));
-    const debutAnnee = new Date(Date.UTC(dateCible.getUTCFullYear(), 0, 1));
-    const finJournee = new Date(Date.UTC(
-      dateCible.getUTCFullYear(),
-      dateCible.getUTCMonth(),
-      dateCible.getUTCDate() + 1
-    ));
+
+    if (Number.isNaN(dateCible.getTime())) {
+      return {
+        data: [],
+        success: false,
+        message: "La date sélectionnée est invalide.",
+      };
+    }
+
+    // --------------------------------------------------
+    // CALCUL DES PÉRIODES
+    // Les dates de fin sont exclusives : [début, fin[
+    // --------------------------------------------------
+
+    const debutMois = new Date(
+      Date.UTC(
+        dateCible.getUTCFullYear(),
+        dateCible.getUTCMonth(),
+        1,
+      ),
+    );
+
+    const debutAnnee = new Date(
+      Date.UTC(dateCible.getUTCFullYear(), 0, 1),
+    );
+
+    // Début du jour suivant : fin exclusive.
+    const finJournee = new Date(
+      Date.UTC(
+        dateCible.getUTCFullYear(),
+        dateCible.getUTCMonth(),
+        dateCible.getUTCDate() + 1,
+      ),
+    );
+
     const nho_j = 24;
     const nho_m = dateCible.getUTCDate() * 24;
-    const joursEcoules = dateCible.getUTCDate() === 1 &&
-      dateCible.getUTCMonth() === 0 ? 1 : Math.floor(
-        (dateCible.getTime() - debutAnnee.getTime()) / (24 * 60 * 60 * 1000)
+
+    const joursEcoules =
+      Math.floor(
+        (dateCible.getTime() - debutAnnee.getTime()) /
+        (24 * 60 * 60 * 1000),
       ) + 1;
 
     const nho_a = joursEcoules * 24;
-    // ---------- FONCTION DE RÉCUPÉRATION DES AGRÉGATS ----------
+
+    // --------------------------------------------------
+    // AGRÉGATION HIM, HRM ET NI POUR UN ENGIN
+    // --------------------------------------------------
+
     const getHimHrmNi = async (
       enginId: string,
       startDate: Date,
-      endDate: Date
+      endDateExclusive: Date,
     ) => {
-      const him = await prisma.saisiehim.aggregate({
-        _sum: { him: true },
-        where: {
-          tenantId: currentTenantId,
-          saisiehrm: {
-            du: { gte: startDate, lte: endDate },
-            enginId: enginId,
-            tenantId: currentTenantId
-          },
-        },
-      });
+      const dateFilter = {
+        gte: startDate,
+        lt: endDateExclusive,
+      };
 
-      const hrm = await prisma.saisiehrm.aggregate({
-        _sum: { hrm: true },
-        where: {
-          du: { gte: startDate, lte: endDate },
-          enginId: enginId,
-          tenantId: currentTenantId
-        },
-      });
-
-      const ni = await prisma.saisiehim.count({
-        where: {
-          tenantId: currentTenantId,
-          saisiehrm: {
-            du: { gte: startDate, lte: endDate },
-            enginId: enginId,
-            tenantId: currentTenantId
+      const [him, hrm, ni] = await Promise.all([
+        prisma.saisiehim.aggregate({
+          _sum: { him: true },
+          where: {
+            tenantId: currentTenantId,
+            saisiehrm: {
+              du: dateFilter,
+              enginId,
+              tenantId: currentTenantId,
+            },
           },
-        },
-      });
+        }),
+
+        prisma.saisiehrm.aggregate({
+          _sum: { hrm: true },
+          where: {
+            du: dateFilter,
+            enginId,
+            tenantId: currentTenantId,
+          },
+        }),
+
+        // NI doit être la somme du champ ni,
+        // et non le nombre de lignes Saisiehim.
+        prisma.saisiehim.aggregate({
+          _sum: { ni: true },
+          where: {
+            tenantId: currentTenantId,
+            saisiehrm: {
+              du: dateFilter,
+              enginId,
+              tenantId: currentTenantId,
+            },
+          },
+        }),
+      ]);
 
       return {
-        him: him._sum.him || 0,
-        hrm: hrm._sum.hrm || 0,
-        ni: ni || 0,
+        him: him._sum.him ?? 0,
+        hrm: hrm._sum.hrm ?? 0,
+        ni: ni._sum.ni ?? 0,
       };
     };
-    // ---------- FORMULES ----------
+
+    // --------------------------------------------------
+    // FORMULES DES INDICATEURS
+    // --------------------------------------------------
+
     const calculateIndicators = (
       him: number,
       hrm: number,
       ni: number,
-      nho: number
+      nho: number,
     ) => {
-      const dispo = ((1 - him / nho) * 100).toFixed(2);
-      const mtbf = ni === 0 ? "0.00" : (hrm / ni).toFixed(2);
-      const tdm = ((100 * hrm) / nho).toFixed(2);
-      return { dispo, mtbf, tdm };
+      const dispo =
+        nho > 0 ? ((1 - him / nho) * 100).toFixed(2) : "0.00";
+
+      const mtbf =
+        ni === 0 ? "0.00" : (hrm / ni).toFixed(2);
+
+      const tdm =
+        nho > 0 ? ((100 * hrm) / nho).toFixed(2) : "0.00";
+
+      return {
+        dispo,
+        mtbf,
+        tdm,
+      };
     };
+
+    // --------------------------------------------------
+    // LISTE DES ENGINS
+    // --------------------------------------------------
 
     const where: any = {
-      saisiehrms: { some: {} },
+      saisiehrms: {
+        some: {},
+      },
       active: true,
       tenantId: currentTenantId,
-      parc: { name: parc },
+      parc: {
+        name: parc,
+      },
     };
-    if (site) where.site = { name: site };
 
-    // ---------- LISTE DES ENGINS ----------
+    if (site) {
+      where.site = {
+        name: site,
+      };
+    }
+
     const engins = await prisma.engin.findMany({
       where,
       select: {
@@ -155,48 +229,58 @@ export async function getRapportRje(filters?: searchParamsRapportRje): Promise<A
         name: true,
         parcId: true,
         siteId: true,
-        parc: { select: { name: true } },
-        site: { select: { name: true } },
+        parc: {
+          select: {
+            name: true,
+          },
+        },
+        site: {
+          select: {
+            name: true,
+          },
+        },
       },
       distinct: ["name"],
     });
 
-    // ---------- CALCUL COMPLET ENGINE PAR ENGINE ----------
+    // --------------------------------------------------
+    // CALCUL DES INDICATEURS POUR CHAQUE ENGIN
+    // --------------------------------------------------
+
     finalData = await Promise.all(
       engins.map(async (engin) => {
         const enginDetails = await prisma.engin.findUnique({
-          where: { id: engin.id, active: true },
+          where: {
+            id: engin.id,
+            active: true,
+          },
           select: {
             parcId: true,
-            parc: { select: { name: true } },
+            parc: {
+              select: {
+                name: true,
+              },
+            },
           },
         });
 
-        // Trouver le site basé sur la saisie du jour
-        // Normalisation stricte en date pure (UTC, sans heure) pour @db.Date
-        const jourDebut = new Date(Date.UTC(
-          dateCible.getUTCFullYear(),
-          dateCible.getUTCMonth(),
-          dateCible.getUTCDate()
-        ));
-        const jourFin = new Date(Date.UTC(
-          dateCible.getUTCFullYear(),
-          dateCible.getUTCMonth(),
-          dateCible.getUTCDate() + 1
-        ));
-
+        // Site correspondant à la saisie du jour sélectionné.
         const saisieJour = await prisma.saisiehrm.findFirst({
           where: {
             enginId: engin.id,
             du: {
-              gte: jourDebut,
-              lt: jourFin,
+              gte: dateCible,
+              lt: finJournee,
             },
             tenantId: currentTenantId,
           },
           select: {
             siteId: true,
-            site: { select: { name: true } },
+            site: {
+              select: {
+                name: true,
+              },
+            },
           },
         });
 
@@ -204,14 +288,14 @@ export async function getRapportRje(filters?: searchParamsRapportRje): Promise<A
         const siteName = saisieJour?.site?.name ?? null;
         const annee = dateCible.getUTCFullYear();
 
-        // Objectifs
+        // Objectifs annuels de l'engin, selon son parc et son site.
         const objectif = siteId
           ? await prisma.objectif.findUnique({
             where: {
               annee_parcId_siteId: {
                 annee,
                 parcId: enginDetails?.parcId ?? "",
-                siteId: siteId,
+                siteId,
               },
             },
             select: {
@@ -222,29 +306,52 @@ export async function getRapportRje(filters?: searchParamsRapportRje): Promise<A
           })
           : null;
 
+        // Les trois périodes comprennent le jour sélectionné.
+        // La fin reste exclusive pour éviter tout double comptage.
         const [dataJ, dataM, dataA] = await Promise.all([
-          getHimHrmNi(engin.id, dateCible, finJournee),
-          getHimHrmNi(engin.id, debutMois, dateCible),
-          getHimHrmNi(engin.id, debutAnnee, dateCible),
+          // Journalier : uniquement le jour sélectionné
+          getHimHrmNi(
+            engin.id,
+            dateCible,
+            finJournee,
+          ),
+
+          // Mensuel : du premier jour du mois
+          // jusqu'au lendemain de la date sélectionnée
+          getHimHrmNi(
+            engin.id,
+            debutMois,
+            finJournee,
+          ),
+
+          // Annuel : du premier janvier
+          // jusqu'au lendemain de la date sélectionnée
+          getHimHrmNi(
+            engin.id,
+            debutAnnee,
+            finJournee,
+          ),
         ]);
 
         const indicatorsJ = calculateIndicators(
           dataJ.him,
           dataJ.hrm,
           dataJ.ni,
-          nho_j
+          nho_j,
         );
+
         const indicatorsM = calculateIndicators(
           dataM.him,
           dataM.hrm,
           dataM.ni,
-          nho_m
+          nho_m,
         );
+
         const indicatorsA = calculateIndicators(
           dataA.him,
           dataA.hrm,
           dataA.ni,
-          nho_a
+          nho_a,
         );
 
         return {
@@ -268,7 +375,7 @@ export async function getRapportRje(filters?: searchParamsRapportRje): Promise<A
           hrm_j: dataJ.hrm,
           ni_j: dataJ.ni,
 
-          // MOIS
+          // MOIS : cumul depuis le début du mois jusqu'à la date sélectionnée
           nho_m,
           dispo_m: indicatorsM.dispo,
           mtbf_m: indicatorsM.mtbf,
@@ -277,7 +384,7 @@ export async function getRapportRje(filters?: searchParamsRapportRje): Promise<A
           hrm_m: dataM.hrm,
           ni_m: dataM.ni,
 
-          // ANNEE
+          // ANNÉE : cumul depuis le début de l'année jusqu'à la date sélectionnée
           nho_a,
           dispo_a: indicatorsA.dispo,
           mtbf_a: indicatorsA.mtbf,
@@ -286,7 +393,7 @@ export async function getRapportRje(filters?: searchParamsRapportRje): Promise<A
           hrm_a: dataA.hrm,
           ni_a: dataA.ni,
         };
-      })
+      }),
     );
   }
 
@@ -294,7 +401,13 @@ export async function getRapportRje(filters?: searchParamsRapportRje): Promise<A
 
   return {
     data: finalData,
-    success: true, message: "Données récupérées avec succès!",
-    meta: { totalItems: finalData.length, totalPages, currentPage, itemsPerPage },
+    success: true,
+    message: "Données récupérées avec succès!",
+    meta: {
+      totalItems: finalData.length,
+      totalPages,
+      currentPage,
+      itemsPerPage,
+    },
   };
 }
