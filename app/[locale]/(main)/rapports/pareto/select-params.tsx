@@ -59,6 +59,10 @@ export default function SelectParams({
         searchParams.get("siteId") ?? "",
     );
 
+    const [enginId, setEnginId] = useState(
+        searchParams.get("enginId") ?? "",
+    );
+
     const parcs =
         typeParcs.find(
             (typeParc) => typeParc.id === typeParcId,
@@ -86,6 +90,25 @@ export default function SelectParams({
         )
         : [];
 
+    const enginsDuSite =
+        selectedParc && siteId
+            ? selectedParc.engins
+                .filter((engin) => engin.siteId === siteId)
+                .sort((a, b) =>
+                    a.name.localeCompare(b.name, "fr", {
+                        numeric: true,
+                    }),
+                )
+            : [];
+
+    const selectedSite = sites.find(
+        (site) => site.id === siteId,
+    );
+
+    const selectedEngin = enginsDuSite.find(
+        (engin) => engin.id === enginId,
+    );
+
     function clearReportParams() {
         const params = new URLSearchParams(
             searchParams.toString(),
@@ -96,6 +119,7 @@ export default function SelectParams({
         params.delete("typeParcId");
         params.delete("parcId");
         params.delete("siteId");
+        params.delete("enginId");
 
         const query = params.toString();
         const url = query
@@ -116,22 +140,44 @@ export default function SelectParams({
         setTypeParcId(value);
         setParcId("");
         setSiteId("");
+        setEnginId("");
         clearReportParams();
     }
 
     function handleParcChange(value: string) {
         setParcId(value);
         setSiteId("");
+        setEnginId("");
         clearReportParams();
     }
 
     function handleSiteChange(value: string) {
         setSiteId(value === "all" ? "" : value);
+        setEnginId("");
+        clearReportParams();
+    }
+
+    function handleEnginChange(value: string) {
+        setEnginId(value === "all" ? "" : value);
         clearReportParams();
     }
 
     function generateReport() {
         if (!monthValue || !typeParcId || !parcId) {
+            return;
+        }
+
+        /*
+         * Un engin ne peut être sélectionné que lorsqu'un site
+         * est choisi et que cet engin appartient à ce site.
+         */
+        if (
+            enginId &&
+            (!siteId ||
+                !enginsDuSite.some(
+                    (engin) => engin.id === enginId,
+                ))
+        ) {
             return;
         }
 
@@ -156,6 +202,12 @@ export default function SelectParams({
             params.delete("siteId");
         }
 
+        if (enginId) {
+            params.set("enginId", enginId);
+        } else {
+            params.delete("enginId");
+        }
+
         startTransition(() => {
             router.replace(
                 `${pathname}?${params.toString()}`,
@@ -168,7 +220,7 @@ export default function SelectParams({
         <>
             <GlobalLoader show={isPending} />
 
-            <div className="mb-5 flex flex-wrap items-end gap-3">
+            <div className="mb-3 flex flex-wrap items-end gap-2">
                 <div className="w-full space-y-2 sm:w-48">
                     <Label htmlFor="pareto-date">
                         Mois et année
@@ -243,7 +295,7 @@ export default function SelectParams({
                     </Select>
                 </div>
 
-                <div className="w-full space-y-2 sm:w-56">
+                <div className="w-full space-y-2 sm:w-48">
                     <Label>Site (optionnel)</Label>
 
                     <Select
@@ -276,6 +328,39 @@ export default function SelectParams({
                     </Select>
                 </div>
 
+                <div className="w-full space-y-2 sm:w-48">
+                    <Label>Engin (optionnel)</Label>
+
+                    <Select
+                        value={enginId || "all"}
+                        onValueChange={handleEnginChange}
+                        disabled={
+                            isPending ||
+                            !siteId ||
+                            enginsDuSite.length === 0
+                        }
+                    >
+                        <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Tous les engins" />
+                        </SelectTrigger>
+
+                        <SelectContent>
+                            <SelectItem value="all">
+                                Tous les engins
+                            </SelectItem>
+
+                            {enginsDuSite.map((engin) => (
+                                <SelectItem
+                                    key={engin.id}
+                                    value={engin.id}
+                                >
+                                    {engin.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+
                 <Button
                     type="button"
                     onClick={generateReport}
@@ -290,10 +375,12 @@ export default function SelectParams({
                 </Button>
 
                 {selectedParc && (
-                    <p className="w-full text-sm text-muted-foreground">
-                        {siteId
-                            ? `${selectedParc.engins.filter((engin) => engin.siteId === siteId).length} engin(s) actif(s) dans le site sélectionné.`
-                            : `${selectedParc.engins.length} engin(s) actif(s) dans ce parc.`}
+                    <p className="w-full text-xs text-muted-foreground">
+                        {enginId && selectedEngin
+                            ? `Rapport limité à l'engin ${selectedEngin.name}.`
+                            : siteId && selectedSite
+                                ? `${enginsDuSite.length} engin(s) actif(s) dans le site ${selectedSite.name}.`
+                                : `${selectedParc.engins.length} engin(s) actif(s) dans ce parc.`}
                     </p>
                 )}
             </div>

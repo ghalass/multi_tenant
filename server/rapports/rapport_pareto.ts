@@ -13,6 +13,7 @@ export interface SearchParamsRapportPareto {
     typeParcId?: string;
     parcId?: string;
     siteId?: string;
+    enginId?: string;
 }
 
 export interface EnginParetoOption {
@@ -69,6 +70,8 @@ export interface RapportParetoData {
     parcName: string;
     siteId: string | null;
     siteName: string | null;
+    enginId: string | null;
+    enginName: string | null;
     mois: number;
     annee: number;
     enginsActifs: number;
@@ -163,7 +166,10 @@ async function getActiveTenantId(): Promise<
 
 /**
  * Options du formulaire :
- * Type de parc -> Parc -> Site (facultatif).
+ * Type de parc -> Parc -> Site -> Engin.
+ *
+ * Le site et l'engin restent facultatifs dans le rapport.
+ * Pour choisir un engin dans l'interface, il faut d'abord choisir un site.
  */
 export async function getOptionsRapportPareto(): Promise<ActionResponse> {
     const permission = await guard(ACTION.READ, RESOURCE.RAPPORT);
@@ -267,11 +273,13 @@ export async function getOptionsRapportPareto(): Promise<ActionResponse> {
 
 /**
  * Génère :
- * - le Pareto HIM pour le mois choisi ;
- * - l'évolution du MTBF mensuel sur toute l'année choisie ;
- * - le MTBF annuel global = HRM annuel / NI annuel.
+ * - le Pareto HIM pour le mois sélectionné ;
+ * - l'évolution du MTBF sur les 12 mois de l'année ;
+ * - le MTBF annuel = HRM annuel total / NI annuel total.
  *
- * Si siteId est vide, tous les sites du parc sont inclus.
+ * Sans site : tous les sites du parc.
+ * Avec site : tous les engins actifs de ce site.
+ * Avec site + engin : uniquement cet engin actif.
  */
 export async function getRapportPareto(
     filters?: SearchParamsRapportPareto,
@@ -304,6 +312,7 @@ export async function getRapportPareto(
         const typeParcId = filters?.typeParcId;
         const parcId = filters?.parcId;
         const siteId = filters?.siteId || undefined;
+        const enginId = filters?.enginId || undefined;
 
         if (
             !Number.isInteger(mois) ||
@@ -325,6 +334,15 @@ export async function getRapportPareto(
                 data: [],
                 success: false,
                 message: "Sélectionnez un type de parc et un parc.",
+            };
+        }
+
+        if (enginId && !siteId) {
+            return {
+                data: [],
+                success: false,
+                message:
+                    "Sélectionnez un site avant de choisir un engin.",
             };
         }
 
@@ -367,10 +385,6 @@ export async function getRapportPareto(
 
         const heuresMois = joursDansMois * 24;
 
-        /*
-         * Récupération de tous les engins actifs du parc.
-         * Le site est filtré ensuite, après validation de son appartenance.
-         */
         const tousLesEngins = await prisma.engin.findMany({
             where: {
                 tenantId,
@@ -396,10 +410,13 @@ export async function getRapportPareto(
             orderBy: { name: "asc" },
         });
 
-        if (
-            siteId &&
-            !tousLesEngins.some((engin) => engin.siteId === siteId)
-        ) {
+        const enginsDuSite = siteId
+            ? tousLesEngins.filter(
+                (engin) => engin.siteId === siteId,
+            )
+            : tousLesEngins;
+
+        if (siteId && enginsDuSite.length === 0) {
             return {
                 data: [],
                 success: false,
@@ -408,9 +425,23 @@ export async function getRapportPareto(
             };
         }
 
-        const engins = siteId
-            ? tousLesEngins.filter((engin) => engin.siteId === siteId)
-            : tousLesEngins;
+        if (
+            enginId &&
+            !enginsDuSite.some((engin) => engin.id === enginId)
+        ) {
+            return {
+                data: [],
+                success: false,
+                message:
+                    "L'engin sélectionné n'appartient pas au site et au parc choisis, ou n'est pas actif.",
+            };
+        }
+
+        const engins = enginId
+            ? enginsDuSite.filter(
+                (engin) => engin.id === enginId,
+            )
+            : enginsDuSite;
 
         const enginIds = engins.map((engin) => engin.id);
 
@@ -418,13 +449,6 @@ export async function getRapportPareto(
             engins.map((engin) => [engin.id, engin.name]),
         );
 
-        /*
-         * Récupération des saisies de l'année uniquement pour
-         * les engins compris dans le périmètre sélectionné.
-         *
-         * NI doit être la somme de saisiehim.ni, et pas le nombre
-         * de lignes SaisieHIM.
-         */
         const saisies =
             enginIds.length > 0
                 ? await prisma.saisiehrm.findMany({
@@ -474,10 +498,7 @@ export async function getRapportPareto(
 
         for (const saisie of saisies) {
             const indexMois = saisie.du.getUTCMonth();
-            const hrm = safeNumber(saisie.hrm);
-
-            // HRM du mois, toutes pannes confondues.
-            monthlyStats[indexMois].hrm += hrm;
+            monthlyStats[indexMois].hrm += safeNumber(saisie.hrm);
 
             const estMoisSelectionne =
                 saisie.du >= debutMois &&
@@ -487,7 +508,6 @@ export async function getRapportPareto(
                 const him = safeNumber(saisieHim.him);
                 const ni = safeNumber(saisieHim.ni);
 
-                // Somme des interventions déclarées pour ce mois.
                 monthlyStats[indexMois].ni += ni;
 
                 if (!estMoisSelectionne) {
@@ -529,10 +549,6 @@ export async function getRapportPareto(
             }
         }
 
-        /*
-         * NHO = nombre d'heures du mois × nombre d'engins actifs
-         * du périmètre choisi.
-         */
         const nho = heuresMois * engins.length;
 
         const indisponibilites: ParetoIndisponibiliteItem[] =
@@ -575,10 +591,9 @@ export async function getRapportPareto(
                 .sort((a, b) => b.indispo - a.indispo);
 
         /*
-         * Objectif MTBF défini par parc + site + année.
-         * Si un site est choisi, on utilise l'objectif de ce site.
-         * Sinon, on calcule la moyenne des objectifs définis pour les
-         * sites qui disposent d'engins actifs dans le périmètre.
+         * L'objectif est défini par année, parc et site.
+         * Si un seul engin est sélectionné, son site est le seul
+         * site utilisé ici.
          */
         const siteIds = Array.from(
             new Set(engins.map((engin) => engin.siteId)),
@@ -619,10 +634,6 @@ export async function getRapportPareto(
                 )
                 : null;
 
-        /*
-         * MTBF mensuel = HRM total du mois / NI total du mois.
-         * Si NI = 0, le MTBF est null : il ne peut pas être calculé.
-         */
         const evolutionMtbf: ParetoMtbfItem[] = MONTH_NAMES.map(
             (nomMois, index) => {
                 const stats = monthlyStats[index];
@@ -649,20 +660,19 @@ export async function getRapportPareto(
             0,
         );
 
-        /*
-         * MTBF annuel correct :
-         * HRM total de l'année / NI total de l'année.
-         * Ne pas faire la moyenne des MTBF mensuels.
-         */
         const mtbfAnnuel =
             niTotalAnnee > 0
                 ? round(hrmTotalAnnee / niTotalAnnee)
                 : null;
 
         const siteName =
-            siteId && engins.length > 0
-                ? engins[0].site.name
+            siteId && enginsDuSite.length > 0
+                ? enginsDuSite[0].site.name
                 : null;
+
+        const selectedEngin = enginId
+            ? engins.find((engin) => engin.id === enginId)
+            : undefined;
 
         const result: RapportParetoData = {
             typeParcId: parc.typeparc.id,
@@ -671,6 +681,8 @@ export async function getRapportPareto(
             parcName: parc.name,
             siteId: siteId ?? null,
             siteName,
+            enginId: enginId ?? null,
+            enginName: selectedEngin?.name ?? null,
             mois,
             annee,
             enginsActifs: engins.length,

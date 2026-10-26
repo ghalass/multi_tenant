@@ -18,7 +18,6 @@ import {
     AlertCircle,
     BarChart3,
     Download,
-    Image,
     LineChart,
 } from "lucide-react";
 
@@ -50,11 +49,9 @@ import {
 } from "@/components/ui/table";
 
 import { exportExcel } from "@/lib/xlsxFn";
-import { toast } from "sonner";
 
 import type {
     ParetoIndisponibiliteItem,
-    ParetoMtbfItem,
     RapportParetoData,
 } from "@/server/rapports/rapport_pareto";
 
@@ -73,9 +70,6 @@ function formatNumber(
     }).format(Number(value));
 }
 
-/**
- * Rend un nom compatible avec un nom de fichier Windows.
- */
 function safeFilename(value: string): string {
     return value
         .replace(/[<>:"/\\|?*\u0000-\u001F]/g, "-")
@@ -84,224 +78,62 @@ function safeFilename(value: string): string {
 }
 
 /**
- * Exporte un graphique Recharts en image PNG, sans dépendance
- * supplémentaire. Le SVG est converti en image puis dessiné
- * sur un canvas à une résolution 2x.
+ * Label de chaque point MTBF.
+ * Les valeurs nulles ne sont pas affichées.
  */
-async function downloadChartAsPng(
-    chartContainerId: string,
-    filename: string,
-): Promise<void> {
-    let svgUrl: string | undefined;
+function MtbfLabel(props: any) {
+    const { x, y, value } = props;
 
-    try {
-        const container = document.getElementById(chartContainerId);
-        const sourceSvg = container?.querySelector("svg");
-
-        if (!sourceSvg) {
-            toast.error("Le graphique n'est pas disponible pour l'export.");
-            return;
-        }
-
-        const rect = sourceSvg.getBoundingClientRect();
-
-        const width = Math.max(
-            1,
-            Math.round(
-                rect.width ||
-                Number(sourceSvg.getAttribute("width")) ||
-                1000,
-            ),
-        );
-
-        const height = Math.max(
-            1,
-            Math.round(
-                rect.height ||
-                Number(sourceSvg.getAttribute("height")) ||
-                500,
-            ),
-        );
-
-        const clonedSvg = sourceSvg.cloneNode(true) as SVGSVGElement;
-
-        clonedSvg.setAttribute(
-            "xmlns",
-            "http://www.w3.org/2000/svg",
-        );
-
-        clonedSvg.setAttribute(
-            "width",
-            String(width * 2),
-        );
-
-        clonedSvg.setAttribute(
-            "height",
-            String(height * 2),
-        );
-
-        if (!clonedSvg.getAttribute("viewBox")) {
-            clonedSvg.setAttribute(
-                "viewBox",
-                `0 0 ${width} ${height}`,
-            );
-        }
-
-        /*
-         * Intègre les styles SVG calculés dans le fichier exporté.
-         * Cela conserve notamment les polices, couleurs et traits.
-         */
-        const originalElements: SVGElement[] = [
-            sourceSvg,
-            ...Array.from(
-                sourceSvg.querySelectorAll<SVGElement>("*"),
-            ),
-        ];
-
-        const clonedElements: SVGElement[] = [
-            clonedSvg,
-            ...Array.from(
-                clonedSvg.querySelectorAll<SVGElement>("*"),
-            ),
-        ];
-
-        const styleProperties = [
-            "font-family",
-            "font-size",
-            "font-weight",
-            "font-style",
-            "fill",
-            "stroke",
-            "stroke-width",
-            "stroke-dasharray",
-            "opacity",
-            "text-anchor",
-            "dominant-baseline",
-            "color",
-        ];
-
-        originalElements.forEach((originalElement, index) => {
-            const clonedElement = clonedElements[index];
-
-            if (!clonedElement) return;
-
-            const computed = window.getComputedStyle(
-                originalElement,
-            );
-
-            for (const property of styleProperties) {
-                const value = computed.getPropertyValue(property);
-
-                if (value) {
-                    clonedElement.style.setProperty(
-                        property,
-                        value,
-                    );
-                }
-            }
-        });
-
-        const svgBlob = new Blob(
-            [new XMLSerializer().serializeToString(clonedSvg)],
-            {
-                type: "image/svg+xml;charset=utf-8",
-            },
-        );
-
-        svgUrl = URL.createObjectURL(svgBlob);
-
-        const image = new window.Image();
-
-        await new Promise<void>((resolve, reject) => {
-            image.onload = () => resolve();
-            image.onerror = () =>
-                reject(
-                    new Error(
-                        "Impossible de convertir le graphique en image.",
-                    ),
-                );
-
-            image.src = svgUrl!;
-        });
-
-        const scale = 2;
-        const canvas = document.createElement("canvas");
-
-        canvas.width = width * scale;
-        canvas.height = height * scale;
-
-        const context = canvas.getContext("2d");
-
-        if (!context) {
-            throw new Error(
-                "Impossible de préparer l'image du graphique.",
-            );
-        }
-
-        // Fond blanc pour éviter une image PNG transparente.
-        context.fillStyle = "#ffffff";
-        context.fillRect(
-            0,
-            0,
-            canvas.width,
-            canvas.height,
-        );
-
-        context.drawImage(
-            image,
-            0,
-            0,
-            canvas.width,
-            canvas.height,
-        );
-
-        const pngBlob = await new Promise<Blob>(
-            (resolve, reject) => {
-                canvas.toBlob(
-                    (blob) => {
-                        if (blob) {
-                            resolve(blob);
-                        } else {
-                            reject(
-                                new Error(
-                                    "La création du fichier PNG a échoué.",
-                                ),
-                            );
-                        }
-                    },
-                    "image/png",
-                );
-            },
-        );
-
-        const pngUrl = URL.createObjectURL(pngBlob);
-        const link = document.createElement("a");
-
-        link.href = pngUrl;
-        link.download = `${filename}.png`;
-
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-
-        window.setTimeout(() => {
-            URL.revokeObjectURL(pngUrl);
-        }, 1000);
-
-        toast.success("Le graphique a été enregistré en PNG.");
-    } catch (error) {
-        console.error("Erreur export PNG :", error);
-
-        toast.error(
-            error instanceof Error
-                ? error.message
-                : "Impossible d'enregistrer le graphique.",
-        );
-    } finally {
-        if (svgUrl) {
-            URL.revokeObjectURL(svgUrl);
-        }
+    if (
+        x == null ||
+        y == null ||
+        value == null ||
+        !Number.isFinite(Number(value))
+    ) {
+        return null;
     }
+
+    return (
+        <text
+            x={x}
+            y={y - 9}
+            fill="#8884d8"
+            textAnchor="middle"
+            fontSize={9}
+        >
+            {Number(value).toFixed(2)} h
+        </text>
+    );
+}
+
+/**
+ * L'objectif étant constant sur l'année, son label est affiché
+ * uniquement au dernier point afin d'éviter 12 labels superposés.
+ */
+function ObjectifLabel(props: any) {
+    const { x, y, value, index } = props;
+
+    if (
+        index !== 11 ||
+        x == null ||
+        y == null ||
+        value == null ||
+        !Number.isFinite(Number(value))
+    ) {
+        return null;
+    }
+
+    return (
+        <text
+            x={x - 4}
+            y={y + 14}
+            fill="#16a34a"
+            textAnchor="end"
+            fontSize={9}
+        >
+            Objectif {Number(value).toFixed(2)} h
+        </text>
+    );
 }
 
 function PercentBarLabel(props: any) {
@@ -311,7 +143,8 @@ function PercentBarLabel(props: any) {
         x == null ||
         y == null ||
         width == null ||
-        value == null
+        value == null ||
+        !Number.isFinite(Number(value))
     ) {
         return null;
     }
@@ -329,49 +162,8 @@ function PercentBarLabel(props: any) {
     );
 }
 
-function MtbfLabel(props: any) {
-    const { x, y, value } = props;
-
-    if (x == null || y == null || value == null) {
-        return null;
-    }
-
-    return (
-        <text
-            x={x}
-            y={y - 9}
-            fill="#8884d8"
-            textAnchor="middle"
-            fontSize={9}
-        >
-            {Number(value).toFixed(0)} h
-        </text>
-    );
-}
-
-function ObjectifLabel(props: any) {
-    const { x, y, value } = props;
-
-    if (x == null || y == null || value == null) {
-        return null;
-    }
-
-    return (
-        <text
-            x={x}
-            y={y + 13}
-            fill="#16a34a"
-            textAnchor="middle"
-            fontSize={9}
-        >
-            {Number(value).toFixed(0)} h
-        </text>
-    );
-}
-
 /**
- * Nom + description en texte simple :
- * aucun pictogramme ni infobulle.
+ * Nom et description sans icône ni infobulle.
  */
 function PanneName({
     item,
@@ -379,7 +171,14 @@ function PanneName({
     item: ParetoIndisponibiliteItem;
 }) {
     return (
-        <div className="line-clamp-2 max-w-[320px] break-words text-xs leading-4">
+        <div
+            className="line-clamp-2 max-w-[320px] break-words text-xs leading-4"
+            title={
+                item.panneDescription
+                    ? `${item.panne} - ${item.panneDescription}`
+                    : item.panne
+            }
+        >
             {item.panne}
             {item.panneDescription
                 ? ` - ${item.panneDescription}`
@@ -495,11 +294,9 @@ function ParetoIndisponibilites({
         .filter((item) => item.himTotal > 0)
         .slice(0, 10);
 
-    const exportTitle = `Pareto_Top10_HIM_${filenameSuffix}`;
-
     return (
         <Card>
-            <CardHeader className="space-y-1 p-4 pb-2">
+            <CardHeader className="space-y-1 p-3 pb-1">
                 <CardTitle className="text-base">
                     Pareto des indisponibilités — {data.parcName} — {periode}
                 </CardTitle>
@@ -510,9 +307,9 @@ function ParetoIndisponibilites({
                 </CardDescription>
             </CardHeader>
 
-            <CardContent className="space-y-4 p-4 pt-2">
+            <CardContent className="space-y-2 p-3 pt-1">
                 {topHim.length === 0 ? (
-                    <div className="py-6 text-center text-sm text-muted-foreground">
+                    <div className="py-5 text-center text-sm text-muted-foreground">
                         <AlertCircle className="mx-auto mb-2 size-8 opacity-50" />
 
                         <p>
@@ -521,41 +318,9 @@ function ParetoIndisponibilites({
                     </div>
                 ) : (
                     <>
-                        <div className="flex flex-wrap justify-end gap-2">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() =>
-                                    exportExcel(
-                                        "pareto-top-him-export-table",
-                                        exportTitle,
-                                    )
-                                }
-                            >
-                                <Download className="mr-2 size-4" />
-                                Exporter Top 10 HIM
-                            </Button>
-
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() =>
-                                    void downloadChartAsPng(
-                                        "pareto-indispo-chart",
-                                        `Pareto_Indisponibilites_${filenameSuffix}`,
-                                    )
-                                }
-                            >
-                                <Image className="mr-2 size-4" />
-                                Enregistrer le graphique
-                            </Button>
-                        </div>
-
                         <div
                             id="pareto-indispo-chart"
-                            className="h-[290px] w-full"
+                            className="h-[270px] w-full"
                         >
                             <ResponsiveContainer
                                 width="100%"
@@ -619,27 +384,44 @@ function ParetoIndisponibilites({
                         </div>
 
                         <div className="space-y-2">
-                            <h3 className="text-sm font-semibold">
-                                Top 10 des pannes les plus pénalisantes [HIM]
-                            </h3>
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                <h3 className="text-sm font-semibold">
+                                    Top 10 des pannes les plus pénalisantes [HIM]
+                                </h3>
+
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                        exportExcel(
+                                            "pareto-top-him-export-table",
+                                            `Pareto_Top10_HIM_${filenameSuffix}`,
+                                        )
+                                    }
+                                >
+                                    <Download className="mr-2 size-4" />
+                                    Exporter Top 10 HIM
+                                </Button>
+                            </div>
 
                             <div className="max-h-[450px] overflow-auto rounded-md border">
                                 <Table>
                                     <TableHeader className="bg-muted">
                                         <TableRow>
-                                            <TableHead className="min-w-48 px-2 py-2 text-xs">
+                                            <TableHead className="min-w-48 px-2 py-1.5 text-xs">
                                                 Panne
                                             </TableHead>
 
-                                            <TableHead className="whitespace-nowrap px-2 py-2 text-xs">
+                                            <TableHead className="whitespace-nowrap px-2 py-1.5 text-xs">
                                                 Indispo.
                                             </TableHead>
 
-                                            <TableHead className="whitespace-nowrap px-2 py-2 text-xs">
+                                            <TableHead className="whitespace-nowrap px-2 py-1.5 text-xs">
                                                 HIM
                                             </TableHead>
 
-                                            <TableHead className="min-w-40 px-2 py-2 text-xs">
+                                            <TableHead className="min-w-40 px-2 py-1.5 text-xs">
                                                 Engins affectés
                                             </TableHead>
                                         </TableRow>
@@ -648,11 +430,11 @@ function ParetoIndisponibilites({
                                     <TableBody>
                                         {topHim.map((item) => (
                                             <TableRow key={item.panneId}>
-                                                <TableCell className="px-2 py-1.5">
+                                                <TableCell className="px-2 py-1">
                                                     <PanneName item={item} />
                                                 </TableCell>
 
-                                                <TableCell className="whitespace-nowrap px-2 py-1.5">
+                                                <TableCell className="whitespace-nowrap px-2 py-1">
                                                     <Badge
                                                         variant="outline"
                                                         className={`px-1.5 py-0 text-[11px] ${getIndispoBadgeClass(item.indispo)}`}
@@ -661,11 +443,11 @@ function ParetoIndisponibilites({
                                                     </Badge>
                                                 </TableCell>
 
-                                                <TableCell className="whitespace-nowrap px-2 py-1.5 text-xs font-medium">
+                                                <TableCell className="whitespace-nowrap px-2 py-1 text-xs font-medium">
                                                     {formatNumber(item.himTotal)} h
                                                 </TableCell>
 
-                                                <TableCell className="px-2 py-1.5">
+                                                <TableCell className="px-2 py-1">
                                                     <EnginsHimList item={item} />
                                                 </TableCell>
                                             </TableRow>
@@ -675,11 +457,7 @@ function ParetoIndisponibilites({
                             </div>
                         </div>
 
-                        {/*
-                         * Tableau séparé pour Excel. Il reste dans le DOM
-                         * hors écran, sans display:none, afin que innerText
-                         * soit disponible pour lib/xlsxFn.ts.
-                         */}
+                        {/* Table complète utilisée uniquement pour l'export Excel. */}
                         <div
                             aria-hidden="true"
                             className="absolute left-[-10000px] top-0"
@@ -731,27 +509,21 @@ function EvolutionMtbf({
     periode: string;
     filenameSuffix: string;
 }) {
-    const mtbfData: ParetoMtbfItem[] = data.evolutionMtbf;
+    const mtbfData = data.evolutionMtbf;
 
     const objectifMtbf =
         mtbfData.find(
             (item) => item.objectif_mtbf !== null,
         )?.objectif_mtbf ?? null;
 
-    /*
-     * Le Top 10 NI est classé d'après la somme des NI du mois
-     * sélectionné, indépendamment du classement HIM.
-     */
     const topNi = [...data.indisponibilites]
         .filter((item) => item.niTotal > 0)
         .sort((a, b) => b.niTotal - a.niTotal)
         .slice(0, 10);
 
-    const exportTitle = `Pareto_Top10_NI_${filenameSuffix}`;
-
     return (
         <Card>
-            <CardHeader className="space-y-1 p-4 pb-2">
+            <CardHeader className="space-y-1 p-3 pb-1">
                 <CardTitle className="text-base">
                     Évolution MTBF — {data.parcName} — {periode}
                 </CardTitle>
@@ -762,27 +534,10 @@ function EvolutionMtbf({
                 </CardDescription>
             </CardHeader>
 
-            <CardContent className="space-y-4 p-4 pt-2">
-                <div className="flex flex-wrap justify-end gap-2">
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                            void downloadChartAsPng(
-                                "pareto-mtbf-chart",
-                                `Evolution_MTBF_${filenameSuffix}`,
-                            )
-                        }
-                    >
-                        <Image className="mr-2 size-4" />
-                        Enregistrer le graphique
-                    </Button>
-                </div>
-
+            <CardContent className="space-y-2 p-3 pt-1">
                 <div
                     id="pareto-mtbf-chart"
-                    className="h-[290px] w-full"
+                    className="h-[270px] w-full"
                 >
                     <ResponsiveContainer
                         width="100%"
@@ -791,7 +546,7 @@ function EvolutionMtbf({
                         <RechartsLineChart
                             data={mtbfData}
                             margin={{
-                                top: 18,
+                                top: 20,
                                 right: 12,
                                 left: -15,
                                 bottom: 5,
@@ -815,7 +570,7 @@ function EvolutionMtbf({
                                     value == null
                                         ? "Non calculable"
                                         : `${Number(value).toFixed(2)} h`,
-                                    name === "mtbf"
+                                    name === "MTBF (h)"
                                         ? "MTBF"
                                         : "Objectif MTBF",
                                 ]}
@@ -836,7 +591,6 @@ function EvolutionMtbf({
                             >
                                 <LabelList
                                     dataKey="mtbf"
-                                    position="top"
                                     content={<MtbfLabel />}
                                 />
                             </Line>
@@ -854,7 +608,6 @@ function EvolutionMtbf({
                                 >
                                     <LabelList
                                         dataKey="objectif_mtbf"
-                                        position="bottom"
                                         content={<ObjectifLabel />}
                                     />
                                 </Line>
@@ -863,61 +616,64 @@ function EvolutionMtbf({
                     </ResponsiveContainer>
                 </div>
 
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                {/* Cartes de synthèse compactes. */}
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                     <Card>
-                        <CardHeader className="p-3 pb-1">
+                        <CardHeader className="p-2 pb-0.5">
                             <CardTitle className="text-xs font-medium">
                                 Engins actifs
                             </CardTitle>
                         </CardHeader>
 
-                        <CardContent className="p-3 pt-0">
-                            <div className="text-xl font-semibold">
+                        <CardContent className="p-2 pt-0">
+                            <div className="text-lg font-semibold leading-6">
                                 {data.enginsActifs}
                             </div>
                         </CardContent>
                     </Card>
 
                     <Card>
-                        <CardHeader className="p-3 pb-1">
+                        <CardHeader className="p-2 pb-0.5">
                             <CardTitle className="text-xs font-medium">
                                 MTBF annuel
                             </CardTitle>
                         </CardHeader>
 
-                        <CardContent className="p-3 pt-0">
-                            <div className="text-xl font-semibold">
+                        <CardContent className="p-2 pt-0">
+                            <div className="text-lg font-semibold leading-6">
                                 {data.mtbfAnnuel === null
                                     ? "—"
                                     : `${formatNumber(data.mtbfAnnuel)} h`}
                             </div>
 
-                            <p className="mt-1 text-[11px] leading-4 text-muted-foreground">
+                            <p className="mt-0.5 text-[10px] leading-3 text-muted-foreground">
                                 HRM : {formatNumber(data.hrmTotalAnnee)} h
-                                {" / "}
+                                {" · "}
                                 NI : {data.niTotalAnnee}
                             </p>
                         </CardContent>
                     </Card>
 
                     <Card>
-                        <CardHeader className="p-3 pb-1">
+                        <CardHeader className="p-2 pb-0.5">
                             <CardTitle className="text-xs font-medium">
                                 Objectif MTBF
                             </CardTitle>
                         </CardHeader>
 
-                        <CardContent className="p-3 pt-0">
-                            <div className="text-xl font-semibold">
+                        <CardContent className="p-2 pt-0">
+                            <div className="text-lg font-semibold leading-6">
                                 {objectifMtbf === null
                                     ? "Non défini"
                                     : `${formatNumber(objectifMtbf)} h`}
                             </div>
 
-                            <p className="mt-1 text-[11px] leading-4 text-muted-foreground">
-                                {data.siteName
-                                    ? `Objectif du site ${data.siteName}`
-                                    : "Moyenne des objectifs des sites concernés"}
+                            <p className="mt-0.5 text-[10px] leading-3 text-muted-foreground">
+                                {data.enginName
+                                    ? `Engin : ${data.enginName}`
+                                    : data.siteName
+                                        ? `Site : ${data.siteName}`
+                                        : "Tous les sites"}
                             </p>
                         </CardContent>
                     </Card>
@@ -936,7 +692,7 @@ function EvolutionMtbf({
                             onClick={() =>
                                 exportExcel(
                                     "pareto-top-ni-export-table",
-                                    exportTitle,
+                                    `Pareto_Top10_NI_${filenameSuffix}`,
                                 )
                             }
                         >
@@ -946,7 +702,7 @@ function EvolutionMtbf({
                     </div>
 
                     {topNi.length === 0 ? (
-                        <p className="py-5 text-center text-sm text-muted-foreground">
+                        <p className="py-4 text-center text-sm text-muted-foreground">
                             Aucune intervention panne enregistrée pour ce mois.
                         </p>
                     ) : (
@@ -954,15 +710,15 @@ function EvolutionMtbf({
                             <Table>
                                 <TableHeader className="bg-muted">
                                     <TableRow>
-                                        <TableHead className="min-w-48 px-2 py-2 text-xs">
+                                        <TableHead className="min-w-48 px-2 py-1.5 text-xs">
                                             Panne
                                         </TableHead>
 
-                                        <TableHead className="whitespace-nowrap px-2 py-2 text-xs">
+                                        <TableHead className="whitespace-nowrap px-2 py-1.5 text-xs">
                                             Occurrences
                                         </TableHead>
 
-                                        <TableHead className="min-w-40 px-2 py-2 text-xs">
+                                        <TableHead className="min-w-40 px-2 py-1.5 text-xs">
                                             Engins affectés
                                         </TableHead>
                                     </TableRow>
@@ -971,15 +727,15 @@ function EvolutionMtbf({
                                 <TableBody>
                                     {topNi.map((item) => (
                                         <TableRow key={item.panneId}>
-                                            <TableCell className="px-2 py-1.5">
+                                            <TableCell className="px-2 py-1">
                                                 <PanneName item={item} />
                                             </TableCell>
 
-                                            <TableCell className="px-2 py-1.5 text-xs font-semibold">
+                                            <TableCell className="px-2 py-1 text-xs font-semibold">
                                                 {item.niTotal}
                                             </TableCell>
 
-                                            <TableCell className="px-2 py-1.5">
+                                            <TableCell className="px-2 py-1">
                                                 <EnginsNiList item={item} />
                                             </TableCell>
                                         </TableRow>
@@ -989,6 +745,7 @@ function EvolutionMtbf({
                         </div>
                     )}
 
+                    {/* Table complète utilisée uniquement pour l'export Excel. */}
                     <div
                         aria-hidden="true"
                         className="absolute left-[-10000px] top-0"
@@ -1039,21 +796,27 @@ export default function ParetoResult({
         [
             data.parcName,
             data.siteName ?? "Tous_les_sites",
+            data.enginName ?? "Tous_les_engins",
             periode.replace("/", "-"),
         ].join("_"),
     );
 
-    const titrePerimetre = data.siteName
-        ? `${data.typeParcName} / ${data.parcName} / ${data.siteName}`
-        : `${data.typeParcName} / ${data.parcName} / Tous les sites`;
+    const perimetre = [
+        data.typeParcName,
+        data.parcName,
+        data.siteName ?? "Tous les sites",
+        data.enginName ?? "",
+    ]
+        .filter(Boolean)
+        .join(" / ");
 
     return (
-        <div className="space-y-3">
+        <div className="space-y-2">
             <p className="text-xs text-muted-foreground">
-                {titrePerimetre} — {periode}
+                {perimetre} — {periode}
             </p>
 
-            <Tabs defaultValue="indispo" className="space-y-3">
+            <Tabs defaultValue="indispo" className="space-y-2">
                 <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger
                         value="indispo"

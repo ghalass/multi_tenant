@@ -52,6 +52,11 @@ export default async function RapportPareto({
             ? params.siteId
             : "";
 
+    const enginId =
+        typeof params.enginId === "string"
+            ? params.enginId
+            : "";
+
     const hasValidPeriod =
         Number.isInteger(moisParam) &&
         moisParam >= 1 &&
@@ -75,6 +80,7 @@ export default async function RapportPareto({
                 typeParcId,
                 parcId,
                 siteId: siteId || undefined,
+                enginId: enginId || undefined,
             })
             : Promise.resolve(undefined),
     ]);
@@ -94,7 +100,7 @@ export default async function RapportPareto({
         : "";
 
     return (
-        <div className="space-y-5">
+        <div className="space-y-2">
             <div>
                 <h1 className="flex items-center gap-2 text-2xl font-bold md:text-3xl">
                     <BarChart3 className="size-7 text-primary" />
@@ -102,8 +108,7 @@ export default async function RapportPareto({
                 </h1>
 
                 <p className="mt-1 text-sm text-muted-foreground">
-                    Analyse des indisponibilités par panne et évolution
-                    du MTBF mensuel.
+                    Analyse des indisponibilités par panne et évolution du MTBF.
                 </p>
             </div>
 
@@ -113,7 +118,7 @@ export default async function RapportPareto({
             >
                 {!optionsResponse.success && (
                     <DisplayError
-                        className="mt-4"
+                        className="mt-2"
                         error={optionsResponse.message}
                     />
                 )}
@@ -122,22 +127,22 @@ export default async function RapportPareto({
 
                 {reportResponse && !reportResponse.success && (
                     <DisplayError
-                        className="mt-4"
+                        className="mt-2"
                         error={reportResponse.message}
                     />
                 )}
 
                 {!hasValidFilters && (
-                    <div className="rounded-lg border border-dashed p-8 text-center">
-                        <CalendarDays className="mx-auto mb-3 size-8 text-muted-foreground" />
+                    <div className="rounded-lg border border-dashed p-6 text-center">
+                        <CalendarDays className="mx-auto mb-2 size-8 text-muted-foreground" />
 
                         <h2 className="font-semibold">
                             Sélectionnez les paramètres d’analyse
                         </h2>
 
                         <p className="mt-1 text-sm text-muted-foreground">
-                            Choisissez le mois, l’année, le type de parc
-                            et le parc. Le site est facultatif.
+                            Choisissez le mois, l’année, le type de parc et le parc.
+                            Le site et l’engin sont facultatifs.
                         </p>
                     </div>
                 )}
@@ -146,7 +151,7 @@ export default async function RapportPareto({
                     reportResponse?.success &&
                     rapport && (
                         <ParetoResult
-                            key={`${parcId}-${siteId}-${anneeParam}-${moisParam}`}
+                            key={`${parcId}-${siteId}-${enginId}-${anneeParam}-${moisParam}`}
                             data={rapport}
                             periode={periode}
                         />
