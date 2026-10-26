@@ -3,417 +3,262 @@
 import { prisma } from "@/lib/prisma";
 import { guard } from "@/lib/rbac/middleware";
 import { ACTION } from "@/lib/enums";
-import { ActionResponse } from "@/lib/types"; import { getSession } from "@/lib/auth";
-import { ACTIVE, PAGINATION_SETTINGS, RESOURCE } from "@/lib/constantes";
+import type { ActionResponse } from "@/lib/types";
+import { getSession } from "@/lib/auth";
+import { PAGINATION_SETTINGS, RESOURCE } from "@/lib/constantes";
 import { convertField } from "@/lib/convertField";
 
 export interface searchParams {
   name?: string;
-  active?: string;
   currentPage?: number;
   itemsPerPage?: number;
 }
-/*
-export async function getAllSites(filters?: searchParams): Promise<ActionResponse> {
-  const g = await guard(ACTION.READ, RESOURCE.SITE);
-  if (!g.success) return { data: [], success: false, message: g.message };
 
-  const { userId, currentTenantId } = await getSession();
+async function getTenantId() {
+  const { currentTenantId } = await getSession();
+  return currentTenantId;
+}
 
-  // Pagination
-  const currentPage = Math.max(filters?.currentPage ?? 1, 1);
-  const itemsPerPage = Math.max(filters?.itemsPerPage ?? PAGINATION_SETTINGS.itemsPerPage, 1);
-
-  const name = filters?.name;
-  const active = filters?.active;
-
-  const where: any = { tenantId: currentTenantId };
-
-  if (name) {
-    where.OR = [
-      { name: { contains: name, mode: "insensitive" } },
-    ];
+export async function getAllTypeParcs(
+  filters: searchParams = {}
+): Promise<ActionResponse> {
+  const permission = await guard(ACTION.READ, RESOURCE.TYPEPARC);
+  if (!permission.success) {
+    return { data: [], success: false, message: permission.message };
   }
 
-  if (active === ACTIVE.YES) where.active = true;
-  if (active === ACTIVE.NO) where.active = false;
+  const tenantId = await getTenantId();
+  if (!tenantId) {
+    return {
+      data: [],
+      success: false,
+      message: "Sélectionnez un tenant avant de consulter les types de parcs.",
+    };
+  }
 
+  const tenant = await prisma.tenant.findFirst({
+    where: { id: tenantId, active: true },
+    select: { id: true },
+  });
 
-  const skip = (currentPage - 1) * itemsPerPage
+  if (!tenant) {
+    return {
+      data: [],
+      success: false,
+      message: "Le tenant sélectionné est introuvable ou désactivé.",
+    };
+  }
 
-  const [sites, totalItems] =
-    await Promise.all([
-      // 1. Récupérer les sites de la page actuelle
-      prisma.site.findMany({
-        where,
-        orderBy: { name: "asc" },
-        skip,
-        take: itemsPerPage,
-        include: {
-          tenant: true,
-        },
-      }),
-      // 2. Compter tous les sites correspondant aux filtres
-      prisma.site.count({ where }),
-    ]);
+  const currentPage = Math.max(Number(filters.currentPage) || 1, 1);
+  const itemsPerPage =
+    Number(filters.itemsPerPage) === 0
+      ? 0
+      : Math.max(
+          Number(filters.itemsPerPage) || PAGINATION_SETTINGS.itemsPerPage,
+          1
+        );
+  const name = filters.name?.trim();
 
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const where = {
+    tenantId,
+    ...(name ? { name: { contains: name, mode: "insensitive" as const } } : {}),
+  };
+
+  const [typeparcs, totalItems] = await Promise.all([
+    prisma.typeparc.findMany({
+      where,
+      orderBy: { name: "asc" },
+      skip: itemsPerPage === 0 ? 0 : (currentPage - 1) * itemsPerPage,
+      take: itemsPerPage === 0 ? undefined : itemsPerPage,
+    }),
+    prisma.typeparc.count({ where }),
+  ]);
+
   return {
-    data: sites,
-    success: true, message: "Données récupérées avec succès!",
-    meta: { totalItems, totalPages, currentPage, itemsPerPage },
+    data: typeparcs,
+    success: true,
+    message: "Types de parcs récupérés avec succès.",
+    meta: {
+      totalItems,
+      totalPages: itemsPerPage === 0 ? 1 : Math.ceil(totalItems / itemsPerPage),
+      currentPage,
+      itemsPerPage,
+    },
   };
 }
 
-export async function createSite({ name, active }: { name: string; active: boolean }): Promise<ActionResponse> {
-  const guardResult = await guard(ACTION.CREATE, RESOURCE.SITE);
-
-  if (!guardResult.success) {
-    return {
-      success: false,
-      message: guardResult.message,
-    };
+export async function createTypeParc({
+  name,
+}: {
+  name: string;
+}): Promise<ActionResponse> {
+  const permission = await guard(ACTION.CREATE, RESOURCE.TYPEPARC);
+  if (!permission.success) {
+    return { success: false, message: permission.message };
   }
 
-  const { userId, currentTenantId } = await getSession();
-
-  // if (!userId) {
-  //   return {
-  //     success: false,
-  //     message:
-  //       "Utilisateur non authentifié.",
-  //   };
-  // }
-
-  if (!currentTenantId) {
-    return {
-      success: false,
-      message:
-        "L'utilisateur n'est associé à aucun tenant.",
-    };
+  const tenantId = await getTenantId();
+  if (!tenantId) {
+    return { success: false, message: "Aucun tenant actif." };
   }
 
-  const trimmedName = name.trim();
-
+  const trimmedName = name?.trim();
   if (!trimmedName) {
-    return {
-      success: false,
-      message:
-        "Le nom du site est obligatoire.",
-    };
+    return { success: false, message: "Le nom du type de parc est obligatoire." };
   }
 
   try {
-    const existing =
-      await prisma.site.findFirst({
-        where: {
-          id: undefined,
-          tenantId:
-            currentTenantId,
-          name: {
-            equals: trimmedName,
-            mode: "insensitive",
-          },
-        },
-      });
-
-    if (existing) {
-      return {
-        success: false,
-        message:
-          "Ce site existe déjà.",
-      };
-    }
-
-    await prisma.site.create({
-      data: {
-        name: trimmedName,
-        active,
-        tenantId:
-          currentTenantId,
+    const duplicate = await prisma.typeparc.findFirst({
+      where: {
+        tenantId,
+        name: { equals: trimmedName, mode: "insensitive" },
       },
     });
 
-    return {
-      success: true,
-      message:
-        "Site créé avec succès.",
-    };
-  } catch (error) {
-    console.error(
-      "createSite error:",
-      error
-    );
+    if (duplicate) {
+      return { success: false, message: "Ce type de parc existe déjà." };
+    }
 
-    return {
-      success: false,
-      message:
-        "Une erreur est survenue lors de la création du site.",
-    };
+    await prisma.typeparc.create({
+      data: { name: trimmedName, tenantId },
+    });
+
+    return { success: true, message: "Type de parc créé avec succès." };
+  } catch (error) {
+    console.error("createTypeParc error:", error);
+    return { success: false, message: "Erreur lors de la création du type de parc." };
   }
 }
 
-export async function updateSite(
-  { id, name, active }: { id: string; name: string; active: boolean }): Promise<ActionResponse> {
-  const guardResult = await guard(
-    ACTION.UPDATE,
-    RESOURCE.SITE
-  );
-
-  if (!guardResult.success) {
-    return {
-      success: false,
-      message:
-        guardResult.message,
-    };
+export async function updateTypeParc({
+  id,
+  name,
+}: {
+  id: string;
+  name: string;
+}): Promise<ActionResponse> {
+  const permission = await guard(ACTION.UPDATE, RESOURCE.TYPEPARC);
+  if (!permission.success) {
+    return { success: false, message: permission.message };
   }
 
   const { userId, currentTenantId } = await getSession();
   if (!userId) {
-    return {
-      success: false,
-      message:
-        "Utilisateur non authentifié.",
-    };
+    return { success: false, message: "Utilisateur non authentifié." };
   }
-
-
   if (!currentTenantId) {
-    return {
-      success: false,
-      message:
-        "L'utilisateur n'est associé à aucun tenant.",
-    };
+    return { success: false, message: "Aucun tenant actif." };
   }
 
-  if (!name) {
-    return {
-      success: false,
-      message:
-        "Le nom du site est obligatoire.",
-    };
+  const trimmedName = name?.trim();
+  if (!trimmedName) {
+    return { success: false, message: "Le nom du type de parc est obligatoire." };
   }
 
   try {
-    const site =
-      await prisma.site.findFirst({
-        where: {
-          id,
-          tenantId:
-            currentTenantId,
-        },
-      });
+    const existing = await prisma.typeparc.findFirst({
+      where: { id, tenantId: currentTenantId },
+    });
 
-    if (!site) {
-      return {
-        success: false,
-        message:
-          "Site introuvable.",
-      };
+    if (!existing) {
+      return { success: false, message: "Type de parc introuvable." };
     }
 
-    const duplicate =
-      await prisma.site.findFirst({
-        where: {
-          tenantId:
-            currentTenantId,
-          name: {
-            equals: name,
-            mode: "insensitive",
-          },
-          NOT: {
-            id,
-          },
-        },
-      });
+    const duplicate = await prisma.typeparc.findFirst({
+      where: {
+        tenantId: currentTenantId,
+        name: { equals: trimmedName, mode: "insensitive" },
+        NOT: { id },
+      },
+    });
 
     if (duplicate) {
-      return {
-        success: false,
-        message:
-          "Un autre site porte déjà ce nom.",
-      };
+      return { success: false, message: "Un autre type de parc porte déjà ce nom." };
     }
 
-    await prisma.site.update({
-      where: {
-        id,
-      },
-      data: {
-        name,
-        active,
-      },
+    await prisma.typeparc.update({
+      where: { id },
+      data: { name: trimmedName },
     });
 
-    return {
-      success: true,
-      message:
-        "Site modifié avec succès.",
-    };
+    return { success: true, message: "Type de parc modifié avec succès." };
   } catch (error) {
-    console.error(
-      "updateSite error:",
-      error
-    );
-
-    return {
-      success: false,
-      message:
-        "Une erreur est survenue lors de la modification du site.",
-    };
+    console.error("updateTypeParc error:", error);
+    return { success: false, message: "Erreur lors de la modification du type de parc." };
   }
 }
 
-export async function deleteSite(
-  id: string
-): Promise<ActionResponse> {
-  const guardResult = await guard(
-    ACTION.DELETE,
-    RESOURCE.SITE
-  );
-
-  if (!guardResult.success) {
-    return {
-      success: false,
-      message:
-        guardResult.message,
-    };
+export async function deleteTypeParc(id: string): Promise<ActionResponse> {
+  const permission = await guard(ACTION.DELETE, RESOURCE.TYPEPARC);
+  if (!permission.success) {
+    return { success: false, message: permission.message };
   }
 
-  const { userId, currentTenantId } = await getSession(); if (!userId) {
-    return {
-      success: false,
-      message:
-        "Utilisateur non authentifié.",
-    };
+  const { userId, currentTenantId } = await getSession();
+  if (!userId) {
+    return { success: false, message: "Utilisateur non authentifié." };
   }
-
-
   if (!currentTenantId) {
-    return {
-      success: false,
-      message:
-        "L'utilisateur n'est associé à aucun tenant.",
-    };
+    return { success: false, message: "Aucun tenant actif." };
   }
 
   try {
-
-
-    const site =
-      await prisma.site.findFirst({
-        where: {
-          id,
-          tenantId:
-            currentTenantId,
-        },
-      });
-
-    if (!site) {
-      return {
-        success: false,
-        message:
-          "Site introuvable.",
-      };
-    }
-
-    await prisma.site.delete({
-      where: {
-        id,
-      },
+    const typeParc = await prisma.typeparc.findFirst({
+      where: { id, tenantId: currentTenantId },
     });
 
-    return {
-      success: true,
-      message:
-        "Site supprimé avec succès.",
-    };
-  } catch (error) {
-    console.error(
-      "deleteSite error:",
-      error
-    );
+    if (!typeParc) {
+      return { success: false, message: "Type de parc introuvable." };
+    }
 
+    await prisma.typeparc.delete({ where: { id } });
+    return { success: true, message: "Type de parc supprimé avec succès." };
+  } catch (error) {
+    console.error("deleteTypeParc error:", error);
     return {
       success: false,
-      message:
-        "Une erreur est survenue lors de la suppression du site.",
+      message: "Suppression impossible : ce type de parc est peut-être utilisé par un parc.",
     };
   }
 }
-*/
 
 export async function importTypeParcs(data: any) {
   try {
     const permission = await guard(ACTION.IMPORT, RESOURCE.TYPEPARC);
-
     if (!permission.success) {
-      return [{
-        success: false,
-        data: null,
-        message: permission.message,
-      }];
+      return [{ success: false, data: null, message: permission.message }];
     }
 
-    const name = convertField(data.name, "string");
-
-    if (!name || name.trim() === "") {
-      return [
-        {
-          success: false,
-          data: data,
-          message: `Erreur: Le champ 'name' est requis`,
-        },
-      ];
-    }
-    const { currentTenantId } = await getSession();
-
-    if (!currentTenantId) {
-      return [
-        {
-          success: false,
-          data: data,
-          message: `Erreur: Aucun tenant actif pour l'import du site`,
-        },
-      ];
+    const name = convertField(data?.name, "string");
+    if (typeof name !== "string" || !name.trim()) {
+      return [{ success: false, data, message: "Le champ 'name' est obligatoire." }];
     }
 
+    const tenantId = await getTenantId();
+    if (!tenantId) {
+      return [{ success: false, data, message: "Aucun tenant actif pour l'import." }];
+    }
+
+    const trimmedName = name.trim();
     const typeParc = await prisma.typeparc.upsert({
       where: {
-        name_tenantId: {
-          tenantId: currentTenantId,
-          name: name,
-        },
+        name_tenantId: { tenantId, name: trimmedName },
       },
-      update: {
-        name: name,
-      },
-      create: {
-        name: name,
-        tenantId: currentTenantId,
-      },
+      update: { name: trimmedName },
+      create: { name: trimmedName, tenantId },
     });
 
-    return [
-      {
-        success: true,
-        data: typeParc,
-        message: `typeParc ${name} importé avec succès`,
-      },
-    ];
-  } catch (error: unknown) {
-    console.error(
-      "Erreur lors de l'import des types de parc :",
-      error,
-    );
-
-    return [
-      {
-        success: false,
-        data: data,
-        message:
-          "Une erreur interne est survenue lors de l'import des types de parc. Vérifiez les données et consultez les journaux serveur si le problème persiste.",
-      },
-    ];
+    return [{
+      success: true,
+      data: typeParc,
+      message: `Type de parc "${trimmedName}" importé avec succès.`,
+    }];
+  } catch (error) {
+    console.error("Erreur lors de l'import des types de parc :", error);
+    return [{
+      success: false,
+      data,
+      message: "Erreur interne lors de l'import des types de parc.",
+    }];
   }
 }
