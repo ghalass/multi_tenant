@@ -38,6 +38,9 @@ export default async function RapportAnalyseIndispoParc({
     const parcId =
         typeof params.parcId === "string" ? params.parcId : "";
 
+    const enginId =
+        typeof params.enginId === "string" ? params.enginId : "";
+
     const hasValidPeriod =
         Number.isInteger(mois) &&
         mois >= 1 &&
@@ -57,6 +60,7 @@ export default async function RapportAnalyseIndispoParc({
                 annee,
                 typeParcId,
                 parcId,
+                enginId: enginId || undefined,
             })
             : Promise.resolve(undefined),
     ]);

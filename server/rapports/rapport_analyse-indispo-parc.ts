@@ -13,6 +13,7 @@ export interface SearchParamsAnalyseIndispoParc {
     annee?: number;
     typeParcId?: string;
     parcId?: string;
+    enginId?: string;
 }
 
 type ValeursBrutes = {
@@ -370,6 +371,7 @@ export async function getRapportAnalyseIndispoParc(
     const annee = Number(filters.annee);
     const typeParcId = filters.typeParcId;
     const parcId = filters.parcId;
+    const enginId = filters.enginId || undefined;
 
     if (
         !Number.isInteger(mois) ||
@@ -454,6 +456,17 @@ export async function getRapportAnalyseIndispoParc(
         return {
             success: false,
             message: "Le parc sélectionné n'existe pas dans ce tenant.",
+            data: [],
+        };
+    }
+
+    if (
+        enginId &&
+        !parc.engins.some((engin) => engin.id === enginId)
+    ) {
+        return {
+            success: false,
+            message: "L'engin sélectionné n'appartient pas à ce parc ou n'est pas actif.",
             data: [],
         };
     }
@@ -566,17 +579,20 @@ export async function getRapportAnalyseIndispoParc(
         valeursParPanne: parcValeurs,
     });
 
-    const enginsResult = parc.engins.map((engin) =>
-        buildScopeResult({
-            scopeId: engin.id,
-            scopeName: engin.name,
-            nbreEngins: 1,
-            heuresMois,
-            heuresAnnee,
-            definitions,
-            valeursParPanne: valeursParEngin.get(engin.id) ?? new Map(),
-        }),
-    );
+    const enginsResult = parc.engins
+        .filter((engin) => !enginId || engin.id === enginId)
+        .map((engin) =>
+            buildScopeResult({
+                scopeId: engin.id,
+                scopeName: engin.name,
+                nbreEngins: 1,
+                heuresMois,
+                heuresAnnee,
+                definitions,
+                valeursParPanne:
+                    valeursParEngin.get(engin.id) ?? new Map(),
+            }),
+        );
 
     const result: TypeParcResult[] = [
         {

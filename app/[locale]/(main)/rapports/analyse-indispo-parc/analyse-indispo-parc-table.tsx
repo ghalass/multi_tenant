@@ -146,7 +146,13 @@ function ScopeRows({
 }) {
     return (
         <>
-            <TableRow className="border-t-2 bg-muted/50">
+            <TableRow
+                className={
+                    label === "ANALYSE DU PARC"
+                        ? "border-t-4 border-t-blue-500 bg-blue-500/10"
+                        : "border-t-4 border-t-emerald-500 bg-emerald-500/10"
+                }
+            >
                 <TableCell
                     colSpan={COLUMNS.length + 4}
                     className="py-2 font-semibold"
@@ -218,29 +224,7 @@ function ScopeRows({
                         </TableRow>
                     ))}
 
-                    <TableRow
-                        key={`subtotal-${scope.scopeId}-${typePanne.typepanneId}`}
-                        className="bg-muted/30 font-medium [&>td]:py-1"
-                    >
-                        <TableCell>
-                            TOTAL {typePanne.typepanneName}
-                        </TableCell>
-                        <TableCell />
-                        <TableCell />
-                        <TableCell />
 
-                        {COLUMNS.map((column) => (
-                            <TableCell
-                                key={column.key}
-                                className="text-right tabular-nums"
-                            >
-                                {displayValue(
-                                    typePanne.totalTypePanne,
-                                    column.key,
-                                )}
-                            </TableCell>
-                        ))}
-                    </TableRow>
                 </Fragment>
             ))}
         </>

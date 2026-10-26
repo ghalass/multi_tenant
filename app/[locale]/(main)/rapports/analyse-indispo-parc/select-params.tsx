@@ -60,10 +60,16 @@ export default function SelectParams({ typeParcs }: SelectParamsProps) {
         searchParams.get("parcId") ?? "",
     );
 
+    const [enginId, setEnginId] = useState(
+        searchParams.get("enginId") ?? "",
+    );
+
     const parcs =
         typeParcs.find((typeParc) => typeParc.id === typeParcId)?.parcs ?? [];
 
     const selectedParc = parcs.find((parc) => parc.id === parcId);
+
+    const engins = selectedParc?.engins ?? [];
 
     function clearReportParams() {
         const params = new URLSearchParams(searchParams.toString());
@@ -91,10 +97,16 @@ export default function SelectParams({ typeParcs }: SelectParamsProps) {
         setTypeParcId(value);
         setParcId("");
         clearReportParams();
+        setEnginId("");
     }
 
     function handleParcChange(value: string) {
         setParcId(value);
+        clearReportParams();
+    }
+
+    function handleEnginChange(value: string) {
+        setEnginId(value === "all" ? "" : value);
         clearReportParams();
     }
 
@@ -110,7 +122,11 @@ export default function SelectParams({ typeParcs }: SelectParamsProps) {
         params.set("mois", String(Number(mois)));
         params.set("typeParcId", typeParcId);
         params.set("parcId", parcId);
-        params.delete("enginId");
+        if (enginId) {
+            params.set("enginId", enginId);
+        } else {
+            params.delete("enginId");
+        }
 
         startTransition(() => {
             router.replace(`${pathname}?${params.toString()}`, {
@@ -186,6 +202,31 @@ export default function SelectParams({ typeParcs }: SelectParamsProps) {
                             {parcs.map((parc) => (
                                 <SelectItem key={parc.id} value={parc.id}>
                                     {parc.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+
+
+                <div className="w-full space-y-2 sm:w-56">
+                    <Label>Engin (optionnel)</Label>
+
+                    <Select
+                        value={enginId || "all"}
+                        onValueChange={handleEnginChange}
+                        disabled={isPending || !parcId || engins.length === 0}
+                    >
+                        <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Tous les engins" />
+                        </SelectTrigger>
+
+                        <SelectContent>
+                            <SelectItem value="all">Tous les engins</SelectItem>
+
+                            {engins.map((engin) => (
+                                <SelectItem key={engin.id} value={engin.id}>
+                                    {engin.name}
                                 </SelectItem>
                             ))}
                         </SelectContent>
