@@ -1,152 +1,117 @@
-import { BarChart3, ClipboardList, PackageCheck, Wrench } from "lucide-react";
+import type { JSX } from "react";
+import { BarChart3, CalendarDays } from "lucide-react";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import CanAccess from "@/components/can-access";
 import DisplayError from "@/components/display-error";
 
 import { ACTION } from "@/lib/enums";
 import { RESOURCE } from "@/lib/constantes";
-import { getBacklogStats } from "@/server/backlogs";
+import { getBacklogStatsByPeriod } from "@/server/backlogs";
 
-function readable(value: string) {
-    return value.replaceAll("_", " ").toLowerCase();
+import BacklogStatsCharts from "./backlog-stats-charts";
+
+type SearchParams = Record<string, string | string[] | undefined>;
+
+function firstString(
+    value: string | string[] | undefined,
+): string | undefined {
+    return typeof value === "string" ? value : undefined;
 }
 
-export default async function BacklogStatsPage() {
-    const response = await getBacklogStats();
-
-    if (!response.success) {
-        return (
-            <div className="container mx-auto py-4">
-                <DisplayError error={response.message} />
-            </div>
-        );
-    }
-
-    const stats = response.data;
+export default async function BacklogStatsPage({
+    searchParams,
+}: {
+    searchParams: Promise<SearchParams>;
+}): Promise<JSX.Element> {
+    const params = await searchParams;
+    const global = firstString(params.global) === "1";
+    const dateFrom = global ? "" : firstString(params.dateFrom) ?? "";
+    const dateTo = global ? "" : firstString(params.dateTo) ?? "";
+    const canAnalyze = global || Boolean(dateFrom && dateTo);
+    const periodResponse = canAnalyze
+        ? await getBacklogStatsByPeriod(
+            global ? undefined : dateFrom,
+            global ? undefined : dateTo,
+        )
+        : undefined;
 
     return (
         <CanAccess resource={RESOURCE.BACKLOG} action={ACTION.READ}>
-            <div className="container mx-auto space-y-6 py-2">
+            <div className="container mx-auto space-y-3 py-2">
                 <div>
                     <h1 className="flex items-center gap-2 text-3xl font-bold">
                         <BarChart3 className="size-8" />
                         Tableau de bord des backlogs
                     </h1>
                     <p className="mt-1 text-muted-foreground">
-                        Vue synthétique des backlogs du tenant courant.
+                        Statistiques des backlogs du tenant courant.
                     </p>
                 </div>
 
-                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">
-                                Total des backlogs
-                            </CardTitle>
-                            <ClipboardList className="size-4 text-muted-foreground" />
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-3xl font-bold">{stats.total}</p>
-                        </CardContent>
-                    </Card>
+                <section className="space-y-2 rounded-md border p-3">
+                    <div className="flex items-center gap-2">
+                        <CalendarDays className="size-5 text-muted-foreground" />
+                        <h2 className="font-semibold">Période d’analyse</h2>
+                    </div>
+                    <form
+                        method="get"
+                        className="flex flex-wrap items-end gap-3"
+                    >
+                        <label className="grid gap-1 text-sm">
+                            <span>Date du</span>
+                            <Input
+                                className="w-auto"
+                                type="date"
+                                name="dateFrom"
+                                defaultValue={dateFrom}
+                                required
+                            />
+                        </label>
+                        <label className="grid gap-1 text-sm">
+                            <span>Au</span>
+                            <Input
+                                className="w-auto"
+                                type="date"
+                                name="dateTo"
+                                defaultValue={dateTo}
+                                required
+                            />
+                        </label>
+                        <Button type="submit">Analyser la période</Button>
+                        <Button
+                            type="submit"
+                            name="global"
+                            value="1"
+                            variant="outline"
+                            formNoValidate
+                        >
+                            Calcul global
+                        </Button>
+                    </form>
+                    {periodResponse && !periodResponse.success ? (
+                        <DisplayError error={periodResponse.message} />
+                    ) : periodResponse?.success ? (
+                        <p className="text-sm text-muted-foreground">
+                            {periodResponse.data.global
+                                ? "Analyse globale, sans filtre de date."
+                                : `Analyse du ${dateFrom} au ${dateTo}.`}
+                            {" "}L’évolution est regroupée par{" "}
+                            {periodResponse.data.pas === "jour"
+                                ? "jour"
+                                : "mois"}.
+                        </p>
+                    ) : (
+                        <p className="text-sm text-muted-foreground">
+                            Choisissez les dates de début et de fin, ou lancez un calcul global.
+                        </p>
+                    )}
+                </section>
 
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">
-                                En attente PDR
-                            </CardTitle>
-                            <Wrench className="size-4 text-muted-foreground" />
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-3xl font-bold">
-                                {stats.parStatut.ATTENTE_PDR ?? 0}
-                            </p>
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">
-                                PDR prêts
-                            </CardTitle>
-                            <PackageCheck className="size-4 text-muted-foreground" />
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-3xl font-bold">
-                                {stats.parStatut.PDR_PRET ?? 0}
-                            </p>
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">
-                                Exécutés
-                            </CardTitle>
-                            <PackageCheck className="size-4 text-muted-foreground" />
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-3xl font-bold">
-                                {stats.parStatut.EXECUTE ?? 0}
-                            </p>
-                        </CardContent>
-                    </Card>
-                </div>
-
-                <div className="grid gap-6 lg:grid-cols-3">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Répartition par statut</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                            {Object.entries(stats.parStatut).map(([status, count]) => (
-                                <div
-                                    key={status}
-                                    className="flex items-center justify-between gap-3"
-                                >
-                                    <span className="text-sm">{readable(status)}</span>
-                                    <Badge variant="secondary">{count}</Badge>
-                                </div>
-                            ))}
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Répartition par priorité</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                            {Object.entries(stats.parPriorite).map(([priority, count]) => (
-                                <div
-                                    key={priority}
-                                    className="flex items-center justify-between gap-3"
-                                >
-                                    <span className="text-sm">{readable(priority)}</span>
-                                    <Badge variant="secondary">{count}</Badge>
-                                </div>
-                            ))}
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Répartition par source</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                            {Object.entries(stats.parSource).map(([source, count]) => (
-                                <div
-                                    key={source}
-                                    className="flex items-center justify-between gap-3"
-                                >
-                                    <span className="text-sm">{readable(source)}</span>
-                                    <Badge variant="secondary">{count}</Badge>
-                                </div>
-                            ))}
-                        </CardContent>
-                    </Card>
-                </div>
+                {periodResponse?.success && (
+                    <BacklogStatsCharts stats={periodResponse.data} />
+                )}
             </div>
         </CanAccess>
     );

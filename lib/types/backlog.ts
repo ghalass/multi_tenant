@@ -90,6 +90,8 @@ export type BacklogFilters = {
     statut?: string;
     priorite?: string;
     source?: string;
+    typeparcId?: string;
+    parcId?: string;
     enginId?: string;
     siteId?: string;
     dateFrom?: string;
@@ -105,6 +107,21 @@ export type BacklogStats = {
     parSource: Record<SourceBacklog, number>;
 };
 
+export type BacklogPeriodStats = {
+    total: number;
+    global: boolean;
+    pas: "jour" | "mois";
+    evolution: {
+        date: string;
+        label: string;
+        backlogs: number;
+        executes: number;
+    }[];
+    parStatut: { label: StatutBacklog; value: number }[];
+    parPriorite: { label: PrioriteBacklog; value: number }[];
+    parSource: { label: SourceBacklog; value: number }[];
+};
+
 export type BacklogOptionsResponse = {
     success: boolean;
     message: string;
@@ -115,4 +132,10 @@ export type BacklogStatsResponse = {
     success: boolean;
     message: string;
     data: BacklogStats;
+};
+
+export type BacklogPeriodStatsResponse = {
+    success: boolean;
+    message: string;
+    data: BacklogPeriodStats;
 };

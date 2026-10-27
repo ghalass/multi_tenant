@@ -98,6 +98,8 @@ export default async function BacklogsPage({
         priorite: firstString(params.priorite),
         source: firstString(params.source),
         siteId: firstString(params.siteId),
+        typeparcId: firstString(params.typeparcId),
+        parcId: firstString(params.parcId),
         enginId: firstString(params.enginId),
         dateFrom: firstString(params.dateFrom),
         dateTo: firstString(params.dateTo),
@@ -160,7 +162,11 @@ export default async function BacklogsPage({
             )}
 
             <CanAccess resource={RESOURCE.BACKLOG} action={ACTION.READ}>
-                <BacklogSearch filters={filters} options={options} />
+                <BacklogSearch
+                    filters={filters}
+                    options={options}
+                    totalItems={response?.meta?.totalItems}
+                />
 
                 {!hasSearched && (
                     <div className="rounded-md border border-dashed p-8 text-center">

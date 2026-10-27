@@ -17,6 +17,8 @@ import type {
     BacklogFormValues,
     BacklogOptions,
     BacklogOptionsResponse,
+    BacklogPeriodStats,
+    BacklogPeriodStatsResponse,
     BacklogStats,
     BacklogStatsResponse,
 } from "@/lib/types/backlog";
@@ -84,6 +86,21 @@ function emptyStats(): BacklogStats {
         parSource: Object.fromEntries(
             SOURCE_VALUES.map((value) => [value, 0]),
         ) as Record<SourceBacklog, number>,
+    };
+}
+
+function emptyPeriodStats(
+    pas: "jour" | "mois" = "jour",
+    global = false,
+): BacklogPeriodStats {
+    return {
+        total: 0,
+        global,
+        pas,
+        evolution: [],
+        parStatut: [],
+        parPriorite: [],
+        parSource: [],
     };
 }
 
@@ -187,13 +204,20 @@ export async function getBacklogs(filters: BacklogFilters = {}) {
     }
 
     const currentPage = Math.max(Number(filters.currentPage) || 1, 1);
+
     const requestedItems = Number(
         filters.itemsPerPage ?? PAGINATION_SETTINGS.itemsPerPage,
     );
-    const itemsPerPage = Math.max(
-        requestedItems || PAGINATION_SETTINGS.itemsPerPage,
-        1,
-    );
+
+    // 0 signifie « Tout afficher ».
+    const showAll = requestedItems === 0;
+
+    const itemsPerPage = showAll
+        ? 0
+        : Math.max(
+            requestedItems || PAGINATION_SETTINGS.itemsPerPage,
+            1,
+        );
 
     const search = filters.search?.trim();
     const dateFrom = filters.dateFrom
@@ -230,6 +254,39 @@ export async function getBacklogs(filters: BacklogFilters = {}) {
         };
     }
 
+    /*
+     * Si un type de parc ou un parc est sélectionné,
+     * récupérer les engins correspondants dans le tenant actif.
+     */
+    let matchingEnginIds: string[] | undefined;
+
+    if (filters.typeparcId || filters.parcId) {
+        const matchingEngins = await prisma.engin.findMany({
+            where: {
+                tenantId,
+
+                ...(filters.parcId
+                    ? { parcId: filters.parcId }
+                    : {}),
+
+                ...(filters.typeparcId
+                    ? {
+                        parc: {
+                            is: {
+                                typeparcId: filters.typeparcId,
+                            },
+                        },
+                    }
+                    : {}),
+            },
+            select: {
+                id: true,
+            },
+        });
+
+        matchingEnginIds = matchingEngins.map((engin) => engin.id);
+    }
+
     const where: any = {
         tenantId,
 
@@ -249,7 +306,17 @@ export async function getBacklogs(filters: BacklogFilters = {}) {
             : {}),
 
         ...(filters.siteId ? { siteId: filters.siteId } : {}),
-        ...(filters.enginId ? { enginId: filters.enginId } : {}),
+        ...(matchingEnginIds !== undefined
+            ? {
+                enginId: {
+                    in: matchingEnginIds.filter(
+                        (id) => !filters.enginId || id === filters.enginId,
+                    ),
+                },
+            }
+            : filters.enginId
+                ? { enginId: filters.enginId }
+                : {}),
 
         ...(dateFrom || dateTo
             ? {
@@ -288,7 +355,10 @@ export async function getBacklogs(filters: BacklogFilters = {}) {
             : {}),
     };
 
-    const [data, totalItems] = await Promise.all([
+    // Compter d'abord les résultats pour gérer correctement « Tout afficher ».
+    const totalItems = await prisma.backlog.count({ where });
+
+    const [data] = await Promise.all([
         prisma.backlog.findMany({
             where,
             include: {
@@ -308,7 +378,9 @@ export async function getBacklogs(filters: BacklogFilters = {}) {
                     },
                 },
                 historiqueStatutBacklogs: {
-                    orderBy: { dateChangement: "desc" },
+                    orderBy: {
+                        dateChangement: "desc",
+                    },
                     take: 10,
                 },
             },
@@ -316,11 +388,9 @@ export async function getBacklogs(filters: BacklogFilters = {}) {
                 { dateDetection: "desc" },
                 { createdAt: "desc" },
             ],
-            skip: (currentPage - 1) * itemsPerPage,
-            take: itemsPerPage,
+            skip: showAll ? 0 : (currentPage - 1) * itemsPerPage,
+            take: showAll ? undefined : itemsPerPage,
         }),
-
-        prisma.backlog.count({ where }),
     ]);
 
     return {
@@ -329,9 +399,14 @@ export async function getBacklogs(filters: BacklogFilters = {}) {
         data,
         meta: {
             totalItems,
-            totalPages: Math.max(1, Math.ceil(totalItems / itemsPerPage)),
-            currentPage,
-            itemsPerPage,
+            totalPages: showAll
+                ? 1
+                : Math.max(1, Math.ceil(totalItems / itemsPerPage)),
+            currentPage: showAll ? 1 : currentPage,
+            // La pagination inférieure reconnaît aussi le mode « Tout afficher ».
+            itemsPerPage: showAll
+                ? Math.max(totalItems, 1)
+                : itemsPerPage,
         },
     };
 }
@@ -394,6 +469,185 @@ export async function getBacklogStats(): Promise<BacklogStatsResponse> {
     return {
         success: true,
         message: "Statistiques récupérées avec succès.",
+        data,
+    };
+}
+
+export async function getBacklogStatsByPeriod(
+    dateFromValue?: string,
+    dateToValue?: string,
+): Promise<BacklogPeriodStatsResponse> {
+    const global = !dateFromValue && !dateToValue;
+    const dateFrom = dateFromValue ? parseDate(dateFromValue) : null;
+    const dateTo = dateToValue ? parseDate(dateToValue) : null;
+
+    if (
+        (!global && (!dateFrom || !dateTo || dateFrom > dateTo))
+    ) {
+        return {
+            success: false,
+            message: "La période sélectionnée est invalide.",
+            data: emptyPeriodStats(),
+        };
+    }
+
+    const permission = await guard(ACTION.READ, RESOURCE.BACKLOG);
+
+    if (!permission.success) {
+        return {
+            success: false,
+            message: permission.message,
+            data: emptyPeriodStats(),
+        };
+    }
+
+    const tenantId = await getBacklogTenantId();
+
+    if (!tenantId) {
+        return {
+            success: false,
+            message: "Aucun tenant actif n'est sélectionné.",
+            data: emptyPeriodStats(),
+        };
+    }
+
+    const dayCount = dateFrom && dateTo
+        ? Math.floor((dateTo.getTime() - dateFrom.getTime()) / 86_400_000) + 1
+        : Infinity;
+    const pas = dayCount <= 90 ? "jour" : "mois";
+    const detectionWhere = {
+        tenantId,
+        ...(dateFrom && dateTo
+            ? { dateDetection: { gte: dateFrom, lte: dateTo } }
+            : {}),
+    };
+    const executionWhere = {
+        tenantId,
+        ...(dateFrom && dateTo
+            ? { dateExecution: { gte: dateFrom, lte: dateTo } }
+            : {}),
+    };
+
+    const [total, detections, executions, statuses, priorities, sources] =
+        await Promise.all([
+            prisma.backlog.count({ where: detectionWhere }),
+            prisma.backlog.groupBy({
+                by: ["dateDetection"],
+                where: detectionWhere,
+                _count: { _all: true },
+            }),
+            prisma.backlog.groupBy({
+                by: ["dateExecution"],
+                where: { ...executionWhere, dateExecution: { not: null, ...(dateFrom && dateTo ? { gte: dateFrom, lte: dateTo } : {}) } },
+                _count: { _all: true },
+            }),
+            prisma.backlog.groupBy({
+                by: ["statut"],
+                where: detectionWhere,
+                _count: { _all: true },
+            }),
+            prisma.backlog.groupBy({
+                by: ["priorite"],
+                where: detectionWhere,
+                _count: { _all: true },
+            }),
+            prisma.backlog.groupBy({
+                by: ["source"],
+                where: detectionWhere,
+                _count: { _all: true },
+            }),
+        ]);
+
+    const allDates = [
+        ...detections.map((row) => row.dateDetection),
+        ...executions.flatMap((row) =>
+            row.dateExecution ? [row.dateExecution] : [],
+        ),
+    ];
+    const firstDate = dateFrom ?? allDates.reduce<Date | null>(
+        (earliest, date) => !earliest || date < earliest ? date : earliest,
+        null,
+    );
+    const lastDate = dateTo ?? allDates.reduce<Date | null>(
+        (latest, date) => !latest || date > latest ? date : latest,
+        null,
+    );
+
+    const bucketKey = (date: Date): string => {
+        const keyDate = new Date(date);
+        if (pas === "mois") keyDate.setUTCDate(1);
+        return keyDate.toISOString().slice(0, 10);
+    };
+    const evolutionByDate = new Map<string, {
+        date: string;
+        label: string;
+        backlogs: number;
+        executes: number;
+    }>();
+    if (firstDate && lastDate) {
+        const startBucket = new Date(firstDate);
+        const endBucket = new Date(lastDate);
+        if (pas === "mois") {
+            startBucket.setUTCDate(1);
+            endBucket.setUTCDate(1);
+        }
+
+        for (let current = new Date(startBucket); current <= endBucket;) {
+            const date = current.toISOString().slice(0, 10);
+            const label = pas === "mois"
+                ? new Intl.DateTimeFormat("fr-FR", {
+                    month: "short",
+                    year: "numeric",
+                    timeZone: "UTC",
+                }).format(current)
+                : new Intl.DateTimeFormat("fr-FR", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    timeZone: "UTC",
+                }).format(current);
+            evolutionByDate.set(date, { date, label, backlogs: 0, executes: 0 });
+
+            if (pas === "mois") {
+                current.setUTCMonth(current.getUTCMonth() + 1);
+            } else {
+                current.setUTCDate(current.getUTCDate() + 1);
+            }
+        }
+    }
+
+    for (const row of detections) {
+        const bucket = evolutionByDate.get(bucketKey(row.dateDetection));
+        if (bucket) bucket.backlogs = row._count._all;
+    }
+
+    for (const row of executions) {
+        if (!row.dateExecution) continue;
+        const bucket = evolutionByDate.get(bucketKey(row.dateExecution));
+        if (bucket) bucket.executes = row._count._all;
+    }
+
+    const data: BacklogPeriodStats = {
+        total,
+        global,
+        pas,
+        evolution: [...evolutionByDate.values()],
+        parStatut: STATUS_VALUES.map((label) => ({
+            label,
+            value: statuses.find((row) => row.statut === label)?._count._all ?? 0,
+        })),
+        parPriorite: PRIORITY_VALUES.map((label) => ({
+            label,
+            value: priorities.find((row) => row.priorite === label)?._count._all ?? 0,
+        })),
+        parSource: SOURCE_VALUES.map((label) => ({
+            label,
+            value: sources.find((row) => row.source === label)?._count._all ?? 0,
+        })),
+    };
+
+    return {
+        success: true,
+        message: "Statistiques de la période récupérées avec succès.",
         data,
     };
 }

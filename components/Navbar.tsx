@@ -32,8 +32,8 @@ export default async function Navbar({
       </div>
 
       <div className="flex items-center gap-2">
-        <LanguageSelector />
-        <div className="h-6 w-px bg-border hidden sm:block" />
+        {/* <LanguageSelector />
+        <div className="h-6 w-px bg-border hidden sm:block" /> */}
         <ModeToggle />
         <div className="h-6 w-px bg-border hidden sm:block" />
         <AuthButtons />
