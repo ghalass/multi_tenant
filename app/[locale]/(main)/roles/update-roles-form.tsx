@@ -9,9 +9,8 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 
-import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
-import { z } from "@/lib/zod-config";
+import { yupResolver } from "@hookform/resolvers/yup";
 import { toast } from "sonner";
 import { useEffect, useState, useTransition } from "react";
 import { PenIcon } from "lucide-react";
@@ -34,15 +33,17 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Permission, Role } from "@/lib/generated/prisma/client";
 import { updateRole } from "@/server/roles";
 import DisplayError from "@/components/display-error";
+import yup from "@/lib/yupFr";
 
 type RoleWithPermissions = Role & { permissions?: Permission[] };
 
-const formSchema = z.object({
-    name: z.string().min(1, "Le nom est requis"),
-    description: z.string().optional(),
-    permissionIds: z.array(z.string()),
+const formSchema = yup.object({
+    name: yup.string().min(1, "Le nom est requis"),
+    description: yup.string().optional(),
+    permissionIds: yup.array(yup.string()),
 });
 
+type FormValues = yup.InferType<typeof formSchema>;
 
 export function UpdateRoleForm({
     role,
@@ -57,8 +58,8 @@ export function UpdateRoleForm({
 
 
     const [open, setOpen] = useState(false);
-    const form = useForm<z.infer<typeof formSchema>>({
-        resolver: zodResolver(formSchema),
+    const form = useForm<FormValues>({
+        resolver: yupResolver(formSchema),
         values: {
             name: role?.name || "",
             description: role?.description || "",
@@ -68,7 +69,7 @@ export function UpdateRoleForm({
 
     const router = useRouter();
 
-    async function onSubmit(values: z.infer<typeof formSchema>) {
+    async function onSubmit(values: FormValues) {
         try {
             setError("");
             setIsLoading(true);
@@ -76,9 +77,11 @@ export function UpdateRoleForm({
 
             const { success, message } = await updateRole(
                 role.id,
-                values.name,
+                values.name ?? "",
                 values.description || "",
-                values.permissionIds
+                (values.permissionIds ?? []).filter(
+                    (id): id is string => typeof id === "string"
+                )
             );
 
             if (!success) {
@@ -171,11 +174,12 @@ export function UpdateRoleForm({
                                 name="permissionIds"
                                 control={form.control}
                                 render={({ field, fieldState }) => {
+                                    const selectedPermissionIds = field.value ?? [];
                                     const allSelected =
                                         permissions.length > 0 &&
-                                        permissions.every((p) => field.value.includes(p.id));
+                                        permissions.every((p) => selectedPermissionIds.includes(p.id));
                                     const someSelected =
-                                        permissions.some((p) => field.value.includes(p.id)) && !allSelected;
+                                        permissions.some((p) => selectedPermissionIds.includes(p.id)) && !allSelected;
 
                                     return (
                                         <Field data-invalid={fieldState.invalid}>
@@ -210,7 +214,7 @@ export function UpdateRoleForm({
                                                         </p>
                                                     ) : (
                                                         permissions.map((perm) => {
-                                                            const checked = field.value.includes(perm.id);
+                                                            const checked = selectedPermissionIds.includes(perm.id);
                                                             return (
                                                                 <label
                                                                     key={perm.id}
@@ -220,8 +224,8 @@ export function UpdateRoleForm({
                                                                         checked={checked}
                                                                         onCheckedChange={(isChecked) => {
                                                                             const next = isChecked
-                                                                                ? [...field.value, perm.id]
-                                                                                : field.value.filter(
+                                                                                ? [...selectedPermissionIds, perm.id]
+                                                                                : selectedPermissionIds.filter(
                                                                                     (id) => id !== perm.id
                                                                                 );
                                                                             field.onChange(next);

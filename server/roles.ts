@@ -8,7 +8,7 @@ import {
     Permission,
     Role,
 } from "@/lib/generated/prisma/client";
-import { ActionResponse } from "@/lib/types";
+import { ActionResponse } from "@/lib/types/types";
 import { sleep } from "@/lib/utils";
 import { getSession } from "@/lib/auth";
 import { PAGINATION_SETTINGS, RESOURCE } from "@/lib/constantes";

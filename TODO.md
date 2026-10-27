@@ -31,8 +31,13 @@ ne modifie jamais jamais jamais jamais jamais jamais mon repo, mais plutôt me d
 s'inspirer du projet gmao_nextjs
 faire pour multi_tenant:
 -rajoute une page pour gestion des rapports/pareto,  s'inspire de ce qui est fait avec rapports/etat-mensuel (page complète avec ajoute du lien dans le sidebar des configurations, respecte la même architecture) et du projet gmao_nextjs (faire la même fonctionalité)
+--------
+ok ok tout fonctionne, 
+lire tout les fichiers du projet https://github.com/ghalass/multi_tenant
+bien lire https://github.com/ghalass/gmao_nextjs
+ne modifie jamais jamais jamais jamais jamais jamais mon repo, mais plutôt me donner ici (pas en téléchargement ) la version finale complète des codes à modifier en local
 
-
-
-
-
+s'inspirer du projet gmao_nextjs
+faire pour multi_tenant:
+-rajoute une page pour gestion des backlogs, s'inspire de ce qui est fait avec saisie-hrm (page complète avec ajoute du lien dans le sidebar des configurations, respecte la même architecture) et du projet gmao_nextjs (faire la même fonctionalité)
+nota:backlogs est équivalent à anomalies dans gmao_nextjs

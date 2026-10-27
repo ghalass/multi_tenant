@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { guard } from "@/lib/rbac/middleware";
 import { ACTION } from "@/lib/enums";
-import { ActionResponse } from "@/lib/types";
+import { ActionResponse } from "@/lib/types/types";
 import { getSession } from "@/lib/auth";
 import { RESOURCE } from "@/lib/constantes";
 

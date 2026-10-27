@@ -30,6 +30,7 @@ model Tenant {
   saisiehrms Saisiehrm[]
   saisiehims Saisiehim[]
   objectifs  Objectif[]
+  backlogs   Backlog[]
 
   @@map("tenant")
 }
@@ -130,6 +131,7 @@ model Site {
   engins     Engin[]
   saisiehrms Saisiehrm[]
   objectifs  Objectif[]
+  backlogs   Backlog[]
 
   @@unique([name, tenantId])
   @@map("site")
@@ -179,6 +181,7 @@ model Engin {
   site       Site        @relation(fields: [siteId], references: [id], onDelete: Restrict)
   tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   saisiehrms Saisiehrm[]
+  backlogs   Backlog[]
 
   @@unique([name, tenantId])
   @@map("engin")
@@ -276,4 +279,77 @@ model Objectif {
 
   @@unique([annee, parcId, siteId])
   @@map("objectif")
+}
+
+// ****************** GESTION DES BACKLOGS ******************
+
+enum SourceBacklog {
+  VS
+  VJ
+  INSPECTION
+  AUTRE
+}
+
+enum PrioriteBacklog {
+  ELEVEE
+  MOYENNE
+  FAIBLE
+}
+
+enum StatutBacklog {
+  ATTENTE_PROGRAMME
+  ATTENTE_PDR
+  PDR_PRET
+  PROGRAMMEE
+  EXECUTE
+}
+
+model Backlog {
+  id            String          @id @default(cuid(2))
+  numeroBacklog String
+  dateDetection DateTime        @db.Date
+  description   String
+  source        SourceBacklog
+  priorite      PrioriteBacklog
+  besoinPDR     Boolean         @default(false)
+  programmation String?
+  equipe        String?
+  statut        StatutBacklog   @default(ATTENTE_PROGRAMME)
+  dateExecution DateTime?       @db.Date
+  confirmation  String?
+  observations  String? // quantite, reference, code, numeroBS
+
+  enginId  String
+  siteId   String
+  tenantId String
+
+  engin  Engin  @relation(fields: [enginId], references: [id], onDelete: Restrict)
+  site   Site   @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+
+  historiqueStatutBacklogs HistoriqueStatutBacklog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Un numéro peut exister dans deux tenants différents,
+  // mais pas deux fois dans le même tenant.
+  @@unique([numeroBacklog, tenantId])
+  @@index([tenantId, dateDetection])
+  @@index([tenantId, statut])
+  @@map("backlog")
+}
+
+model HistoriqueStatutBacklog {
+  id             String        @id @default(cuid(2))
+  backlogId      String
+  ancienStatut   StatutBacklog
+  nouveauStatut  StatutBacklog
+  dateChangement DateTime      @default(now())
+  commentaire    String?
+
+  backlog Backlog @relation(fields: [backlogId], references: [id], onDelete: Cascade)
+
+  @@index([backlogId, dateChangement])
+  @@map("historique_statut_backlog")
 }

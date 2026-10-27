@@ -13,7 +13,6 @@ import { Input } from "@/components/ui/input";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
-import * as z from "zod";
 import { toast } from "sonner";
 import { useEffect, useState } from "react";
 import { Loader2, PlusIcon } from "lucide-react";
@@ -31,9 +30,11 @@ import { sleep } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { createTenant } from "@/server/tenants";
 import DisplayError from "@/components/display-error";
+import yup from "@/lib/yupFr";
+import { yupResolver } from "@hookform/resolvers/yup";
 
-const formSchema = z.object({
-  name: z.string().min(1),
+const formSchema = yup.object({
+  name: yup.string().min(1).required(),
 });
 
 export function CreateTenantForm({
@@ -43,14 +44,14 @@ export function CreateTenantForm({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [open, setOpen] = useState(false);
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
+  const form = useForm<yup.InferType<typeof formSchema>>({
+    resolver: yupResolver(formSchema),
     defaultValues: { name: "" },
   });
 
   const router = useRouter();
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: yup.InferType<typeof formSchema>) {
     try {
       setError("");
       setIsLoading(true);

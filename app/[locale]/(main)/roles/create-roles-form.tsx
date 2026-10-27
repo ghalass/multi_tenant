@@ -11,7 +11,6 @@ import { Input } from "@/components/ui/input";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
-import { z } from "@/lib/zod-config";
 import { toast } from "sonner";
 import { useEffect, useState, useTransition } from "react";
 import { Loader2, PlusIcon } from "lucide-react";
@@ -34,11 +33,13 @@ import { Permission } from "@/lib/generated/prisma/client";
 import { createRole } from "@/server/roles";
 import DisplayError from "@/components/display-error";
 import { Checkbox } from "@/components/ui/checkbox";
+import yup from "@/lib/yupFr";
+import { yupResolver } from "@hookform/resolvers/yup";
 
-const formSchema = z.object({
-    name: z.string().min(1, "Le nom est requis"),
-    description: z.string().optional(),
-    permissionIds: z.array(z.string()),
+const formSchema = yup.object({
+    name: yup.string().required("Le nom est requis").min(1, "Le nom est requis"),
+    description: yup.string().optional(),
+    permissionIds: yup.array(yup.string().required()).required(),
 });
 
 export function CreateRoleForm({ permissions }: { permissions: Permission[] }) {
@@ -49,14 +50,14 @@ export function CreateRoleForm({ permissions }: { permissions: Permission[] }) {
 
     const [error, setError] = useState("");
     const [open, setOpen] = useState(false);
-    const form = useForm<z.infer<typeof formSchema>>({
-        resolver: zodResolver(formSchema),
+    const form = useForm<yup.InferType<typeof formSchema>>({
+        resolver: yupResolver(formSchema),
         defaultValues: { name: "", description: "", permissionIds: [] },
     });
 
     const router = useRouter();
 
-    async function onSubmit(values: z.infer<typeof formSchema>) {
+    async function onSubmit(values: yup.InferType<typeof formSchema>) {
         try {
             setError("");
             setIsLoading(true);

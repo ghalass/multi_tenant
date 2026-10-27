@@ -5,7 +5,7 @@ import { guard } from "@/lib/rbac/middleware";
 import { ACTION } from "@/lib/enums";
 import { RESOURCE } from "@/lib/constantes";
 import { getSession } from "@/lib/auth";
-import { ActionResponse } from "@/lib/types";
+import { ActionResponse } from "@/lib/types/types";
 
 export interface SearchParamsRapportPareto {
     mois?: number;

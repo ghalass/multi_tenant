@@ -17,7 +17,8 @@ export const RESOURCE = {
     PANNE: "panne",
     SAISIE_HRM: "saisie_hrm",
     SAISIE_HIM: "saisie_him",
-    RAPPORT: "rapport"
+    RAPPORT: "rapport",
+    BACKLOG: "backlog",
 };
 
 export const PAGINATION_SETTINGS = {
@@ -53,4 +54,5 @@ export const IMPORT_RESOURCES: Record<string, string> = {
     PANNES: "pannes",
     SAISIE_HRM: "saisie_hrm",
     SAISIE_HIMS: "saisie_hims",
+    BACKLOGS: "backlogs",
 };

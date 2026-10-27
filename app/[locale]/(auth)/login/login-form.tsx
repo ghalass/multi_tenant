@@ -18,8 +18,6 @@ import {
 import Link from "next/link";
 import { useState } from "react";
 
-import * as z from "zod";
-
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
 import { Input } from "@/components/ui/input";
@@ -27,10 +25,12 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { login } from "@/lib/auth";
+import yup from "@/lib/yupFr";
+import { yupResolver } from "@hookform/resolvers/yup";
 
-const formSchema = z.object({
-  email: z.string().min(8).describe("Email"),
-  password: z.string().min(6).describe("Mot de passe"),
+const formSchema = yup.object({
+  email: yup.string().min(8).required().label("Email"),
+  password: yup.string().min(6).required().label("Mot de passe"),
 });
 
 export default function LoginForm() {
@@ -38,11 +38,11 @@ export default function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
+  const form = useForm<yup.InferType<typeof formSchema>>({
+    resolver: yupResolver(formSchema),
     defaultValues: { email: "", password: "" },
   });
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: yup.InferType<typeof formSchema>) {
     setisSubmitting(true);
     setError(null);
     try {
