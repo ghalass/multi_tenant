@@ -11,6 +11,7 @@ import { importTypeParcs } from "@/server/typeparcs";
 import { ACTION } from "@/lib/enums";
 import { RESOURCE, IMPORT_RESOURCES } from "@/lib/constantes";
 import { guard } from "@/lib/rbac/middleware";
+import { importBacklogs } from "@/server/backlogs";
 
 export class ImportService {
   async importData(sheetName: string, data: any) {
@@ -61,6 +62,9 @@ export class ImportService {
         // SAISIE HRM & HIMS
         case IMPORT_RESOURCES.SAISIE_HRM: return await importSaisieHrm(data);
         case IMPORT_RESOURCES.SAISIE_HIMS: return await importSaisieHim(data);
+
+        case IMPORT_RESOURCES.BACKLOGS: return await importBacklogs(data);
+
         default:
           return [
             {

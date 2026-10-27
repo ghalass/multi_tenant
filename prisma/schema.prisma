@@ -311,12 +311,9 @@ model Backlog {
   description   String
   source        SourceBacklog
   priorite      PrioriteBacklog
-  besoinPDR     Boolean         @default(false)
-  programmation String?
   equipe        String?
   statut        StatutBacklog   @default(ATTENTE_PROGRAMME)
   dateExecution DateTime?       @db.Date
-  confirmation  String?
   observations  String? // quantite, reference, code, numeroBS
 
   enginId  String
