@@ -116,12 +116,13 @@ function TextField({
     disabled?: boolean;
 }) {
     return (
-        <label className="block min-w-0 space-y-1.5">
-            <span className="text-sm font-medium">
+        <label className="block min-w-0 space-y-1">
+            <span className="text-xs font-medium">
                 {fieldLabel}
             </span>
 
             <Input
+                className="h-8 px-2 text-sm"
                 type={type}
                 value={value}
                 min={min}
@@ -145,8 +146,8 @@ function TextAreaField({
     required?: boolean;
 }) {
     return (
-        <label className="block space-y-1.5">
-            <span className="text-sm font-medium">
+        <label className="block space-y-1">
+            <span className="text-xs font-medium">
                 {fieldLabel}
             </span>
 
@@ -154,8 +155,8 @@ function TextAreaField({
                 value={value}
                 required={required}
                 onChange={(event) => onChange(event.target.value)}
-                rows={3}
-                className="flex min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                rows={2}
+                className="flex min-h-16 w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm shadow-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
             />
         </label>
     );
@@ -180,8 +181,8 @@ function SelectField({
     disabled?: boolean;
 }) {
     return (
-        <label className="block min-w-0 space-y-1.5">
-            <span className="text-sm font-medium">
+        <label className="block min-w-0 space-y-1">
+            <span className="text-xs font-medium">
                 {fieldLabel}
             </span>
 
@@ -192,7 +193,7 @@ function SelectField({
                 }
                 disabled={disabled}
             >
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="h-8 w-full px-2 text-sm">
                     <SelectValue placeholder={placeholder} />
                 </SelectTrigger>
 
@@ -463,10 +464,10 @@ export function BacklogForm({
 
                     <form
                         onSubmit={onSubmit}
-                        className="space-y-5"
+                        className="space-y-3"
                     >
-                        {/* Ligne 1 : N° backlog, date, source, priorité */}
-                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                        {/* Ligne 1 : N° backlog, date et source */}
+                        <div className="grid gap-x-2 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">
                             <TextField
                                 label="N° backlog"
                                 value={values.numeroBacklog}
@@ -507,6 +508,10 @@ export function BacklogForm({
                                 }
                             />
 
+                        </div>
+
+                        {/* Ligne 2 : priorité et choix du parc */}
+                        <div className="grid gap-x-2 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">
                             <SelectField
                                 label="Priorité"
                                 value={values.priorite}
@@ -525,10 +530,7 @@ export function BacklogForm({
                                     )
                                 }
                             />
-                        </div>
 
-                        {/* Ligne 2 : type de parc -> parc */}
-                        <div className="grid gap-3 sm:grid-cols-2">
                             <SelectField
                                 label="Type de parc"
                                 value={selectedTypeparcId}
@@ -572,7 +574,7 @@ export function BacklogForm({
                         </div>
 
                         {/* Ligne 3 : site -> engin */}
-                        <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="grid gap-x-2 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">
                             <SelectField
                                 label="Site"
                                 value={values.siteId}
@@ -632,6 +634,15 @@ export function BacklogForm({
                                     setField("enginId", engin.id);
                                 }}
                             />
+
+                            <TextField
+                                label="Équipe"
+                                value={values.equipe}
+                                disabled={disabled}
+                                onChange={(value) =>
+                                    setField("equipe", value)
+                                }
+                            />
                         </div>
 
                         <TextAreaField
@@ -643,16 +654,7 @@ export function BacklogForm({
                             }
                         />
 
-                        <div className="grid gap-3 sm:grid-cols-3">
-                            <TextField
-                                label="Équipe"
-                                value={values.equipe}
-                                disabled={disabled}
-                                onChange={(value) =>
-                                    setField("equipe", value)
-                                }
-                            />
-
+                        <div className="grid gap-x-2 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">
                             <SelectField
                                 label="Statut"
                                 value={values.statut}
