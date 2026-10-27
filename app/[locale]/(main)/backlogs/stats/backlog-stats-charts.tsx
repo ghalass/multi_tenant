@@ -12,6 +12,7 @@ import {
     Tooltip,
     XAxis,
     YAxis,
+    Cell,
 } from "recharts";
 
 import {
@@ -22,6 +23,17 @@ import {
     CardTitle,
 } from "@/components/ui/card";
 import type { BacklogPeriodStats } from "@/lib/types/backlog";
+
+const DISTRIBUTION_COLORS = [
+    "#0072B2",
+    "#E69F00",
+    "#009E73",
+    "#CC79A7",
+    "#D55E00",
+];
+
+const DETECTION_COLOR = "#0072B2";
+const EXECUTION_COLOR = "#D55E00";
 
 function readable(value: string): string {
     return value.replaceAll("_", " ").toLowerCase();
@@ -82,9 +94,18 @@ function DistributionChart({
                                 <Bar
                                     dataKey="value"
                                     name="Backlogs"
-                                    fill="#2563eb"
                                     radius={[0, 4, 4, 0]}
                                 >
+                                    {data.map((item, index) => (
+                                        <Cell
+                                            key={item.label}
+                                            fill={
+                                                DISTRIBUTION_COLORS[
+                                                    index % DISTRIBUTION_COLORS.length
+                                                ]
+                                            }
+                                        />
+                                    ))}
                                     <LabelList dataKey="value" position="right" />
                                 </Bar>
                             </BarChart>
@@ -105,51 +126,89 @@ export default function BacklogStatsCharts({
 }: {
     stats: BacklogPeriodStats;
 }): JSX.Element {
+    const totalDetected = stats.evolution.reduce(
+        (total, point) => total + point.backlogs,
+        0,
+    );
+    const totalExecuted = stats.evolution.reduce(
+        (total, point) => total + point.executes,
+        0,
+    );
+
     return (
         <>
             <Card>
                 <CardHeader className="pb-2">
                     <CardTitle>Évolution des backlogs et des exécutions</CardTitle>
                     <CardDescription>
-                        Nouveaux backlogs par date de détection et exécutés par date
-                        d’exécution, regroupés par {stats.pas}.
+                        Détections par date de détection et exécutions par date
+                        d’exécution, affichées par {stats.pas}.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="pt-0">
-                    <div className="h-64">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart
-                                data={stats.evolution}
-                                margin={{ top: 20, right: 12, bottom: 4, left: 0 }}
-                            >
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis
-                                    dataKey="label"
-                                    minTickGap={24}
-                                    tick={{ fontSize: 12 }}
-                                />
-                                <YAxis allowDecimals={false} />
-                                <Tooltip />
-                                <Legend />
-                                <Bar
-                                    dataKey="backlogs"
-                                    name="Backlogs détectés"
-                                    fill="#2563eb"
-                                    radius={[4, 4, 0, 0]}
+                    {stats.evolution.length > 0 ? (
+                        <div className="h-64">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart
+                                    data={stats.evolution}
+                                    margin={{
+                                        top: 20,
+                                        right: 12,
+                                        bottom: 4,
+                                        left: 0,
+                                    }}
                                 >
-                                    <LabelList dataKey="backlogs" position="top" />
-                                </Bar>
-                                <Bar
-                                    dataKey="executes"
-                                    name="Backlogs exécutés"
-                                    fill="#16a34a"
-                                    radius={[4, 4, 0, 0]}
-                                >
-                                    <LabelList dataKey="executes" position="top" />
-                                </Bar>
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </div>
+                                    <CartesianGrid strokeDasharray="3 3" />
+                                    <XAxis
+                                        dataKey="label"
+                                        minTickGap={24}
+                                        tick={{ fontSize: 12 }}
+                                    />
+                                    <YAxis allowDecimals={false} />
+                                    <Tooltip />
+                                    <Legend />
+                                    <Bar
+                                        dataKey="backlogs"
+                                        name="Backlogs détectés"
+                                        fill={DETECTION_COLOR}
+                                        radius={[4, 4, 0, 0]}
+                                    >
+                                        <LabelList
+                                            dataKey="backlogs"
+                                            position="top"
+                                        />
+                                    </Bar>
+                                    <Bar
+                                        dataKey="executes"
+                                        name="Backlogs exécutés"
+                                        fill={EXECUTION_COLOR}
+                                        radius={[4, 4, 0, 0]}
+                                    >
+                                        <LabelList
+                                            dataKey="executes"
+                                            position="top"
+                                        />
+                                    </Bar>
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+                    ) : (
+                        <p className="py-8 text-center text-sm text-muted-foreground">
+                            Aucun backlog trouvé.
+                        </p>
+                    )}
+                    {stats.evolution.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 border-t pt-2 text-sm">
+                            <span>
+                                Total détecté :{" "}
+                                <strong>{totalDetected}</strong>
+                            </span>
+                            <span>
+                                Total exécuté :{" "}
+                                <strong>{totalExecuted}</strong>
+                            </span>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
 
@@ -170,7 +229,7 @@ export default function BacklogStatsCharts({
                 />
                 <DistributionChart
                     title="Répartition par statut"
-                    description="Statut actuel des backlogs analysés."
+                    description="Statut actuel des backlogs détectés pendant la période."
                     data={stats.parStatut}
                     total={stats.total}
                 />

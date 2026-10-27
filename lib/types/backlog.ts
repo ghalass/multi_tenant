@@ -122,6 +122,11 @@ export type BacklogPeriodStats = {
     parSource: { label: SourceBacklog; value: number }[];
 };
 
+export type BacklogStatsFilters = Pick<
+    BacklogFilters,
+    "typeparcId" | "parcId" | "enginId" | "siteId"
+>;
+
 export type BacklogOptionsResponse = {
     success: boolean;
     message: string;

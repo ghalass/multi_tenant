@@ -19,6 +19,7 @@ import type {
     BacklogOptionsResponse,
     BacklogPeriodStats,
     BacklogPeriodStatsResponse,
+    BacklogStatsFilters,
     BacklogStats,
     BacklogStatsResponse,
 } from "@/lib/types/backlog";
@@ -476,6 +477,7 @@ export async function getBacklogStats(): Promise<BacklogStatsResponse> {
 export async function getBacklogStatsByPeriod(
     dateFromValue?: string,
     dateToValue?: string,
+    filters: BacklogStatsFilters = {},
 ): Promise<BacklogPeriodStatsResponse> {
     const global = !dateFromValue && !dateToValue;
     const dateFrom = dateFromValue ? parseDate(dateFromValue) : null;
@@ -515,17 +517,49 @@ export async function getBacklogStatsByPeriod(
         ? Math.floor((dateTo.getTime() - dateFrom.getTime()) / 86_400_000) + 1
         : Infinity;
     const pas = dayCount <= 90 ? "jour" : "mois";
-    const detectionWhere = {
+    let matchingEnginIds: string[] | undefined;
+
+    if (filters.typeparcId || filters.parcId || filters.enginId) {
+        const engins = await prisma.engin.findMany({
+            where: {
+                tenantId,
+                ...(filters.enginId ? { id: filters.enginId } : {}),
+                ...(filters.parcId ? { parcId: filters.parcId } : {}),
+                ...(filters.siteId ? { siteId: filters.siteId } : {}),
+                ...(filters.typeparcId
+                    ? {
+                        parc: {
+                            is: { typeparcId: filters.typeparcId },
+                        },
+                    }
+                    : {}),
+            },
+            select: { id: true },
+        });
+        matchingEnginIds = engins.map((engin) => engin.id);
+    }
+
+    const backlogScope = {
         tenantId,
+        ...(filters.siteId ? { siteId: filters.siteId } : {}),
+        ...(matchingEnginIds
+            ? { enginId: { in: matchingEnginIds } }
+            : {}),
+    };
+    const detectionWhere = {
+        ...backlogScope,
         ...(dateFrom && dateTo
             ? { dateDetection: { gte: dateFrom, lte: dateTo } }
             : {}),
     };
     const executionWhere = {
-        tenantId,
-        ...(dateFrom && dateTo
-            ? { dateExecution: { gte: dateFrom, lte: dateTo } }
-            : {}),
+        ...backlogScope,
+        dateExecution: {
+            not: null,
+            ...(dateFrom && dateTo
+                ? { gte: dateFrom, lte: dateTo }
+                : {}),
+        },
     };
 
     const [total, detections, executions, statuses, priorities, sources] =
@@ -538,7 +572,7 @@ export async function getBacklogStatsByPeriod(
             }),
             prisma.backlog.groupBy({
                 by: ["dateExecution"],
-                where: { ...executionWhere, dateExecution: { not: null, ...(dateFrom && dateTo ? { gte: dateFrom, lte: dateTo } : {}) } },
+                where: executionWhere,
                 _count: { _all: true },
             }),
             prisma.backlog.groupBy({
@@ -617,13 +651,13 @@ export async function getBacklogStatsByPeriod(
 
     for (const row of detections) {
         const bucket = evolutionByDate.get(bucketKey(row.dateDetection));
-        if (bucket) bucket.backlogs = row._count._all;
+        if (bucket) bucket.backlogs += row._count._all;
     }
 
     for (const row of executions) {
         if (!row.dateExecution) continue;
         const bucket = evolutionByDate.get(bucketKey(row.dateExecution));
-        if (bucket) bucket.executes = row._count._all;
+        if (bucket) bucket.executes += row._count._all;
     }
 
     const data: BacklogPeriodStats = {

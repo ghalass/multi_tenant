@@ -1,16 +1,15 @@
 import type { JSX } from "react";
 import { BarChart3, CalendarDays } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import CanAccess from "@/components/can-access";
 import DisplayError from "@/components/display-error";
 
 import { ACTION } from "@/lib/enums";
 import { RESOURCE } from "@/lib/constantes";
-import { getBacklogStatsByPeriod } from "@/server/backlogs";
+import { getBacklogOptions, getBacklogStatsByPeriod } from "@/server/backlogs";
 
 import BacklogStatsCharts from "./backlog-stats-charts";
+import BacklogStatsFiltersForm from "./backlog-stats-filters";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -29,13 +28,23 @@ export default async function BacklogStatsPage({
     const global = firstString(params.global) === "1";
     const dateFrom = global ? "" : firstString(params.dateFrom) ?? "";
     const dateTo = global ? "" : firstString(params.dateTo) ?? "";
+    const filters = {
+        typeparcId: firstString(params.typeparcId) ?? "",
+        parcId: firstString(params.parcId) ?? "",
+        enginId: firstString(params.enginId) ?? "",
+        siteId: firstString(params.siteId) ?? "",
+    };
     const canAnalyze = global || Boolean(dateFrom && dateTo);
-    const periodResponse = canAnalyze
-        ? await getBacklogStatsByPeriod(
-            global ? undefined : dateFrom,
-            global ? undefined : dateTo,
-        )
-        : undefined;
+    const [optionsResponse, periodResponse] = await Promise.all([
+        getBacklogOptions(),
+        canAnalyze
+            ? getBacklogStatsByPeriod(
+                global ? undefined : dateFrom,
+                global ? undefined : dateTo,
+                filters,
+            )
+            : Promise.resolve(undefined),
+    ]);
 
     return (
         <CanAccess resource={RESOURCE.BACKLOG} action={ACTION.READ}>
@@ -55,41 +64,15 @@ export default async function BacklogStatsPage({
                         <CalendarDays className="size-5 text-muted-foreground" />
                         <h2 className="font-semibold">Période d’analyse</h2>
                     </div>
-                    <form
-                        method="get"
-                        className="flex flex-wrap items-end gap-3"
-                    >
-                        <label className="grid gap-1 text-sm">
-                            <span>Date du</span>
-                            <Input
-                                className="w-auto"
-                                type="date"
-                                name="dateFrom"
-                                defaultValue={dateFrom}
-                                required
-                            />
-                        </label>
-                        <label className="grid gap-1 text-sm">
-                            <span>Au</span>
-                            <Input
-                                className="w-auto"
-                                type="date"
-                                name="dateTo"
-                                defaultValue={dateTo}
-                                required
-                            />
-                        </label>
-                        <Button type="submit">Analyser la période</Button>
-                        <Button
-                            type="submit"
-                            name="global"
-                            value="1"
-                            variant="outline"
-                            formNoValidate
-                        >
-                            Calcul global
-                        </Button>
-                    </form>
+                    {!optionsResponse.success && (
+                        <DisplayError error={optionsResponse.message} />
+                    )}
+                    <BacklogStatsFiltersForm
+                        options={optionsResponse.data}
+                        filters={filters}
+                        dateFrom={dateFrom}
+                        dateTo={dateTo}
+                    />
                     {periodResponse && !periodResponse.success ? (
                         <DisplayError error={periodResponse.message} />
                     ) : periodResponse?.success ? (
