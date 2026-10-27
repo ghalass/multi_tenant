@@ -37,6 +37,7 @@ type SelectParamsProps = {
 
 export default function SelectParams({ typeParcs }: SelectParamsProps) {
     const [isPending, startTransition] = useTransition();
+    const [isGenerating, startGenerateTransition] = useTransition();
 
     const searchParams = useSearchParams();
     const pathname = usePathname();
@@ -115,7 +116,7 @@ export default function SelectParams({ typeParcs }: SelectParamsProps) {
         // Aucun filtre individuel par engin.
         params.delete("enginId");
 
-        startTransition(() => {
+        startGenerateTransition(() => {
             router.replace(`${pathname}?${params.toString()}`, {
                 scroll: false,
             });
@@ -124,7 +125,7 @@ export default function SelectParams({ typeParcs }: SelectParamsProps) {
 
     return (
         <>
-            <GlobalLoader show={isPending} />
+            <GlobalLoader show={isGenerating} />
 
             <div className="mb-5 flex flex-wrap items-end gap-3">
                 <div className="w-full space-y-2 sm:w-48">

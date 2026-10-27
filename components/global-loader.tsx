@@ -1,24 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
+import type { JSX } from "react";
+
 import { Spinner } from "./ui/spinner";
 
-export function GlobalLoader({ show }: { show: boolean }) {
-    const [mounted, setMounted] = useState(false);
-    const [slot, setSlot] = useState<HTMLElement | null>(null);
+export function GlobalLoader({
+    show,
+}: {
+    show: boolean;
+}): JSX.Element | null {
+    if (!show) return null;
 
-    useEffect(() => {
-        setMounted(true);
-        setSlot(document.getElementById("global-loader-slot"));
-    }, []);
-
-    if (!mounted || !slot || !show) return null;
-
-    return createPortal(
-        <div className="absolute inset-0 z-50 flex h-full w-full items-center justify-center bg-background/60">
-            <Spinner className="size-7 text-primary" />
-        </div>,
-        slot
+    return (
+        <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-background/60"
+            role="status"
+            aria-label="Chargement en cours"
+        >
+            <Spinner className="size-8 text-primary" />
+        </div>
     );
 }

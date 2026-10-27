@@ -15,6 +15,7 @@ export default function Filters() {
     const { replace } = useRouter();
 
     const [isPending, startTransition] = useTransition();
+    const [clearPending, startClearTransition] = useTransition();
 
     // État local pour l'input
     const [search, setSearch] = useState(searchParams.get('name') ?? '');
@@ -40,14 +41,14 @@ export default function Filters() {
         const params = new URLSearchParams(searchParams);
         params.delete('name');
         params.delete('currentPage');
-        startTransition(() => {
+        startClearTransition(() => {
             replace(`${pathname}?${params.toString()}`);
         });
     };
 
     return (
         <>
-            <GlobalLoader show={isPending} />
+            <GlobalLoader show={clearPending} />
             <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:gap-4 mb-5">
                 {/* Recherche par nom */}
                 <div className="relative flex-1">

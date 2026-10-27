@@ -22,6 +22,7 @@ export default function Filters({ roles = [] }: { roles?: Role[] }) {
     const { replace } = useRouter();
 
     const [isPending, startTransition] = useTransition();
+    const [clearPending, startClearTransition] = useTransition();
 
     // ✅ Utiliser la même clé "name" partout
     const [search, setSearch] = useState(searchParams.get("name") ?? "");
@@ -56,14 +57,14 @@ export default function Filters({ roles = [] }: { roles?: Role[] }) {
         const params = new URLSearchParams(searchParams);
         params.delete("name");
         params.delete("page");
-        startTransition(() => {
+        startClearTransition(() => {
             replace(`${pathname}?${params.toString()}`);
         });
     };
 
     return (
         <>
-            <GlobalLoader show={isPending} />
+            <GlobalLoader show={clearPending} />
             <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:gap-4 mb-5">
                 {/* Recherche par nom/email */}
                 <div className="relative flex-1">

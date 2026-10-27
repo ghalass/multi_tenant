@@ -18,6 +18,7 @@ export default function Search() {
     const pathname = usePathname();
     const { replace } = useRouter();
     const [pending, startTransition] = useTransition();
+    const [clearPending, startClearTransition] = useTransition();
     const [search, setSearch] = useState(searchParams.get("name") ?? "");
 
     const applyFilter = useDebouncedCallback((key: string, value: string) => {
@@ -39,12 +40,12 @@ export default function Search() {
         params.delete("name");
         params.delete("currentPage");
 
-        startTransition(() => replace(`${pathname}?${params.toString()}`));
+        startClearTransition(() => replace(`${pathname}?${params.toString()}`));
     }
 
     return (
         <>
-            <GlobalLoader show={pending} />
+            <GlobalLoader show={clearPending} />
             <div className="mb-5 mt-2 flex flex-col gap-3 sm:flex-row">
                 <div className="relative flex-1">
                     <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

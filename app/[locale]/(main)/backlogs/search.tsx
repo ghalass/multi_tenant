@@ -1,6 +1,11 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import {
+    useEffect,
+    useState,
+    useTransition,
+    type FormEvent,
+} from "react";
 import {
     usePathname,
     useRouter,
@@ -10,6 +15,7 @@ import { RotateCcw, Search as SearchIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
 import {
     Select,
     SelectContent,
@@ -70,6 +76,7 @@ export default function BacklogSearch({
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
+    const [pending, startTransition] = useTransition();
 
     const [values, setValues] = useState({
         search: filters.search ?? "",
@@ -208,7 +215,9 @@ export default function BacklogSearch({
         params.set("appliquer", "1");
         params.delete("currentPage");
 
-        router.push(`${pathname}?${params.toString()}`);
+        startTransition(() => {
+            router.push(`${pathname}?${params.toString()}`);
+        });
     }
 
     function resetFilters() {
@@ -226,7 +235,9 @@ export default function BacklogSearch({
             itemsPerPage: "10",
         });
 
-        router.push(pathname);
+        startTransition(() => {
+            router.push(pathname);
+        });
     }
 
     return (
@@ -234,6 +245,15 @@ export default function BacklogSearch({
             onSubmit={applyFilters}
             className="my-4 space-y-4 rounded-md border p-4"
         >
+            {pending && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-background/60"
+                    role="status"
+                    aria-label="Recherche en cours"
+                >
+                    <Spinner className="size-8 text-primary" />
+                </div>
+            )}
             <div className="flex flex-wrap items-end gap-3">
                 {/* Recherche textuelle */}
                 <div className="min-w-48 flex-[1_1_220px] space-y-1">
@@ -517,12 +537,13 @@ export default function BacklogSearch({
                         type="button"
                         variant="outline"
                         onClick={resetFilters}
+                        disabled={pending}
                     >
                         <RotateCcw className="mr-2 size-4" />
                         Réinitialiser
                     </Button>
 
-                    <Button type="submit">
+                    <Button type="submit" disabled={pending}>
                         <SearchIcon className="mr-2 size-4" />
                         Rechercher
                     </Button>

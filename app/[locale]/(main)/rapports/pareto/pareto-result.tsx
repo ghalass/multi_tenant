@@ -522,8 +522,8 @@ function EvolutionMtbf({
         .slice(0, 10);
 
     return (
-        <Card>
-            <CardHeader className="space-y-1 p-3 pb-1">
+        <Card className="gap-2 py-3">
+            <CardHeader className="space-y-1 p-2 pb-0.5 text-center">
                 <CardTitle className="text-base">
                     Évolution MTBF — {data.parcName} — {periode}
                 </CardTitle>
@@ -534,10 +534,10 @@ function EvolutionMtbf({
                 </CardDescription>
             </CardHeader>
 
-            <CardContent className="space-y-2 p-3 pt-1">
+            <CardContent className="space-y-1.5 p-2 pt-0.5">
                 <div
                     id="pareto-mtbf-chart"
-                    className="h-[270px] w-full"
+                    className="h-[230px] w-full"
                 >
                     <ResponsiveContainer
                         width="100%"
@@ -546,7 +546,7 @@ function EvolutionMtbf({
                         <RechartsLineChart
                             data={mtbfData}
                             margin={{
-                                top: 20,
+                                top: 16,
                                 right: 12,
                                 left: -15,
                                 bottom: 5,
@@ -617,30 +617,30 @@ function EvolutionMtbf({
                 </div>
 
                 {/* Cartes de synthèse compactes. */}
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                    <Card>
-                        <CardHeader className="p-2 pb-0.5">
+                <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-3">
+                    <Card className="gap-1 py-1.5">
+                        <CardHeader className="p-1 pb-0 text-center">
                             <CardTitle className="text-xs font-medium">
                                 Engins actifs
                             </CardTitle>
                         </CardHeader>
 
-                        <CardContent className="p-2 pt-0">
-                            <div className="text-lg font-semibold leading-6">
+                        <CardContent className="p-1 pt-0 text-center">
+                            <div className="text-base font-semibold leading-5">
                                 {data.enginsActifs}
                             </div>
                         </CardContent>
                     </Card>
 
-                    <Card>
-                        <CardHeader className="p-2 pb-0.5">
+                    <Card className="gap-1 py-1.5">
+                        <CardHeader className="p-1 pb-0 text-center">
                             <CardTitle className="text-xs font-medium">
                                 MTBF annuel
                             </CardTitle>
                         </CardHeader>
 
-                        <CardContent className="p-2 pt-0">
-                            <div className="text-lg font-semibold leading-6">
+                        <CardContent className="p-1 pt-0 text-center">
+                            <div className="text-base font-semibold leading-5">
                                 {data.mtbfAnnuel === null
                                     ? "—"
                                     : `${formatNumber(data.mtbfAnnuel)} h`}
@@ -654,15 +654,15 @@ function EvolutionMtbf({
                         </CardContent>
                     </Card>
 
-                    <Card>
-                        <CardHeader className="p-2 pb-0.5">
+                    <Card className="gap-1 py-1.5">
+                        <CardHeader className="p-1 pb-0 text-center">
                             <CardTitle className="text-xs font-medium">
                                 Objectif MTBF
                             </CardTitle>
                         </CardHeader>
 
-                        <CardContent className="p-2 pt-0">
-                            <div className="text-lg font-semibold leading-6">
+                        <CardContent className="p-1 pt-0 text-center">
+                            <div className="text-base font-semibold leading-5">
                                 {objectifMtbf === null
                                     ? "Non défini"
                                     : `${formatNumber(objectifMtbf)} h`}
@@ -679,7 +679,7 @@ function EvolutionMtbf({
                     </Card>
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                         <h3 className="text-sm font-semibold">
                             Top 10 des pannes les plus fréquentes [NI]

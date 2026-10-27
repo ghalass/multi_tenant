@@ -13,6 +13,7 @@ export default function Search() {
     const pathname = usePathname();
     const { replace } = useRouter();
     const [isPending, startTransition] = useTransition();
+    const [clearPending, startClearTransition] = useTransition();
 
     // ✅ Plus de useEffect : on initialise une seule fois
     const [search, setSearch] = useState(searchParams.get("name") ?? "");
@@ -41,14 +42,14 @@ export default function Search() {
         const params = new URLSearchParams(searchParams);
         params.delete("name");
         params.delete("page");
-        startTransition(() => {
+        startClearTransition(() => {
             replace(`${pathname}?${params.toString()}`);
         });
     };
 
     return (
         <>
-            <GlobalLoader show={isPending} />
+            <GlobalLoader show={clearPending} />
 
             <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:gap-4 mb-5">
                 <div className="relative flex-1">

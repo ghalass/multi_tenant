@@ -28,7 +28,7 @@ export type SaisieHimInput = {
     enginId: string;
     panneId: string;
     him: number;
-    ni: number;
+    ni?: number | null;
     obs?: string | null;
 };
 
@@ -370,7 +370,7 @@ async function validateSaisieHimInput(
 ) {
     const du = parseDate(values.du);
     const him = Number(values.him);
-    const ni = Number(values.ni);
+    const ni = values.ni == null ? null : Number(values.ni);
     const obs = values.obs?.trim() || null;
 
     if (!du) {
@@ -395,7 +395,7 @@ async function validateSaisieHimInput(
         };
     }
 
-    if (!Number.isInteger(ni) || ni < 0) {
+    if (ni !== null && (!Number.isInteger(ni) || ni < 0)) {
         return {
             error: "NI doit être un entier positif ou nul.",
         };
@@ -857,15 +857,9 @@ export async function importSaisieHim(data: any) {
             }];
         }
 
-        if (!hasValue(rawNi)) {
-            return [{
-                success: false,
-                data,
-                message: "Le champ 'ni' est obligatoire.",
-            }];
-        }
+        const hasNi = hasValue(rawNi);
 
-        if (ni === null || !Number.isInteger(ni)) {
+        if (hasNi && (ni === null || !Number.isInteger(ni))) {
             return [{
                 success: false,
                 data,
@@ -873,7 +867,7 @@ export async function importSaisieHim(data: any) {
             }];
         }
 
-        if (ni < 0) {
+        if (hasNi && ni !== null && ni < 0) {
             return [{
                 success: false,
                 data,
@@ -938,6 +932,19 @@ export async function importSaisieHim(data: any) {
             }];
         }
 
+        const existingSaisie = await prisma.saisiehim.findUnique({
+            where: {
+                panneId_saisiehrmId_tenantId: {
+                    panneId: panne.id,
+                    saisiehrmId: saisiehrm.id,
+                    tenantId: currentTenantId,
+                },
+            },
+            select: { ni: true },
+        });
+
+        const niValue = ni ?? existingSaisie?.ni ?? null;
+
         // Saisiehim est reliée à la panne et à la saisie HRM,
         // mais ne possède pas de relation directe avec Engin.
         const saisie = await prisma.saisiehim.upsert({
@@ -950,12 +957,12 @@ export async function importSaisieHim(data: any) {
             },
             update: {
                 him,
-                ni,
+                ni: niValue,
                 obs,
             },
             create: {
                 him,
-                ni,
+                ni: niValue,
                 obs,
                 tenant: {
                     connect: { id: currentTenantId },

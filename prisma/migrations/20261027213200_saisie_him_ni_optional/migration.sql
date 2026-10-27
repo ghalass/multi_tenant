@@ -1,0 +1,1 @@
+ALTER TABLE "saisie_him" ALTER COLUMN "ni" DROP NOT NULL;

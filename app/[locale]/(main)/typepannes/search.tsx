@@ -14,6 +14,7 @@ export default function TypePannesSearch() {
 
     const [search, setSearch] = useState(searchParams.get("name") ?? "");
     const [isPending, startTransition] = useTransition();
+    const [clearPending, startClearTransition] = useTransition();
 
     const updateSearch = useDebouncedCallback((value: string) => {
         const params = new URLSearchParams(searchParams.toString());
@@ -36,14 +37,14 @@ export default function TypePannesSearch() {
         params.delete("name");
         params.delete("currentPage");
 
-        startTransition(() => {
+        startClearTransition(() => {
             router.replace(params.size ? `${pathname}?${params}` : pathname);
         });
     }
 
     return (
         <>
-            <GlobalLoader show={isPending} />
+            <GlobalLoader show={clearPending} />
 
             <div className="relative mb-5 mt-2 w-full sm:max-w-md">
                 <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

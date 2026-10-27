@@ -32,6 +32,7 @@ export default function SelectParams({
     typeParcs,
 }: SelectParamsProps) {
     const [isPending, startTransition] = useTransition();
+    const [isGenerating, startGenerateTransition] = useTransition();
 
     const searchParams = useSearchParams();
     const pathname = usePathname();
@@ -127,7 +128,7 @@ export default function SelectParams({
         // Retire un éventuel ancien paramètre du filtre Site.
         params.delete("siteIds");
 
-        startTransition(() => {
+        startGenerateTransition(() => {
             router.replace(
                 `${pathname}?${params.toString()}`,
                 { scroll: false },
@@ -137,7 +138,7 @@ export default function SelectParams({
 
     return (
         <>
-            <GlobalLoader show={isPending} />
+            <GlobalLoader show={isGenerating} />
 
             <div className="mb-5 flex flex-wrap items-end gap-3">
                 <div className="w-full space-y-2 sm:w-48">

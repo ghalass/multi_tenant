@@ -80,7 +80,7 @@ type SaisieHimItem = {
     enginId: string;
     panneId: string;
     him: number;
-    ni: number;
+    ni: number | null;
     obs: string | null;
 };
 
@@ -100,10 +100,14 @@ const schema = yup.object({
         .required("HIM est obligatoire."),
     ni: yup
         .number()
+        .transform((value, originalValue) =>
+            originalValue === "" ? undefined : value,
+        )
         .typeError("NI doit être un nombre entier.")
         .integer("NI doit être un nombre entier.")
         .min(0, "NI doit être positif ou nul.")
-        .required("NI est obligatoire."),
+        .nullable()
+        .optional(),
     obs: yup
         .string()
         .max(1000, "1000 caractères maximum.")
@@ -159,7 +163,7 @@ export function SaisieHimForm({
             enginId: saisie?.enginId ?? "",
             panneId: saisie?.panneId ?? "",
             him: saisie?.him ?? 0,
-            ni: saisie?.ni ?? 1,
+            ni: saisie?.ni ?? null,
             obs: saisie?.obs ?? "",
         },
     });
@@ -232,7 +236,7 @@ export function SaisieHimForm({
             enginId: currentSaisie?.enginId ?? "",
             panneId: currentSaisie?.panneId ?? "",
             him: currentSaisie?.him ?? 0,
-            ni: currentSaisie?.ni ?? 1,
+            ni: currentSaisie?.ni ?? null,
             obs: currentSaisie?.obs ?? "",
         });
 
@@ -293,7 +297,7 @@ export function SaisieHimForm({
                 enginId: selectedEngin.id,
                 panneId: values.panneId,
                 him: Number(values.him),
-                ni: Number(values.ni),
+                ni: values.ni ?? null,
                 obs: values.obs?.trim() || null,
             };
 
@@ -709,7 +713,7 @@ export function SaisieHimForm({
                                     control={form.control}
                                     render={({ field, fieldState }) => (
                                         <Field data-invalid={fieldState.invalid}>
-                                            <FieldLabel htmlFor="him-ni">NI (nombre d'interventions)</FieldLabel>
+                                            <FieldLabel htmlFor="him-ni">NI (nombre d'interventions, facultatif)</FieldLabel>
                                             <Input
                                                 id="him-ni"
                                                 type="number"

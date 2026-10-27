@@ -1,9 +1,16 @@
 "use client";
 
-import { useState, type JSX } from "react";
+import {
+    useState,
+    useTransition,
+    type FormEvent,
+    type JSX,
+} from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
 import {
     Select,
     SelectContent,
@@ -29,6 +36,10 @@ export default function BacklogStatsFiltersForm({
     dateFrom,
     dateTo,
 }: Props): JSX.Element {
+    const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
+    const [pending, startTransition] = useTransition();
     const [typeparcId, setTypeparcId] = useState(filters.typeparcId || "all");
     const [parcId, setParcId] = useState(filters.parcId || "all");
     const [enginId, setEnginId] = useState(filters.enginId || "all");
@@ -47,8 +58,79 @@ export default function BacklogStatsFiltersForm({
         return parcMatches && siteMatches;
     });
 
+    function navigateWithParams(params: URLSearchParams): void {
+        const query = params.toString();
+        if (query === searchParams.toString()) return;
+
+        startTransition(() => {
+            router.push(query ? `${pathname}?${query}` : pathname);
+        });
+    }
+
+    function runAnalysis(event: FormEvent<HTMLFormElement>): void {
+        event.preventDefault();
+
+        const formData = new FormData(event.currentTarget);
+        const params = new URLSearchParams(searchParams.toString());
+
+        for (const key of [
+            "dateFrom",
+            "dateTo",
+            "typeparcId",
+            "parcId",
+            "enginId",
+            "siteId",
+        ]) {
+            params.delete(key);
+        }
+
+        for (const key of [
+            "dateFrom",
+            "dateTo",
+            "typeparcId",
+            "parcId",
+            "enginId",
+            "siteId",
+        ]) {
+            const value = String(formData.get(key) ?? "");
+            if (value) params.set(key, value);
+        }
+
+        params.delete("global");
+        navigateWithParams(params);
+    }
+
+    function runGlobalAnalysis(): void {
+        const params = new URLSearchParams(searchParams.toString());
+        for (const key of [
+            "dateFrom",
+            "dateTo",
+            "typeparcId",
+            "parcId",
+            "enginId",
+            "siteId",
+        ]) {
+            params.delete(key);
+        }
+        params.set("global", "1");
+
+        navigateWithParams(params);
+    }
+
     return (
-        <form method="get" className="flex flex-wrap items-end gap-2">
+        <form
+            onSubmit={runAnalysis}
+            className="flex flex-wrap items-end gap-2"
+        >
+            {pending && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-background/60"
+                    role="status"
+                    aria-label="Analyse en cours"
+                >
+                    <Spinner className="size-8 text-primary" />
+                </div>
+            )}
             <label className="grid gap-1 text-sm">
                 <span>Date du</span>
                 <Input
@@ -57,6 +139,7 @@ export default function BacklogStatsFiltersForm({
                     name="dateFrom"
                     defaultValue={dateFrom}
                     required
+                    disabled={pending}
                 />
             </label>
             <label className="grid gap-1 text-sm">
@@ -67,6 +150,7 @@ export default function BacklogStatsFiltersForm({
                     name="dateTo"
                     defaultValue={dateTo}
                     required
+                    disabled={pending}
                 />
             </label>
 
@@ -79,6 +163,7 @@ export default function BacklogStatsFiltersForm({
                 <span>Type de parc</span>
                 <Select
                     value={typeparcId}
+                    disabled={pending}
                     onValueChange={(value) => {
                         setTypeparcId(value);
                         setParcId("all");
@@ -108,6 +193,7 @@ export default function BacklogStatsFiltersForm({
                 <span>Parc</span>
                 <Select
                     value={parcId}
+                    disabled={pending}
                     onValueChange={(value) => {
                         setParcId(value);
                         setEnginId("all");
@@ -136,6 +222,7 @@ export default function BacklogStatsFiltersForm({
                 <span>Engin</span>
                 <Select
                     value={enginId}
+                    disabled={pending}
                     onValueChange={setEnginId}
                 >
                     <SelectTrigger disabled={engins.length === 0}>
@@ -161,6 +248,7 @@ export default function BacklogStatsFiltersForm({
                 <span>Site</span>
                 <Select
                     value={siteId}
+                    disabled={pending}
                     onValueChange={(value) => {
                         setSiteId(value);
                         setEnginId("all");
@@ -180,13 +268,14 @@ export default function BacklogStatsFiltersForm({
                 </Select>
             </label>
 
-            <Button type="submit">Analyser la période</Button>
+            <Button type="submit" disabled={pending}>
+                Analyser la période
+            </Button>
             <Button
-                type="submit"
-                name="global"
-                value="1"
+                type="button"
+                onClick={runGlobalAnalysis}
                 variant="outline"
-                formNoValidate
+                disabled={pending}
             >
                 Calcul global
             </Button>

@@ -1,6 +1,5 @@
 "use client";
 
-import { GlobalLoader } from '@/components/global-loader';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Parc, Site } from '@/lib/generated/prisma/client';
@@ -34,8 +33,6 @@ export default function SelectParams() {
 
     return (
         <>
-            <GlobalLoader show={isPending} />
-
             <div className="flex items-center justify-center gap-2">
                 <Input
                     type="month"

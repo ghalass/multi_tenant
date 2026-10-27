@@ -18,6 +18,7 @@ export default function SearchParcs() {
     const pathname = usePathname();
     const { replace } = useRouter();
     const [isPending, startTransition] = useTransition();
+    const [clearPending, startClearTransition] = useTransition();
     const [search, setSearch] = useState(searchParams.get("name") ?? "");
 
     const handleSearch = useDebouncedCallback((value: string) => {
@@ -44,14 +45,14 @@ export default function SearchParcs() {
         params.delete("name");
         params.delete("currentPage");
 
-        startTransition(() => {
+        startClearTransition(() => {
             replace(`${pathname}?${params.toString()}`);
         });
     }
 
     return (
         <>
-            <GlobalLoader show={isPending} />
+            <GlobalLoader show={clearPending} />
 
             <div className="mb-5 mt-2">
                 <div className="relative">
