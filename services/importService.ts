@@ -29,6 +29,7 @@ export class ImportService {
         [IMPORT_RESOURCES.PANNES]: RESOURCE.PANNE,
         [IMPORT_RESOURCES.SAISIE_HRM]: RESOURCE.SAISIE_HRM,
         [IMPORT_RESOURCES.SAISIE_HIMS]: RESOURCE.SAISIE_HIM,
+        [IMPORT_RESOURCES.BACKLOGS]: RESOURCE.BACKLOG,
       };
 
       const resource = permissionResources[sheet];

@@ -1042,6 +1042,25 @@ export async function importBacklogs(data: Record<string, unknown>) {
         const isoDate = parseDate(raw);
         if (isoDate) return isoDate;
 
+        const frenchDate = /^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/.exec(raw);
+        if (frenchDate) {
+            const [, dayValue, monthValue, yearValue] = frenchDate;
+            const day = Number(dayValue);
+            const month = Number(monthValue);
+            const year = Number(yearValue);
+            const date = new Date(Date.UTC(year, month - 1, day));
+
+            if (
+                date.getUTCFullYear() !== year ||
+                date.getUTCMonth() !== month - 1 ||
+                date.getUTCDate() !== day
+            ) {
+                return null;
+            }
+
+            return date;
+        }
+
         const parsed = new Date(raw);
         if (Number.isNaN(parsed.getTime())) return null;
 
@@ -1184,7 +1203,7 @@ export async function importBacklogs(data: Record<string, unknown>) {
             return [{
                 success: false,
                 data,
-                message: "La date d'exécution est invalide.",
+                message: "La date d'exécution est invalide.!!",
             }];
         }
 
