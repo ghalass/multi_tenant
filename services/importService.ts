@@ -12,6 +12,7 @@ import { ACTION } from "@/lib/enums";
 import { RESOURCE, IMPORT_RESOURCES } from "@/lib/constantes";
 import { guard } from "@/lib/rbac/middleware";
 import { importBacklogs } from "@/server/backlogs";
+import { importObjectifs } from "@/server/objectifs";
 
 export class ImportService {
   async importData(sheetName: string, data: any) {
@@ -30,6 +31,7 @@ export class ImportService {
         [IMPORT_RESOURCES.SAISIE_HRM]: RESOURCE.SAISIE_HRM,
         [IMPORT_RESOURCES.SAISIE_HIMS]: RESOURCE.SAISIE_HIM,
         [IMPORT_RESOURCES.BACKLOGS]: RESOURCE.BACKLOG,
+        [IMPORT_RESOURCES.OBJECTIFS]: RESOURCE.OBJECTIF,
       };
 
       const resource = permissionResources[sheet];
@@ -65,6 +67,7 @@ export class ImportService {
         case IMPORT_RESOURCES.SAISIE_HIMS: return await importSaisieHim(data);
 
         case IMPORT_RESOURCES.BACKLOGS: return await importBacklogs(data);
+        case IMPORT_RESOURCES.OBJECTIFS: return await importObjectifs(data);
 
         default:
           return [

@@ -11,6 +11,7 @@ export const TABLES = [
     "permission",
     "tenant",
     "backlog",
+    "objectif",
 ] as const;
 
 export type TableName = typeof TABLES[number];

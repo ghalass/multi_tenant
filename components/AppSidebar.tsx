@@ -23,6 +23,7 @@ import {
   Droplet,
   Droplets,
   KeyboardMusic,
+  Target,
 } from "lucide-react";
 
 import {
@@ -92,6 +93,11 @@ const configItems = {
       url: "/engins",
       icon: Truck,
       description: "Gérer les engins",
+    }, {
+      title: "Objectifs",
+      url: "/objectifs",
+      icon: Target,
+      description: "Gérer les objectifs",
     }, {
       title: "Types de pannes",
       url: "/typepannes",
