@@ -90,7 +90,7 @@ export default function BacklogSearch({
 
     function resetFilters() {
         const params = new URLSearchParams();
-        params.set("appliquer", "1");
+        // params.set("appliquer", "1");
 
         setValues({
             search: "",
