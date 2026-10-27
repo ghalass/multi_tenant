@@ -20,6 +20,9 @@ import {
   Boxes,
   Wrench, Gauge, ClipboardList,
   BarChart3,
+  Droplet,
+  Droplets,
+  KeyboardMusic,
 } from "lucide-react";
 
 import {
@@ -111,6 +114,19 @@ const configItems = {
       icon: ClipboardList,
       description: "Gérer les saisies HIM",
     },
+    {
+      title: "lubrifiant",
+      url: "/lubrifiant",
+      icon: Droplet,
+      description: "Gérer les lubrifiants",
+    },
+    {
+      title: "Type de lubrifiant",
+      url: "/type_lubrifiant",
+      icon: Droplets,
+      description: "Gérer les type des lubrifiants",
+    },
+
     { title: "Utilisateurs", url: `/users`, icon: Users, description: "Gérer les utilisateurs" },
     { title: "Import", url: `/import`, icon: Upload, description: "Import" },
   ],
@@ -160,7 +176,24 @@ const rapportsItems = {
   ],
 };
 
-
+const backlogItems = {
+  title: "Gestion des backlogs",
+  icon: Wrench,
+  list: [
+    {
+      title: "Dashboard",
+      url: "/backlogs/stats",
+      icon: Gauge,
+      description: "Dashboard",
+    },
+    {
+      title: "Backlogs",
+      url: "/backlogs",
+      icon: Wrench,
+      description: "Gestion des backlogs",
+    },
+  ],
+};
 
 const AccessControl = {
   title: "Contrôle d'accès",
@@ -187,7 +220,13 @@ export function AppSidebar() {
 
   const isActivePath = useActivePath();
 
-  const allItems = [configItems, rapportsItems, AccessControl];
+  const allItems =
+    [
+      configItems,
+      rapportsItems,
+      backlogItems,
+      AccessControl,
+    ];
 
   return (
     <Sidebar side={isRTL ? "right" : "left"} variant="floating" collapsible="icon">
