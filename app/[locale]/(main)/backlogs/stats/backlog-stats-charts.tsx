@@ -6,7 +6,6 @@ import {
     Bar,
     BarChart,
     CartesianGrid,
-    Legend,
     LabelList,
     ResponsiveContainer,
     Tooltip,
@@ -18,7 +17,6 @@ import {
 import {
     Card,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle,
 } from "@/components/ui/card";
@@ -31,82 +29,134 @@ const DISTRIBUTION_COLORS = [
     "#CC79A7",
     "#D55E00",
 ];
+const PRIORITY_COLORS = {
+    ELEVEE: "#DC2626",
+    MOYENNE: "#F97316",
+    FAIBLE: "#EAB308",
+};
+const DONE_COLOR = "#22C55E";
 
 const DETECTION_COLOR = "#0072B2";
-const EXECUTION_COLOR = "#D55E00";
+const EXECUTION_COLOR = DONE_COLOR;
 
 function readable(value: string): string {
     return value.replaceAll("_", " ").toLowerCase();
 }
 
+function chartDomainMax(dataMax: number): number {
+    return dataMax + Math.max(1, dataMax * 0.2);
+}
+
+function ChartLegend({
+    items,
+    label,
+}: {
+    items: { marker: string; label: string; color: string }[];
+    label: string;
+}): JSX.Element {
+    return (
+        <div
+            aria-label={label}
+            className="flex flex-wrap content-start items-center justify-center gap-x-3 gap-y-1 overflow-hidden py-1 text-[11px]"
+        >
+            {items.map((item) => (
+                <div
+                    key={item.marker}
+                    className="flex min-w-0 items-center gap-1.5 whitespace-nowrap"
+                    title={`${item.marker} : ${item.label}`}
+                >
+                    <span
+                        aria-hidden="true"
+                        className="size-2.5 shrink-0 rounded-sm"
+                        style={{ backgroundColor: item.color }}
+                    />
+                    <span
+                        className="shrink-0 font-semibold"
+                        style={{ color: item.color }}
+                    >
+                        {item.marker}
+                    </span>
+                    <span className="truncate text-muted-foreground">
+                        {item.label}
+                    </span>
+                </div>
+            ))}
+        </div>
+    );
+}
+
 function DistributionChart({
     title,
-    description,
     data,
-    total,
+    colorByLabel,
 }: {
     title: string;
-    description: string;
     data: { label: string; value: number }[];
-    total?: number;
+    colorByLabel?: Record<string, string>;
 }): JSX.Element {
     const hasData = data.some((item) => item.value > 0);
+    const chartData = data.map((item, index) => ({
+        ...item,
+        marker: String.fromCharCode(65 + index),
+        color:
+            colorByLabel?.[item.label] ??
+            DISTRIBUTION_COLORS[index % DISTRIBUTION_COLORS.length],
+    }));
+    const labelsByMarker = new Map(
+        chartData.map((item) => [item.marker, readable(item.label)]),
+    );
+    const legendItems = chartData.map((item) => ({
+        marker: item.marker,
+        label: readable(item.label),
+        color: item.color,
+    }));
 
     return (
-        <Card>
-            <CardHeader className="pb-2">
+        <Card className="gap-2">
+            <CardHeader className="pb-0 text-center">
                 <CardTitle>{title}</CardTitle>
-                <CardDescription>{description}</CardDescription>
             </CardHeader>
             <CardContent className="pt-0">
-                {total !== undefined && (
-                    <p className="mb-1 text-sm font-medium">
-                        Total des backlogs :{" "}
-                        <span className="text-lg font-bold">{total}</span>
-                    </p>
-                )}
                 {hasData ? (
-                    <div className="h-56">
+                    <div className="grid h-56 grid-rows-[2.5rem_1fr]">
+                        <ChartLegend
+                            items={legendItems}
+                            label="Légende des catégories"
+                        />
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart
-                                data={data}
-                                layout="vertical"
-                                margin={{ top: 4, right: 24, bottom: 4, left: 8 }}
+                                data={chartData}
+                                margin={{ top: 8, right: 8, bottom: 4, left: 0 }}
                             >
-                                <CartesianGrid
-                                    strokeDasharray="3 3"
-                                    horizontal={false}
-                                />
-                                <XAxis type="number" allowDecimals={false} />
-                                <YAxis
-                                    type="category"
-                                    dataKey="label"
-                                    width={90}
-                                    tickFormatter={readable}
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis
+                                    dataKey="marker"
                                     tick={{ fontSize: 11 }}
+                                />
+                                <YAxis
+                                    allowDecimals={false}
+                                    domain={[0, chartDomainMax]}
                                 />
                                 <Tooltip
                                     formatter={(value) => [value, "Backlogs"]}
-                                    labelFormatter={(label) =>
-                                        readable(String(label))
+                                    labelFormatter={(marker) =>
+                                        labelsByMarker.get(String(marker)) ??
+                                        String(marker)
                                     }
                                 />
                                 <Bar
                                     dataKey="value"
                                     name="Backlogs"
-                                    radius={[0, 4, 4, 0]}
+                                    barSize={32}
+                                    radius={[4, 4, 0, 0]}
                                 >
-                                    {data.map((item, index) => (
+                                    {chartData.map((item) => (
                                         <Cell
                                             key={item.label}
-                                            fill={
-                                                DISTRIBUTION_COLORS[
-                                                    index % DISTRIBUTION_COLORS.length
-                                                ]
-                                            }
+                                            fill={item.color}
                                         />
                                     ))}
-                                    <LabelList dataKey="value" position="right" />
+                                    <LabelList dataKey="value" position="top" />
                                 </Bar>
                             </BarChart>
                         </ResponsiveContainer>
@@ -134,25 +184,37 @@ export default function BacklogStatsCharts({
         (total, point) => total + point.executes,
         0,
     );
+    const evolutionLegendItems = [
+        {
+            marker: "A",
+            label: "Backlogs détectés",
+            color: DETECTION_COLOR,
+        },
+        {
+            marker: "B",
+            label: "Backlogs exécutés",
+            color: EXECUTION_COLOR,
+        },
+    ];
 
     return (
         <>
-            <Card>
-                <CardHeader className="pb-2">
+            <Card className="gap-1">
+                <CardHeader className="pb-0">
                     <CardTitle>Évolution des backlogs et des exécutions</CardTitle>
-                    <CardDescription>
-                        Détections par date de détection et exécutions par date
-                        d’exécution, affichées par {stats.pas}.
-                    </CardDescription>
                 </CardHeader>
                 <CardContent className="pt-0">
                     {stats.evolution.length > 0 ? (
-                        <div className="h-64">
+                        <div className="grid h-64 grid-rows-[2rem_1fr]">
+                            <ChartLegend
+                                items={evolutionLegendItems}
+                                label="Légende de l’évolution"
+                            />
                             <ResponsiveContainer width="100%" height="100%">
                                 <BarChart
                                     data={stats.evolution}
                                     margin={{
-                                        top: 20,
+                                        top: 12,
                                         right: 12,
                                         bottom: 4,
                                         left: 0,
@@ -164,9 +226,11 @@ export default function BacklogStatsCharts({
                                         minTickGap={24}
                                         tick={{ fontSize: 12 }}
                                     />
-                                    <YAxis allowDecimals={false} />
+                                    <YAxis
+                                        allowDecimals={false}
+                                        domain={[0, chartDomainMax]}
+                                    />
                                     <Tooltip />
-                                    <Legend />
                                     <Bar
                                         dataKey="backlogs"
                                         name="Backlogs détectés"
@@ -198,7 +262,7 @@ export default function BacklogStatsCharts({
                         </p>
                     )}
                     {stats.evolution.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 border-t pt-2 text-sm">
+                        <div className="mt-2 flex flex-wrap justify-center gap-x-6 gap-y-1 border-t pt-2 text-sm">
                             <span>
                                 Total détecté :{" "}
                                 <strong>{totalDetected}</strong>
@@ -215,23 +279,17 @@ export default function BacklogStatsCharts({
             <div className="grid gap-2 lg:grid-cols-3">
                 <DistributionChart
                     title="Répartition par source"
-                    description={stats.global
-                        ? "Répartition globale des backlogs."
-                        : "Backlogs détectés pendant la période."}
                     data={stats.parSource}
                 />
                 <DistributionChart
                     title="Répartition par priorité"
-                    description={stats.global
-                        ? "Répartition globale des backlogs."
-                        : "Backlogs détectés pendant la période."}
                     data={stats.parPriorite}
+                    colorByLabel={PRIORITY_COLORS}
                 />
                 <DistributionChart
                     title="Répartition par statut"
-                    description="Statut actuel des backlogs détectés pendant la période."
                     data={stats.parStatut}
-                    total={stats.total}
+                    colorByLabel={{ EXECUTE: DONE_COLOR }}
                 />
             </div>
         </>

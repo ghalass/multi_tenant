@@ -552,16 +552,6 @@ export async function getBacklogStatsByPeriod(
             ? { dateDetection: { gte: dateFrom, lte: dateTo } }
             : {}),
     };
-    const executionWhere = {
-        ...backlogScope,
-        dateExecution: {
-            not: null,
-            ...(dateFrom && dateTo
-                ? { gte: dateFrom, lte: dateTo }
-                : {}),
-        },
-    };
-
     const [total, detections, executions, statuses, priorities, sources] =
         await Promise.all([
             prisma.backlog.count({ where: detectionWhere }),
@@ -571,8 +561,11 @@ export async function getBacklogStatsByPeriod(
                 _count: { _all: true },
             }),
             prisma.backlog.groupBy({
-                by: ["dateExecution"],
-                where: executionWhere,
+                by: ["dateDetection"],
+                where: {
+                    ...detectionWhere,
+                    statut: StatutBacklog.EXECUTE,
+                },
                 _count: { _all: true },
             }),
             prisma.backlog.groupBy({
@@ -594,9 +587,7 @@ export async function getBacklogStatsByPeriod(
 
     const allDates = [
         ...detections.map((row) => row.dateDetection),
-        ...executions.flatMap((row) =>
-            row.dateExecution ? [row.dateExecution] : [],
-        ),
+        ...executions.map((row) => row.dateDetection),
     ];
     const firstDate = dateFrom ?? allDates.reduce<Date | null>(
         (earliest, date) => !earliest || date < earliest ? date : earliest,
@@ -655,8 +646,7 @@ export async function getBacklogStatsByPeriod(
     }
 
     for (const row of executions) {
-        if (!row.dateExecution) continue;
-        const bucket = evolutionByDate.get(bucketKey(row.dateExecution));
+        const bucket = evolutionByDate.get(bucketKey(row.dateDetection));
         if (bucket) bucket.executes += row._count._all;
     }
 
