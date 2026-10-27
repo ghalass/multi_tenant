@@ -22,6 +22,8 @@ import type {
 } from "@/lib/types/backlog";
 
 const EMPTY_OPTIONS: BacklogOptions = {
+    typeparcs: [],
+    parcs: [],
     sites: [],
     engins: [],
 };
@@ -106,7 +108,26 @@ export async function getBacklogOptions(): Promise<BacklogOptionsResponse> {
         };
     }
 
-    const [sites, engins] = await Promise.all([
+    const [typeparcs, parcs, sites, engins] = await Promise.all([
+        prisma.typeparc.findMany({
+            where: { tenantId },
+            select: {
+                id: true,
+                name: true,
+            },
+            orderBy: { name: "asc" },
+        }),
+
+        prisma.parc.findMany({
+            where: { tenantId },
+            select: {
+                id: true,
+                name: true,
+                typeparcId: true,
+            },
+            orderBy: { name: "asc" },
+        }),
+
         prisma.site.findMany({
             where: { tenantId },
             select: {
@@ -122,6 +143,7 @@ export async function getBacklogOptions(): Promise<BacklogOptionsResponse> {
             select: {
                 id: true,
                 name: true,
+                parcId: true,
                 siteId: true,
                 active: true,
             },
@@ -132,7 +154,12 @@ export async function getBacklogOptions(): Promise<BacklogOptionsResponse> {
     return {
         success: true,
         message: "",
-        data: { sites, engins },
+        data: {
+            typeparcs,
+            parcs,
+            sites,
+            engins,
+        },
     };
 }
 
@@ -860,10 +887,6 @@ export async function importBacklogs(data: Record<string, unknown>) {
             }];
         }
 
-        const rawBesoinPDR = enumValue(data.besoinPDR);
-        const besoinPDR =
-            data.besoinPDR === true ||
-            ["OUI", "TRUE", "1", "YES"].includes(rawBesoinPDR);
 
         const dateExecution = text(data.dateExecution)
             ? parseImportDate(data.dateExecution)
@@ -882,14 +905,6 @@ export async function importBacklogs(data: Record<string, unknown>) {
             description,
             source,
             priorite,
-            besoinPDR,
-            quantite,
-            reference: nullableText(text(data.reference)),
-            code: nullableText(text(data.code)),
-            stock: nullableText(text(data.stock)),
-            numeroBS: nullableText(text(data.numeroBS)),
-            programmation: nullableText(text(data.programmation)),
-            sortiePDR: nullableText(text(data.sortiePDR)),
             equipe: nullableText(text(data.equipe)),
             statut: finalStatut,
             dateExecution,

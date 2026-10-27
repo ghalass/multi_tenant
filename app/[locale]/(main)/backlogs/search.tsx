@@ -109,8 +109,9 @@ export default function BacklogSearch({
 
     return (
         <form onSubmit={applyFilters} className="my-4 space-y-4 rounded-md border p-4">
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="flex flex-wrap items-end gap-3">
                 <Input
+                    className="w-64 max-w-full"
                     placeholder="N° backlog, description, engin..."
                     value={values.search}
                     onChange={(event) => update("search", event.target.value)}
@@ -120,7 +121,7 @@ export default function BacklogSearch({
                     value={values.statut}
                     onValueChange={(value) => update("statut", value)}
                 >
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger>
                         <SelectValue placeholder="Tous les statuts" />
                     </SelectTrigger>
                     <SelectContent>
@@ -137,7 +138,7 @@ export default function BacklogSearch({
                     value={values.priorite}
                     onValueChange={(value) => update("priorite", value)}
                 >
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger>
                         <SelectValue placeholder="Toutes les priorités" />
                     </SelectTrigger>
                     <SelectContent>
@@ -154,7 +155,7 @@ export default function BacklogSearch({
                     value={values.source}
                     onValueChange={(value) => update("source", value)}
                 >
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger>
                         <SelectValue placeholder="Toutes les sources" />
                     </SelectTrigger>
                     <SelectContent>
@@ -174,7 +175,7 @@ export default function BacklogSearch({
                         update("enginId", "all");
                     }}
                 >
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger>
                         <SelectValue placeholder="Tous les sites" />
                     </SelectTrigger>
                     <SelectContent>
@@ -191,7 +192,7 @@ export default function BacklogSearch({
                     value={values.enginId}
                     onValueChange={(value) => update("enginId", value)}
                 >
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger>
                         <SelectValue placeholder="Tous les engins" />
                     </SelectTrigger>
                     <SelectContent>
@@ -204,22 +205,24 @@ export default function BacklogSearch({
                     </SelectContent>
                 </Select>
 
-                <label className="space-y-1">
+                <label className="flex flex-col gap-1">
                     <span className="text-sm text-muted-foreground">
                         Détection à partir du
                     </span>
                     <Input
+                        className="w-auto"
                         type="date"
                         value={values.dateFrom}
                         onChange={(event) => update("dateFrom", event.target.value)}
                     />
                 </label>
 
-                <label className="space-y-1">
+                <label className="flex flex-col gap-1">
                     <span className="text-sm text-muted-foreground">
                         Détection jusqu'au
                     </span>
                     <Input
+                        className="w-auto"
                         type="date"
                         value={values.dateTo}
                         onChange={(event) => update("dateTo", event.target.value)}

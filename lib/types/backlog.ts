@@ -19,6 +19,17 @@ export type BacklogFormValues = {
     commentaireChangementStatut: string;
 };
 
+export type BacklogTypeparcOption = {
+    id: string;
+    name: string;
+};
+
+export type BacklogParcOption = {
+    id: string;
+    name: string;
+    typeparcId: string;
+};
+
 export type BacklogSiteOption = {
     id: string;
     name: string;
@@ -28,11 +39,14 @@ export type BacklogSiteOption = {
 export type BacklogEnginOption = {
     id: string;
     name: string;
+    parcId: string;
     siteId: string;
     active: boolean;
 };
 
 export type BacklogOptions = {
+    typeparcs: BacklogTypeparcOption[];
+    parcs: BacklogParcOption[];
     sites: BacklogSiteOption[];
     engins: BacklogEnginOption[];
 };
@@ -44,6 +58,11 @@ export type BacklogStatusHistory = {
     dateChangement: Date | string;
     commentaire: string | null;
 };
+
+export type BacklogRecordEngin = Pick<
+    BacklogEnginOption,
+    "id" | "name" | "siteId" | "active"
+>;
 
 export type BacklogRecord = {
     id: string;
@@ -61,7 +80,7 @@ export type BacklogRecord = {
     tenantId: string;
     createdAt: Date | string;
     updatedAt: Date | string;
-    engin?: BacklogEnginOption;
+    engin?: BacklogRecordEngin;
     site?: BacklogSiteOption;
     historiqueStatutBacklogs?: BacklogStatusHistory[];
 };

@@ -35,6 +35,8 @@ import { BacklogDetails } from "./backlog-details";
 import BacklogSearch from "./search";
 
 const EMPTY_OPTIONS: BacklogOptions = {
+    typeparcs: [],
+    parcs: [],
     sites: [],
     engins: [],
 };
@@ -132,6 +134,8 @@ export default async function BacklogsPage({
                 <div className="flex flex-wrap items-center gap-2">
                     <CanAccess resource={RESOURCE.BACKLOG} action={ACTION.CREATE}>
                         <BacklogForm
+                            typeparcs={options.typeparcs}
+                            parcs={options.parcs}
                             sites={options.sites}
                             engins={options.engins}
                         />
@@ -253,6 +257,8 @@ export default async function BacklogsPage({
                                                         >
                                                             <BacklogForm
                                                                 backlog={backlog}
+                                                                typeparcs={options.typeparcs}
+                                                                parcs={options.parcs}
                                                                 sites={options.sites}
                                                                 engins={options.engins}
                                                             />

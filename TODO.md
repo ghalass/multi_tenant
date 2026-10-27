@@ -41,3 +41,13 @@ s'inspirer du projet gmao_nextjs
 faire pour multi_tenant:
 -rajoute une page pour gestion des backlogs, s'inspire de ce qui est fait avec saisie-hrm (page complète avec ajoute du lien dans le sidebar des configurations, respecte la même architecture) et du projet gmao_nextjs (faire la même fonctionalité)
 nota:backlogs est équivalent à anomalies dans gmao_nextjs
+--------
+ok ok tout fonctionne, 
+lire tout les fichiers du projet https://github.com/ghalass/multi_tenant
+ne modifie jamais jamais jamais jamais jamais jamais mon repo, mais plutôt me donner ici (pas en téléchargement ) la version finale complète des codes à modifier en local
+faire:
+-rajoute au dialog d'ajout/modifier un backlog, le filtre typeparc->parc->site->engin
+-typeparc->parc : sur la même ligne
+-site->engin : sur la même ligne
+-date d'exection ne doit pas être actif que quen status choisi est execute
+-N°backlog, date de détection, source, priorité : sur la même ligne 
