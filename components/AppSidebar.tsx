@@ -24,6 +24,9 @@ import {
   Droplets,
   KeyboardMusic,
   Target,
+  AppWindowMacIcon,
+  Server,
+  UserStar,
 } from "lucide-react";
 
 import {
@@ -109,17 +112,7 @@ const configItems = {
       icon: Wrench,
       description: "Gérer les pannes",
     },
-    {
-      title: "Saisies HRM",
-      url: "/saisie-hrm",
-      icon: Gauge,
-      description: "Consulter, filtrer et modifier les saisies HRM",
-    }, {
-      title: "Saisies HIM",
-      url: "/saisie-him",
-      icon: ClipboardList,
-      description: "Gérer les saisies HIM",
-    },
+
     {
       title: "lubrifiant",
       url: "/lubrifiant",
@@ -201,6 +194,24 @@ const backlogItems = {
   ],
 };
 
+const SuiviPerformances = {
+  title: "Suivi des performances",
+  icon: UserStar,
+  list: [
+    {
+      title: "Saisies HRM",
+      url: "/saisie-hrm",
+      icon: Gauge,
+      description: "Consulter, filtrer et modifier les saisies HRM",
+    }, {
+      title: "Saisies HIM",
+      url: "/saisie-him",
+      icon: ClipboardList,
+      description: "Gérer les saisies HIM",
+    },
+  ],
+};
+
 const AccessControl = {
   title: "Contrôle d'accès",
   icon: LockKeyhole,
@@ -209,6 +220,17 @@ const AccessControl = {
     { title: "Permissions", url: `/permissions`, icon: ShieldUser, description: "Gérer les permissions" },
   ],
 };
+
+const superAdmin = {
+  title: "Super Admin",
+  icon: UserStar,
+  list: [
+    { title: "Backups", url: `/database-backups`, icon: Server, description: "Gérer les backups" },
+  ],
+};
+
+// Suivi des performances
+
 
 export function AppSidebar() {
   const locale = useCurrentLocale();
@@ -228,10 +250,12 @@ export function AppSidebar() {
 
   const allItems =
     [
-      configItems,
       rapportsItems,
       backlogItems,
+      SuiviPerformances,
+      configItems,
       AccessControl,
+      superAdmin
     ];
 
   return (
