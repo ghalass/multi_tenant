@@ -9,6 +9,10 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
+import CanAccess from "@/components/can-access";
+import { ACTION } from "@/lib/enums";
+import { RESOURCE } from "@/lib/constantes";
+import { EnregistrerMaintenanceDialog } from "./enregistrer-maintenance-dialog";
 
 type StatutEcheance =
     | "REFERENCE_MANQUANTE"
@@ -50,6 +54,8 @@ type EcheanceItem = {
 type Props = {
     data: EcheanceItem[];
 };
+
+
 
 const STATUS_LABELS: Record<StatutEcheance, string> = {
     REFERENCE_MANQUANTE: "Référence manquante",
@@ -141,6 +147,7 @@ export function EcheancesTable({
                         <TableHead>Compteur d&apos;échéance</TableHead>
                         <TableHead>Écart</TableHead>
                         <TableHead>Statut</TableHead>
+                        <TableHead>Actions</TableHead>
                     </TableRow>
                 </TableHeader>
 
@@ -228,6 +235,23 @@ export function EcheancesTable({
                                     {STATUS_LABELS[item.statut]}
                                 </Badge>
                             </TableCell>
+
+                            <TableCell className="min-w-48">
+                                <CanAccess
+                                    resource={RESOURCE.MAINTENANCE_PREVENTIVE}
+                                    action={ACTION.CREATE}
+                                >
+                                    <EnregistrerMaintenanceDialog
+                                        planMaintenanceId={item.planMaintenance.id}
+                                        planCode={item.planMaintenance.code}
+                                        planName={item.planMaintenance.name}
+                                        enginId={item.engin.id}
+                                        enginName={item.engin.name}
+                                        compteurCourant={item.compteurCourant}
+                                    />
+                                </CanAccess>
+                            </TableCell>
+
                         </TableRow>
                     ))}
                 </TableBody>

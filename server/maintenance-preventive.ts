@@ -78,6 +78,18 @@ type EcheancesMaintenanceResponse =
         data: [];
     };
 
+type EnregistrerMaintenanceResponse =
+    | {
+        success: true;
+        message: string;
+        data: { id: string };
+    }
+    | {
+        success: false;
+        message: string;
+        data: null;
+    };
+
 async function getMaintenanceTenantId(): Promise<string | null> {
     const { currentTenantId } = await getSession();
 
@@ -381,6 +393,294 @@ export async function getEcheancesMaintenancePreventive(
             success: false,
             message: "Impossible de calculer les échéances de maintenance.",
             data: [],
+        };
+    }
+}
+
+/**
+ * Enregistre une maintenance réellement effectuée.
+ *
+ * L'historique et le compteur de référence sont mis à jour
+ * dans une même transaction.
+ */
+export async function enregistrerMaintenanceRealisee(
+    values: {
+        planMaintenanceId: string;
+        enginId: string;
+        dateMaintenance: string;
+        compteur: number;
+        commentaire?: string | null;
+    },
+): Promise<EnregistrerMaintenanceResponse> {
+    const permission = await guard(
+        ACTION.CREATE,
+        RESOURCE.MAINTENANCE_PREVENTIVE,
+    );
+
+    if (!permission.success) {
+        return {
+            success: false,
+            message: permission.message,
+            data: null,
+        };
+    }
+
+    const tenantId = await getMaintenanceTenantId();
+
+    if (!tenantId) {
+        return {
+            success: false,
+            message: "Aucun tenant actif n'est sélectionné.",
+            data: null,
+        };
+    }
+
+    if (
+        !values.planMaintenanceId?.trim() ||
+        !values.enginId?.trim() ||
+        !Number.isFinite(values.compteur) ||
+        values.compteur < 0
+    ) {
+        return {
+            success: false,
+            message:
+                "Le plan, l'engin et un compteur positif ou nul sont obligatoires.",
+            data: null,
+        };
+    }
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(values.dateMaintenance)) {
+        return {
+            success: false,
+            message: "La date de maintenance est invalide.",
+            data: null,
+        };
+    }
+
+    const dateMaintenance = new Date(
+        `${values.dateMaintenance}T00:00:00.000Z`,
+    );
+
+    if (
+        Number.isNaN(dateMaintenance.getTime()) ||
+        dateMaintenance.toISOString().slice(0, 10) !==
+        values.dateMaintenance
+    ) {
+        return {
+            success: false,
+            message: "La date de maintenance est invalide.",
+            data: null,
+        };
+    }
+
+    const now = new Date();
+    const aujourdHui = new Date(
+        Date.UTC(
+            now.getUTCFullYear(),
+            now.getUTCMonth(),
+            now.getUTCDate(),
+        ),
+    );
+
+    if (dateMaintenance > aujourdHui) {
+        return {
+            success: false,
+            message:
+                "La date de maintenance ne peut pas être dans le futur.",
+            data: null,
+        };
+    }
+
+    try {
+        const compteurCourant = await calculerCompteurCourant(
+            values.enginId,
+            tenantId,
+        );
+
+        if (!compteurCourant) {
+            return {
+                success: false,
+                message: "Engin introuvable dans le tenant actif.",
+                data: null,
+            };
+        }
+
+        if (values.compteur > compteurCourant.compteurCourant) {
+            return {
+                success: false,
+                message:
+                    `Le compteur saisi (${values.compteur} h) dépasse ` +
+                    `le compteur courant (${compteurCourant.compteurCourant} h).`,
+                data: null,
+            };
+        }
+
+        const commentaire =
+            typeof values.commentaire === "string"
+                ? values.commentaire.trim() || null
+                : null;
+
+        return await prisma.$transaction(
+            async (tx) => {
+                const suivi =
+                    await tx.suiviPlanMaintenanceEngin.findFirst({
+                        where: {
+                            planMaintenanceId:
+                                values.planMaintenanceId,
+                            enginId: values.enginId,
+                            tenantId,
+                            active: true,
+                            planMaintenance: {
+                                is: {
+                                    tenantId,
+                                    active: true,
+                                },
+                            },
+                            engin: {
+                                is: {
+                                    tenantId,
+                                    active: true,
+                                },
+                            },
+                        },
+                        select: {
+                            id: true,
+                            compteurDerniereMaintenance: true,
+                            dateDerniereMaintenance: true,
+                        },
+                    });
+
+                if (!suivi) {
+                    return {
+                        success: false as const,
+                        message:
+                            "Aucun suivi actif n'existe pour ce plan et cet engin dans le tenant actif.",
+                        data: null,
+                    };
+                }
+
+                const dernierHistorique =
+                    await tx.historiqueMaintenancePreventive.findFirst({
+                        where: {
+                            tenantId,
+                            planMaintenanceId:
+                                values.planMaintenanceId,
+                            enginId: values.enginId,
+                        },
+                        orderBy: [
+                            { dateMaintenance: "desc" },
+                            { createdAt: "desc" },
+                        ],
+                        select: {
+                            dateMaintenance: true,
+                            compteur: true,
+                        },
+                    });
+
+                const datesExistantes = [
+                    suivi.dateDerniereMaintenance,
+                    dernierHistorique?.dateMaintenance,
+                ].filter(
+                    (date): date is Date => date !== null && date !== undefined,
+                );
+
+                const derniereDate = datesExistantes.reduce<Date | null>(
+                    (latest, date) =>
+                        !latest || date > latest ? date : latest,
+                    null,
+                );
+
+                if (
+                    derniereDate &&
+                    dateMaintenance < derniereDate
+                ) {
+                    return {
+                        success: false as const,
+                        message:
+                            "La date saisie précède la dernière maintenance enregistrée.",
+                        data: null,
+                    };
+                }
+
+                const compteursExistants = [
+                    suivi.compteurDerniereMaintenance,
+                    dernierHistorique?.compteur,
+                ].filter(
+                    (compteur): compteur is number =>
+                        compteur !== null &&
+                        compteur !== undefined,
+                );
+
+                const dernierCompteur = compteursExistants.reduce<
+                    number | null
+                >(
+                    (latest, compteur) =>
+                        latest === null || compteur > latest
+                            ? compteur
+                            : latest,
+                    null,
+                );
+
+                if (
+                    dernierCompteur !== null &&
+                    values.compteur < dernierCompteur
+                ) {
+                    return {
+                        success: false as const,
+                        message:
+                            "Le compteur saisi est inférieur au dernier compteur de maintenance enregistré.",
+                        data: null,
+                    };
+                }
+
+                const historique =
+                    await tx.historiqueMaintenancePreventive.create({
+                        data: {
+                            planMaintenanceId:
+                                values.planMaintenanceId,
+                            enginId: values.enginId,
+                            tenantId,
+                            dateMaintenance,
+                            compteur: values.compteur,
+                            commentaire,
+                        },
+                        select: {
+                            id: true,
+                        },
+                    });
+
+                await tx.suiviPlanMaintenanceEngin.update({
+                    where: {
+                        id: suivi.id,
+                    },
+                    data: {
+                        compteurDerniereMaintenance: values.compteur,
+                        dateDerniereMaintenance: dateMaintenance,
+                    },
+                });
+
+                return {
+                    success: true as const,
+                    message:
+                        "Maintenance enregistrée dans l'historique et compteur de référence mis à jour.",
+                    data: historique,
+                };
+            },
+            {
+                isolationLevel: "Serializable",
+            },
+        );
+    } catch (error) {
+        console.error(
+            "enregistrerMaintenanceRealisee error:",
+            error,
+        );
+
+        return {
+            success: false,
+            message:
+                "Impossible d'enregistrer la maintenance. Vérifiez les données et réessayez.",
+            data: null,
         };
     }
 }
