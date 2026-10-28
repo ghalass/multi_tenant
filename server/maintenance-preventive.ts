@@ -31,6 +31,12 @@ type StatutEcheanceMaintenance =
     | "A_ECHEANCE"
     | "EN_RETARD";
 
+type FiltresEcheancesMaintenance = {
+    typeparcId?: string;
+    parcId?: string;
+    siteId?: string;
+};
+
 type EcheanceMaintenanceData = {
     suiviId: string;
     planMaintenance: {
@@ -171,8 +177,9 @@ export async function getCompteurCourantMaintenance(
  * Les statuts sont calculés à la lecture : ils ne sont pas stockés
  * en base et évoluent avec les HRM et les relevés de compteur.
  */
-export async function getEcheancesMaintenancePreventive():
-    Promise<EcheancesMaintenanceResponse> {
+export async function getEcheancesMaintenancePreventive(
+    filters: FiltresEcheancesMaintenance = {},
+): Promise<EcheancesMaintenanceResponse> {
     const permission = await guard(
         ACTION.READ,
         RESOURCE.MAINTENANCE_PREVENTIVE,
@@ -205,6 +212,21 @@ export async function getEcheancesMaintenancePreventive():
                     is: {
                         tenantId,
                         active: true,
+                        ...(filters.parcId
+                            ? { parcId: filters.parcId }
+                            : {}),
+                        ...(filters.siteId
+                            ? { siteId: filters.siteId }
+                            : {}),
+                        ...(filters.typeparcId
+                            ? {
+                                parc: {
+                                    is: {
+                                        typeparcId: filters.typeparcId,
+                                    },
+                                },
+                            }
+                            : {}),
                     },
                 },
                 planMaintenance: {
