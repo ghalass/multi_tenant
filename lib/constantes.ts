@@ -19,6 +19,7 @@ export const RESOURCE = {
     SAISIE_HIM: "saisie_him",
     RAPPORT: "rapport",
     BACKLOG: "backlog",
+    MAINTENANCE_PREVENTIVE: "maintenance_preventive",
     OBJECTIF: "objectif",
 };
 
