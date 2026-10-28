@@ -11,6 +11,7 @@ import { getEcheancesMaintenancePreventive } from "@/server/maintenance-preventi
 
 import { EcheancesFilters } from "./echeances-filters";
 import { EcheancesTable } from "./echeances-table";
+import { EcheancesSummaryCards } from "./echeances-summary-cards";
 
 type PageSearchParams = {
     [key: string]: string | string[] | undefined;
@@ -93,8 +94,26 @@ export default async function EcheancesMaintenancePage({
             ? echeancesResult.data
             : [];
 
-    // Le filtre engin est appliqué côté serveur.
-    // Le filtre statut est conservé côté page.
+    // Le décompte porte sur tous les statuts correspondant
+    // aux filtres de type de parc, parc, site et engin.
+    const comptesParStatut =
+        toutesEcheances.reduce<Record<StatutEcheance, number>>(
+            (comptes, echeance) => {
+                comptes[echeance.statut] += 1;
+                return comptes;
+            },
+            {
+                REFERENCE_MANQUANTE: 0,
+                COMPTEUR_INDISPONIBLE: 0,
+                A_VENIR: 0,
+                ECHEANCE_PROCHE: 0,
+                A_ECHEANCE: 0,
+                EN_RETARD: 0,
+            },
+        );
+
+    // Le filtre statut s'applique au tableau,
+    // mais ne réduit pas les nombres des cartes de synthèse.
     const echeances = statut
         ? toutesEcheances.filter(
             (item) => item.statut === statut,
@@ -174,7 +193,18 @@ export default async function EcheancesMaintenancePage({
                         }
                     />
                 ) : (
-                    <div className="space-y-3">
+                    <div className="space-y-4">
+                        <EcheancesSummaryCards
+                            counts={comptesParStatut}
+                            filters={{
+                                typeparcId: typeparcId ?? "",
+                                parcId,
+                                siteId,
+                                enginId,
+                                statut,
+                            }}
+                        />
+
                         <p className="text-sm text-muted-foreground">
                             {echeances.length} échéance(s) affichée(s).
                         </p>
