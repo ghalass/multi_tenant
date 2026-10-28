@@ -109,6 +109,30 @@ type AffectationPlanMaintenanceListItem =
         };
     }>;
 
+type SuiviCompteurReference =
+    Prisma.SuiviPlanMaintenanceEnginGetPayload<{
+        select: {
+            id: true;
+            planMaintenanceId: true;
+            enginId: true;
+            compteurDerniereMaintenance: true;
+            dateDerniereMaintenance: true;
+            planMaintenance: {
+                select: {
+                    id: true;
+                    code: true;
+                    name: true;
+                };
+            };
+            engin: {
+                select: {
+                    id: true;
+                    name: true;
+                };
+            };
+        };
+    }>;
+
 async function getMaintenanceTenantId(): Promise<string | null> {
     const { currentTenantId } = await getSession();
 
@@ -988,6 +1012,91 @@ export async function setAffectationPlanMaintenanceActive(
             success: false,
             message:
                 "Impossible de modifier l'affectation. Vérifiez les données et réessayez.",
+        };
+    }
+}
+
+/**
+ * Liste les suivis actifs par plan et engin pour renseigner
+ * le compteur réel de la dernière maintenance.
+ */
+export async function getSuivisCompteursReference(): Promise<
+    ActionResult<SuiviCompteurReference[]>
+> {
+    const permission = await guard(
+        ACTION.READ,
+        RESOURCE.MAINTENANCE_PREVENTIVE,
+    );
+
+    if (!permission.success) {
+        return {
+            success: false,
+            message: permission.message,
+            data: [],
+        };
+    }
+
+    const tenantId = await getMaintenanceTenantId();
+
+    if (!tenantId) {
+        return {
+            success: false,
+            message: "Aucun tenant actif n'est sélectionné.",
+            data: [],
+        };
+    }
+
+    try {
+        const data =
+            await prisma.suiviPlanMaintenanceEngin.findMany({
+                where: {
+                    tenantId,
+                    active: true,
+                    planMaintenance: { tenantId },
+                    engin: { tenantId },
+                },
+                select: {
+                    id: true,
+                    planMaintenanceId: true,
+                    enginId: true,
+                    compteurDerniereMaintenance: true,
+                    dateDerniereMaintenance: true,
+                    planMaintenance: {
+                        select: {
+                            id: true,
+                            code: true,
+                            name: true,
+                        },
+                    },
+                    engin: {
+                        select: {
+                            id: true,
+                            name: true,
+                        },
+                    },
+                },
+                orderBy: [
+                    { createdAt: "desc" },
+                    { enginId: "asc" },
+                ],
+            });
+
+        return {
+            success: true,
+            message: "Suivis récupérés avec succès.",
+            data,
+        };
+    } catch (error) {
+        console.error(
+            "getSuivisCompteursReference error:",
+            error,
+        );
+
+        return {
+            success: false,
+            message:
+                "Impossible de récupérer les compteurs de référence.",
+            data: [],
         };
     }
 }
