@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
+import type { ReactElement } from "react";
 
 type StatutEcheance =
     | "REFERENCE_MANQUANTE"
@@ -65,7 +66,7 @@ const STATUS_CARDS: {
 export function EcheancesSummaryCards({
     counts,
     filters,
-}: Props) {
+}: Props): ReactElement {
     const router = useRouter();
     const pathname = usePathname();
 

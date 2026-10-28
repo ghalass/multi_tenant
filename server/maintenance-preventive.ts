@@ -60,6 +60,10 @@ type EcheanceMaintenanceData = {
     compteurDerniereMaintenance: number | null;
     dateDerniereMaintenance: string | null;
     compteurCourant: number | null;
+
+    // Détails du calcul déjà fournis par la fonction de compteur.
+    detailsCompteur: CompteurCourantData | null;
+
     compteurEcheance: number | null;
     heuresRestantes: number | null;
     heuresRetard: number | null;
@@ -496,6 +500,8 @@ export async function getEcheancesMaintenancePreventive(
 
                 compteurCourant:
                     compteur?.compteurCourant ?? null,
+
+                detailsCompteur: compteur,
 
                 compteurEcheance,
                 heuresRestantes,

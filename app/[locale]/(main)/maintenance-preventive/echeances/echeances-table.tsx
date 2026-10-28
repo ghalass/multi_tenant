@@ -1,6 +1,18 @@
 import type { ReactElement } from "react";
+import { Calculator } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog";
+
 import {
     Table,
     TableBody,
@@ -9,9 +21,11 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
+
 import CanAccess from "@/components/can-access";
 import { ACTION } from "@/lib/enums";
 import { RESOURCE } from "@/lib/constantes";
+
 import { EnregistrerMaintenanceDialog } from "./enregistrer-maintenance-dialog";
 
 type StatutEcheance =
@@ -22,8 +36,23 @@ type StatutEcheance =
     | "A_ECHEANCE"
     | "EN_RETARD";
 
+type DetailsCompteur = {
+    enginId: string;
+    enginName: string;
+    compteurCourant: number;
+    source:
+    | "DERNIER_RELEVE"
+    | "COMPTEUR_INITIAL_ET_HRM";
+    dateDernierReleve: string | null;
+    compteurBase: number;
+    hrmCumulees: number;
+    nombreSaisiesHrmAjoutees: number;
+    avertissement: string;
+};
+
 type EcheanceItem = {
     suiviId: string;
+
     planMaintenance: {
         id: string;
         code: string;
@@ -31,19 +60,28 @@ type EcheanceItem = {
         intervalleHeures: number;
         seuilAlerteHeures: number;
     };
+
     engin: {
         id: string;
         name: string;
-        site: { id: string; name: string };
+        site: {
+            id: string;
+            name: string;
+        };
         parc: {
             id: string;
             name: string;
-            typeparc: { id: string; name: string };
+            typeparc: {
+                id: string;
+                name: string;
+            };
         };
     };
+
     compteurDerniereMaintenance: number | null;
     dateDerniereMaintenance: string | null;
     compteurCourant: number | null;
+    detailsCompteur: DetailsCompteur | null;
     compteurEcheance: number | null;
     heuresRestantes: number | null;
     heuresRetard: number | null;
@@ -54,8 +92,6 @@ type EcheanceItem = {
 type Props = {
     data: EcheanceItem[];
 };
-
-
 
 const STATUS_LABELS: Record<StatutEcheance, string> = {
     REFERENCE_MANQUANTE: "Référence manquante",
@@ -93,6 +129,26 @@ function formatHeures(value: number): string {
     }).format(value)} h`;
 }
 
+function formatNombre(value: number): string {
+    return new Intl.NumberFormat("fr-FR", {
+        maximumFractionDigits: 2,
+    }).format(value);
+}
+
+function formatDate(value: string | null): string {
+    if (!value) {
+        return "—";
+    }
+
+    const parts = value.slice(0, 10).split("-");
+
+    if (parts.length !== 3) {
+        return value;
+    }
+
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+}
+
 function getEcartLabel(item: EcheanceItem): string {
     if (item.statut === "REFERENCE_MANQUANTE") {
         return "Référence à renseigner";
@@ -107,7 +163,10 @@ function getEcartLabel(item: EcheanceItem): string {
     }
 
     if (item.heuresRestantes < 0) {
-        return `${formatHeures(item.heuresRetard ?? Math.abs(item.heuresRestantes))} de retard`;
+        return `${formatHeures(
+            item.heuresRetard ??
+            Math.abs(item.heuresRestantes),
+        )} de retard`;
     }
 
     if (item.heuresRestantes === 0) {
@@ -115,6 +174,145 @@ function getEcartLabel(item: EcheanceItem): string {
     }
 
     return `${formatHeures(item.heuresRestantes)} restantes`;
+}
+
+function DetailsCompteurDialog({
+    item,
+}: {
+    item: EcheanceItem;
+}): ReactElement {
+    const details = item.detailsCompteur;
+
+    return (
+        <Dialog>
+            <DialogTrigger asChild>
+                <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                >
+                    <Calculator className="mr-2 size-4" />
+                    Détail du compteur
+                </Button>
+            </DialogTrigger>
+
+            <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
+                <DialogHeader>
+                    <DialogTitle>
+                        Détail du compteur — {item.engin.name}
+                    </DialogTitle>
+
+                    <DialogDescription>
+                        Plan de maintenance :{" "}
+                        {item.planMaintenance.code} —{" "}
+                        {item.planMaintenance.name}
+                    </DialogDescription>
+                </DialogHeader>
+
+                {!details ? (
+                    <div className="rounded-lg border border-dashed p-4">
+                        <p className="font-medium">
+                            Détails du calcul indisponibles
+                        </p>
+
+                        <p className="mt-1 text-sm text-muted-foreground">
+                            Le compteur courant n&apos;a pas pu être
+                            calculé pour cet engin. Vérifiez les données
+                            de l&apos;engin et ses saisies HRM.
+                        </p>
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        <div className="rounded-lg border p-4">
+                            <p className="text-sm text-muted-foreground">
+                                Source du calcul
+                            </p>
+
+                            <p className="mt-1 font-medium">
+                                {details.source === "DERNIER_RELEVE"
+                                    ? "Dernier relevé de compteur + HRM postérieures"
+                                    : "Compteur initial du châssis + HRM enregistrées"}
+                            </p>
+                        </div>
+
+                        <div className="grid gap-3 sm:grid-cols-2">
+                            <div className="rounded-lg border p-3">
+                                <p className="text-sm text-muted-foreground">
+                                    Date du dernier relevé
+                                </p>
+
+                                <p className="mt-1 font-medium">
+                                    {details.dateDernierReleve
+                                        ? formatDate(
+                                            details.dateDernierReleve,
+                                        )
+                                        : "Aucun relevé utilisé"}
+                                </p>
+                            </div>
+
+                            <div className="rounded-lg border p-3">
+                                <p className="text-sm text-muted-foreground">
+                                    Compteur de base
+                                </p>
+
+                                <p className="mt-1 font-medium">
+                                    {formatHeures(details.compteurBase)}
+                                </p>
+                            </div>
+
+                            <div className="rounded-lg border p-3">
+                                <p className="text-sm text-muted-foreground">
+                                    HRM cumulées ajoutées
+                                </p>
+
+                                <p className="mt-1 font-medium">
+                                    {formatHeures(details.hrmCumulees)}
+                                </p>
+                            </div>
+
+                            <div className="rounded-lg border p-3">
+                                <p className="text-sm text-muted-foreground">
+                                    Saisies HRM examinées
+                                </p>
+
+                                <p className="mt-1 font-medium">
+                                    {formatNombre(
+                                        details.nombreSaisiesHrmAjoutees,
+                                    )}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="rounded-lg border p-4">
+                            <p className="text-sm text-muted-foreground">
+                                Compteur courant calculé
+                            </p>
+
+                            <p className="mt-1 text-2xl font-semibold tabular-nums">
+                                {formatHeures(
+                                    details.compteurCourant,
+                                )}
+                            </p>
+
+                            <p className="mt-2 text-xs text-muted-foreground">
+                                Compteur de base + HRM cumulées ajoutées.
+                            </p>
+                        </div>
+
+                        <div className="rounded-lg border p-4">
+                            <p className="font-medium">
+                                Limite du calcul
+                            </p>
+
+                            <p className="mt-1 text-sm text-muted-foreground">
+                                {details.avertissement}
+                            </p>
+                        </div>
+                    </div>
+                )}
+            </DialogContent>
+        </Dialog>
+    );
 }
 
 export function EcheancesTable({
@@ -126,8 +324,9 @@ export function EcheancesTable({
                 <p className="font-medium">
                     Aucune échéance correspondant aux filtres.
                 </p>
+
                 <p className="mt-1 text-sm text-muted-foreground">
-                    Essayez un autre parc, site ou statut.
+                    Essayez un autre parc, site, engin ou statut.
                 </p>
             </div>
         );
@@ -158,6 +357,7 @@ export function EcheancesTable({
                                 <div className="font-medium">
                                     {item.engin.name}
                                 </div>
+
                                 <div className="text-sm text-muted-foreground">
                                     {item.engin.site.name}
                                 </div>
@@ -175,19 +375,23 @@ export function EcheancesTable({
                                 <div className="font-medium">
                                     {item.planMaintenance.code}
                                 </div>
+
                                 <div className="text-sm">
                                     {item.planMaintenance.name}
                                 </div>
+
                                 <div className="text-xs text-muted-foreground">
                                     Intervalle :{" "}
                                     {formatHeures(
-                                        item.planMaintenance.intervalleHeures,
+                                        item.planMaintenance
+                                            .intervalleHeures,
                                     )}
                                 </div>
                             </TableCell>
 
                             <TableCell className="whitespace-nowrap">
-                                {item.compteurDerniereMaintenance === null ? (
+                                {item.compteurDerniereMaintenance ===
+                                    null ? (
                                     <span className="text-destructive">
                                         Non renseigné
                                     </span>
@@ -198,9 +402,12 @@ export function EcheancesTable({
                                                 item.compteurDerniereMaintenance,
                                             )}
                                         </div>
+
                                         {item.dateDerniereMaintenance && (
                                             <div className="text-xs text-muted-foreground">
-                                                {item.dateDerniereMaintenance}
+                                                {formatDate(
+                                                    item.dateDerniereMaintenance,
+                                                )}
                                             </div>
                                         )}
                                     </>
@@ -210,18 +417,23 @@ export function EcheancesTable({
                             <TableCell
                                 className="whitespace-nowrap"
                                 title={
-                                    item.avertissementCompteur ?? undefined
+                                    item.avertissementCompteur ??
+                                    undefined
                                 }
                             >
                                 {item.compteurCourant === null
                                     ? "Indisponible"
-                                    : formatHeures(item.compteurCourant)}
+                                    : formatHeures(
+                                        item.compteurCourant,
+                                    )}
                             </TableCell>
 
                             <TableCell className="whitespace-nowrap">
                                 {item.compteurEcheance === null
                                     ? "—"
-                                    : formatHeures(item.compteurEcheance)}
+                                    : formatHeures(
+                                        item.compteurEcheance,
+                                    )}
                             </TableCell>
 
                             <TableCell className="whitespace-nowrap">
@@ -230,28 +442,43 @@ export function EcheancesTable({
 
                             <TableCell>
                                 <Badge
-                                    variant={getStatusVariant(item.statut)}
+                                    variant={getStatusVariant(
+                                        item.statut,
+                                    )}
                                 >
                                     {STATUS_LABELS[item.statut]}
                                 </Badge>
                             </TableCell>
 
-                            <TableCell className="min-w-48">
-                                <CanAccess
-                                    resource={RESOURCE.MAINTENANCE_PREVENTIVE}
-                                    action={ACTION.CREATE}
-                                >
-                                    <EnregistrerMaintenanceDialog
-                                        planMaintenanceId={item.planMaintenance.id}
-                                        planCode={item.planMaintenance.code}
-                                        planName={item.planMaintenance.name}
-                                        enginId={item.engin.id}
-                                        enginName={item.engin.name}
-                                        compteurCourant={item.compteurCourant}
-                                    />
-                                </CanAccess>
-                            </TableCell>
+                            <TableCell className="min-w-64">
+                                <div className="flex flex-wrap gap-2">
+                                    <DetailsCompteurDialog item={item} />
 
+                                    <CanAccess
+                                        resource={
+                                            RESOURCE.MAINTENANCE_PREVENTIVE
+                                        }
+                                        action={ACTION.CREATE}
+                                    >
+                                        <EnregistrerMaintenanceDialog
+                                            planMaintenanceId={
+                                                item.planMaintenance.id
+                                            }
+                                            planCode={
+                                                item.planMaintenance.code
+                                            }
+                                            planName={
+                                                item.planMaintenance.name
+                                            }
+                                            enginId={item.engin.id}
+                                            enginName={item.engin.name}
+                                            compteurCourant={
+                                                item.compteurCourant
+                                            }
+                                        />
+                                    </CanAccess>
+                                </div>
+                            </TableCell>
                         </TableRow>
                     ))}
                 </TableBody>
