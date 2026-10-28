@@ -35,6 +35,7 @@ type FiltresEcheancesMaintenance = {
     typeparcId?: string;
     parcId?: string;
     siteId?: string;
+    enginId?: string;
 };
 
 type EcheanceMaintenanceData = {
@@ -275,6 +276,12 @@ export async function getCompteurCourantMaintenance(
  * Les statuts sont calculés à la lecture : ils ne sont pas stockés
  * en base et évoluent avec les HRM et les relevés de compteur.
  */
+/**
+ * Calcule les échéances des suivis actifs du tenant.
+ *
+ * Les statuts sont calculés à la lecture : ils ne sont pas stockés
+ * en base et évoluent avec les HRM et les relevés de compteur.
+ */
 export async function getEcheancesMaintenancePreventive(
     filters: FiltresEcheancesMaintenance = {},
 ): Promise<EcheancesMaintenanceResponse> {
@@ -306,16 +313,24 @@ export async function getEcheancesMaintenancePreventive(
             where: {
                 tenantId,
                 active: true,
+
                 engin: {
                     is: {
                         tenantId,
                         active: true,
+
+                        ...(filters.enginId
+                            ? { id: filters.enginId }
+                            : {}),
+
                         ...(filters.parcId
                             ? { parcId: filters.parcId }
                             : {}),
+
                         ...(filters.siteId
                             ? { siteId: filters.siteId }
                             : {}),
+
                         ...(filters.typeparcId
                             ? {
                                 parc: {
@@ -327,6 +342,7 @@ export async function getEcheancesMaintenancePreventive(
                             : {}),
                     },
                 },
+
                 planMaintenance: {
                     is: {
                         tenantId,
@@ -334,25 +350,30 @@ export async function getEcheancesMaintenancePreventive(
                     },
                 },
             },
+
             select: {
                 id: true,
                 enginId: true,
                 compteurDerniereMaintenance: true,
                 dateDerniereMaintenance: true,
+
                 engin: {
                     select: {
                         id: true,
                         name: true,
+
                         site: {
                             select: {
                                 id: true,
                                 name: true,
                             },
                         },
+
                         parc: {
                             select: {
                                 id: true,
                                 name: true,
+
                                 typeparc: {
                                     select: {
                                         id: true,
@@ -363,6 +384,7 @@ export async function getEcheancesMaintenancePreventive(
                         },
                     },
                 },
+
                 planMaintenance: {
                     select: {
                         id: true,
@@ -373,6 +395,7 @@ export async function getEcheancesMaintenancePreventive(
                     },
                 },
             },
+
             orderBy: [
                 { engin: { name: "asc" } },
                 { planMaintenance: { name: "asc" } },
@@ -382,7 +405,9 @@ export async function getEcheancesMaintenancePreventive(
         // Chaque engin est calculé une seule fois, même s'il possède
         // plusieurs plans. Les requêtes sont traitées par lots pour
         // éviter de lancer toutes les requêtes simultanément.
-        const enginIds = [...new Set(suivis.map((suivi) => suivi.enginId))];
+        const enginIds = [
+            ...new Set(suivis.map((suivi) => suivi.enginId)),
+        ];
 
         const compteursParEngin = new Map<
             string,
@@ -391,7 +416,11 @@ export async function getEcheancesMaintenancePreventive(
 
         const tailleLot = 10;
 
-        for (let i = 0; i < enginIds.length; i += tailleLot) {
+        for (
+            let i = 0;
+            i < enginIds.length;
+            i += tailleLot
+        ) {
             const lot = enginIds.slice(i, i + tailleLot);
 
             const resultats = await Promise.all(
@@ -413,7 +442,9 @@ export async function getEcheancesMaintenancePreventive(
         }
 
         const data: EcheanceMaintenanceData[] = suivis.map((suivi) => {
-            const compteur = compteursParEngin.get(suivi.enginId) ?? null;
+            const compteur =
+                compteursParEngin.get(suivi.enginId) ?? null;
+
             const reference = suivi.compteurDerniereMaintenance;
             const plan = suivi.planMaintenance;
 
@@ -427,9 +458,12 @@ export async function getEcheancesMaintenancePreventive(
             } else if (!compteur) {
                 statut = "COMPTEUR_INDISPONIBLE";
             } else {
-                compteurEcheance = reference + plan.intervalleHeures;
+                compteurEcheance =
+                    reference + plan.intervalleHeures;
 
-                const ecart = compteurEcheance - compteur.compteurCourant;
+                const ecart =
+                    compteurEcheance - compteur.compteurCourant;
+
                 const tolerance = 0.000001;
 
                 heuresRestantes = ecart;
@@ -440,7 +474,9 @@ export async function getEcheancesMaintenancePreventive(
                 } else if (Math.abs(ecart) <= tolerance) {
                     statut = "A_ECHEANCE";
                     heuresRestantes = 0;
-                } else if (ecart <= plan.seuilAlerteHeures) {
+                } else if (
+                    ecart <= plan.seuilAlerteHeures
+                ) {
                     statut = "ECHEANCE_PROCHE";
                 } else {
                     statut = "A_VENIR";
@@ -452,15 +488,22 @@ export async function getEcheancesMaintenancePreventive(
                 planMaintenance: plan,
                 engin: suivi.engin,
                 compteurDerniereMaintenance: reference,
+
                 dateDerniereMaintenance:
-                    suivi.dateDerniereMaintenance?.toISOString().slice(0, 10) ??
-                    null,
-                compteurCourant: compteur?.compteurCourant ?? null,
+                    suivi.dateDerniereMaintenance
+                        ?.toISOString()
+                        .slice(0, 10) ?? null,
+
+                compteurCourant:
+                    compteur?.compteurCourant ?? null,
+
                 compteurEcheance,
                 heuresRestantes,
                 heuresRetard,
                 statut,
-                avertissementCompteur: compteur?.avertissement ?? null,
+
+                avertissementCompteur:
+                    compteur?.avertissement ?? null,
             };
         });
 
@@ -477,7 +520,8 @@ export async function getEcheancesMaintenancePreventive(
 
         return {
             success: false,
-            message: "Impossible de calculer les échéances de maintenance.",
+            message:
+                "Impossible de calculer les échéances de maintenance.",
             data: [],
         };
     }

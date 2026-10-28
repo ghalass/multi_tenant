@@ -59,6 +59,7 @@ export default async function EcheancesMaintenancePage({
     const typeparcId = readParam(params.typeparcId);
     const parcId = readParam(params.parcId);
     const siteId = readParam(params.siteId);
+    const enginId = readParam(params.enginId);
     const statutParam = readParam(params.statut);
 
     const statut = isStatutEcheance(statutParam)
@@ -77,6 +78,7 @@ export default async function EcheancesMaintenancePage({
                 typeparcId,
                 ...(parcId ? { parcId } : {}),
                 ...(siteId ? { siteId } : {}),
+                ...(enginId ? { enginId } : {}),
             })
             : Promise.resolve(undefined),
     ]);
@@ -91,8 +93,12 @@ export default async function EcheancesMaintenancePage({
             ? echeancesResult.data
             : [];
 
+    // Le filtre engin est appliqué côté serveur.
+    // Le filtre statut est conservé côté page.
     const echeances = statut
-        ? toutesEcheances.filter((item) => item.statut === statut)
+        ? toutesEcheances.filter(
+            (item) => item.statut === statut,
+        )
         : toutesEcheances;
 
     return (
@@ -126,6 +132,7 @@ export default async function EcheancesMaintenancePage({
                             typeparcId ?? "",
                             parcId ?? "",
                             siteId ?? "",
+                            enginId ?? "",
                             statut ?? "",
                         ].join("|")}
                         options={{
@@ -138,6 +145,7 @@ export default async function EcheancesMaintenancePage({
                             typeparcId,
                             parcId,
                             siteId,
+                            enginId,
                             statut,
                         }}
                     />
@@ -152,9 +160,9 @@ export default async function EcheancesMaintenancePage({
                         </h2>
 
                         <p className="mt-1 text-sm text-muted-foreground">
-                            Choisissez un type de parc, affinez
-                            éventuellement par parc, site et statut,
-                            puis cliquez sur « Afficher les échéances ».
+                            Choisissez un type de parc, puis affinez
+                            éventuellement par parc, site, engin et statut,
+                            avant de cliquer sur « Afficher les échéances ».
                         </p>
                     </div>
                 ) : !echeancesResult || !echeancesResult.success ? (

@@ -31,25 +31,57 @@ const STATUTS: {
     value: StatutEcheance;
     label: string;
 }[] = [
-        { value: "REFERENCE_MANQUANTE", label: "Référence manquante" },
-        { value: "COMPTEUR_INDISPONIBLE", label: "Compteur indisponible" },
-        { value: "A_VENIR", label: "À venir" },
-        { value: "ECHEANCE_PROCHE", label: "Échéance proche" },
-        { value: "A_ECHEANCE", label: "À échéance" },
-        { value: "EN_RETARD", label: "En retard" },
+        {
+            value: "REFERENCE_MANQUANTE",
+            label: "Référence manquante",
+        },
+        {
+            value: "COMPTEUR_INDISPONIBLE",
+            label: "Compteur indisponible",
+        },
+        {
+            value: "A_VENIR",
+            label: "À venir",
+        },
+        {
+            value: "ECHEANCE_PROCHE",
+            label: "Échéance proche",
+        },
+        {
+            value: "A_ECHEANCE",
+            label: "À échéance",
+        },
+        {
+            value: "EN_RETARD",
+            label: "En retard",
+        },
     ];
 
 type Filters = {
     typeparcId?: string;
     parcId?: string;
     siteId?: string;
+    enginId?: string;
     statut?: StatutEcheance;
 };
 
 type FilterOptions = {
-    typeparcs: { id: string; name: string }[];
-    parcs: { id: string; name: string; typeparcId: string }[];
-    sites: { id: string; name: string }[];
+    typeparcs: {
+        id: string;
+        name: string;
+    }[];
+
+    parcs: {
+        id: string;
+        name: string;
+        typeparcId: string;
+    }[];
+
+    sites: {
+        id: string;
+        name: string;
+    }[];
+
     engins: {
         id: string;
         name: string;
@@ -73,18 +105,31 @@ export function EcheancesFilters({
     const [typeparcId, setTypeparcId] = useState(
         initialFilters.typeparcId ?? "",
     );
+
     const [parcId, setParcId] = useState(
         initialFilters.parcId ?? "",
     );
+
     const [siteId, setSiteId] = useState(
         initialFilters.siteId ?? "",
     );
+
+    const [enginId, setEnginId] = useState(
+        initialFilters.enginId ?? "",
+    );
+
     const [statut, setStatut] = useState(
         initialFilters.statut ?? "",
     );
 
     const parcById = useMemo(
-        () => new Map(options.parcs.map((parc) => [parc.id, parc])),
+        () =>
+            new Map(
+                options.parcs.map((parc) => [
+                    parc.id,
+                    parc,
+                ]),
+            ),
         [options.parcs],
     );
 
@@ -98,6 +143,7 @@ export function EcheancesFilters({
         [options.parcs, typeparcId],
     );
 
+    // Liste des engins correspondant au type de parc et au parc.
     const filteredEngins = useMemo(
         () =>
             options.engins.filter((engin) => {
@@ -106,12 +152,20 @@ export function EcheancesFilters({
                 return (
                     (!typeparcId ||
                         parc?.typeparcId === typeparcId) &&
-                    (!parcId || engin.parcId === parcId)
+                    (!parcId ||
+                        engin.parcId === parcId)
                 );
             }),
-        [options.engins, parcById, typeparcId, parcId],
+        [
+            options.engins,
+            parcById,
+            typeparcId,
+            parcId,
+        ],
     );
 
+    // Un site ne peut être proposé que s'il contient
+    // un engin appartenant aux filtres actuels.
     const availableSiteIds = useMemo(
         () =>
             new Set(
@@ -128,15 +182,52 @@ export function EcheancesFilters({
         [options.sites, availableSiteIds],
     );
 
+    // La liste des engins tient aussi compte du site sélectionné.
+    const filteredEnginsForSelect = useMemo(
+        () =>
+            filteredEngins.filter(
+                (engin) =>
+                    !siteId || engin.siteId === siteId,
+            ),
+        [filteredEngins, siteId],
+    );
+
     function handleTypeparcChange(value: string): void {
-        setTypeparcId(value === ALL_VALUE ? "" : value);
+        setTypeparcId(
+            value === ALL_VALUE ? "" : value,
+        );
+
         setParcId("");
         setSiteId("");
+        setEnginId("");
     }
 
     function handleParcChange(value: string): void {
-        setParcId(value === ALL_VALUE ? "" : value);
+        setParcId(
+            value === ALL_VALUE ? "" : value,
+        );
+
         setSiteId("");
+        setEnginId("");
+    }
+
+    function handleSiteChange(value: string): void {
+        const nextSiteId =
+            value === ALL_VALUE ? "" : value;
+
+        setSiteId(nextSiteId);
+
+        // Si le site choisi ne correspond plus à l'engin,
+        // on efface le filtre engin.
+        if (nextSiteId && enginId) {
+            const selectedEngin = options.engins.find(
+                (engin) => engin.id === enginId,
+            );
+
+            if (selectedEngin?.siteId !== nextSiteId) {
+                setEnginId("");
+            }
+        }
     }
 
     function handleSubmit(
@@ -161,6 +252,10 @@ export function EcheancesFilters({
             params.set("siteId", siteId);
         }
 
+        if (enginId) {
+            params.set("enginId", enginId);
+        }
+
         if (statut) {
             params.set("statut", statut);
         }
@@ -172,6 +267,7 @@ export function EcheancesFilters({
         setTypeparcId("");
         setParcId("");
         setSiteId("");
+        setEnginId("");
         setStatut("");
 
         router.push(pathname);
@@ -182,7 +278,7 @@ export function EcheancesFilters({
             onSubmit={handleSubmit}
             className="space-y-4 rounded-lg border p-4"
         >
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
                 <div className="space-y-2">
                     <label className="text-sm font-medium">
                         Type de parc
@@ -190,9 +286,7 @@ export function EcheancesFilters({
 
                     <Select
                         value={typeparcId || ALL_VALUE}
-                        onValueChange={(value) => {
-                            handleTypeparcChange(value);
-                        }}
+                        onValueChange={handleTypeparcChange}
                     >
                         <SelectTrigger>
                             <SelectValue placeholder="Choisir un type" />
@@ -253,11 +347,7 @@ export function EcheancesFilters({
 
                     <Select
                         value={siteId || ALL_VALUE}
-                        onValueChange={(value) =>
-                            setSiteId(
-                                value === ALL_VALUE ? "" : value,
-                            )
-                        }
+                        onValueChange={handleSiteChange}
                         disabled={!parcId}
                     >
                         <SelectTrigger>
@@ -270,6 +360,41 @@ export function EcheancesFilters({
                             </SelectItem>
 
                             {filteredSites.map((item) => (
+                                <SelectItem
+                                    key={item.id}
+                                    value={item.id}
+                                >
+                                    {item.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                <div className="space-y-2">
+                    <label className="text-sm font-medium">
+                        Engin
+                    </label>
+
+                    <Select
+                        value={enginId || ALL_VALUE}
+                        onValueChange={(value) =>
+                            setEnginId(
+                                value === ALL_VALUE ? "" : value,
+                            )
+                        }
+                        disabled={!typeparcId}
+                    >
+                        <SelectTrigger>
+                            <SelectValue placeholder="Tous les engins" />
+                        </SelectTrigger>
+
+                        <SelectContent>
+                            <SelectItem value={ALL_VALUE}>
+                                Tous les engins
+                            </SelectItem>
+
+                            {filteredEnginsForSelect.map((item) => (
                                 <SelectItem
                                     key={item.id}
                                     value={item.id}
@@ -317,7 +442,10 @@ export function EcheancesFilters({
             </div>
 
             <div className="flex flex-wrap gap-2">
-                <Button type="submit" disabled={!typeparcId}>
+                <Button
+                    type="submit"
+                    disabled={!typeparcId}
+                >
                     Afficher les échéances
                 </Button>
 
