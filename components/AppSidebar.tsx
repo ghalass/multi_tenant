@@ -11,7 +11,6 @@ import {
   ShieldUser,
   LockKeyhole,
   Truck,
-  Keyboard,
   FolderCog2Icon,
   CalendarCheck,
   Ungroup,
@@ -22,9 +21,7 @@ import {
   BarChart3,
   Droplet,
   Droplets,
-  KeyboardMusic,
   Target,
-  AppWindowMacIcon,
   Server,
   UserStar,
 } from "lucide-react";
@@ -48,14 +45,14 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
-import { useEffect } from "react";
+import { JSX, useEffect } from "react";
 
 
 // Hook personnalisé pour la navigation active
 import { usePathname } from "next/navigation";
 import { useCurrentLocale } from "@/locales/client";
 
-function useActivePath() {
+function useActivePath(): (url: string) => boolean {
   const pathname = usePathname();
 
   return (url: string) => {
@@ -229,10 +226,21 @@ const superAdmin = {
   ],
 };
 
-// Suivi des performances
+const maintenancePreventiveItems = {
+  title: "Maintenance préventive",
+  icon: CalendarCheck,
+  list: [
+    {
+      title: "Plans de maintenance",
+      url: "/maintenance-preventive/plans",
+      icon: ClipboardList,
+      description: "Gérer les plans de maintenance préventive",
+    },
+  ],
+};
 
 
-export function AppSidebar() {
+export function AppSidebar(): JSX.Element {
   const locale = useCurrentLocale();
   const isRTL = locale === "ar";
 
@@ -248,15 +256,15 @@ export function AppSidebar() {
 
   const isActivePath = useActivePath();
 
-  const allItems =
-    [
-      rapportsItems,
-      backlogItems,
-      SuiviPerformances,
-      configItems,
-      AccessControl,
-      superAdmin
-    ];
+  const allItems = [
+    rapportsItems,
+    backlogItems,
+    maintenancePreventiveItems,
+    SuiviPerformances,
+    configItems,
+    AccessControl,
+    superAdmin,
+  ];
 
   return (
     <Sidebar side={isRTL ? "right" : "left"} variant="floating" collapsible="icon">
