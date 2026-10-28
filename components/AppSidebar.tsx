@@ -235,6 +235,11 @@ const maintenancePreventiveItems = {
       url: "/maintenance-preventive/plans",
       icon: ClipboardList,
       description: "Gérer les plans de maintenance préventive",
+    }, {
+      title: "Affectations",
+      url: "/maintenance-preventive/affectations",
+      icon: ClipboardList,
+      description: "Gérer les affectations des plans de maintenance",
     },
   ],
 };

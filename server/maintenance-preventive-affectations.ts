@@ -37,9 +37,37 @@ type AffectationScope = {
     enginId: string | null;
 };
 
-type ActionResult = {
+type ActionResult<T = undefined> = {
     success: boolean;
     message: string;
+    data?: T | null;
+};
+
+type OptionsAffectationMaintenance = {
+    plans: Prisma.PlanMaintenanceGetPayload<{
+        select: { id: true; code: true; name: true };
+    }>[];
+
+    typeparcs: Prisma.TypeparcGetPayload<{
+        select: { id: true; name: true };
+    }>[];
+
+    parcs: Prisma.ParcGetPayload<{
+        select: { id: true; name: true; typeparcId: true };
+    }>[];
+
+    sites: Prisma.SiteGetPayload<{
+        select: { id: true; name: true };
+    }>[];
+
+    engins: Prisma.EnginGetPayload<{
+        select: {
+            id: true;
+            name: true;
+            parcId: true;
+            siteId: true;
+        };
+    }>[];
 };
 
 const EMPTY_TARGETS = {
@@ -48,6 +76,38 @@ const EMPTY_TARGETS = {
     siteId: null,
     enginId: null,
 };
+
+type AffectationPlanMaintenanceListItem =
+    Prisma.AffectationPlanMaintenanceGetPayload<{
+        include: {
+            planMaintenance: {
+                select: {
+                    id: true;
+                    code: true;
+                    name: true;
+                    active: true;
+                };
+            };
+            typeparc: {
+                select: { id: true; name: true };
+            };
+            parc: {
+                select: {
+                    id: true;
+                    name: true;
+                    typeparc: {
+                        select: { id: true; name: true };
+                    };
+                };
+            };
+            site: {
+                select: { id: true; name: true };
+            };
+            engin: {
+                select: { id: true; name: true };
+            };
+        };
+    }>;
 
 async function getMaintenanceTenantId(): Promise<string | null> {
     const { currentTenantId } = await getSession();
@@ -543,6 +603,391 @@ export async function renseignerCompteurDerniereMaintenance(
             success: false,
             message:
                 "Impossible d'enregistrer le compteur de référence.",
+        };
+    }
+}
+
+/**
+ * Charge les listes utilisées par le formulaire d'affectation.
+ */
+export async function getOptionsAffectationMaintenance(): Promise<
+    ActionResult<OptionsAffectationMaintenance>
+> {
+    const permission = await guard(
+        ACTION.READ,
+        RESOURCE.MAINTENANCE_PREVENTIVE,
+    );
+
+    if (!permission.success) {
+        return {
+            success: false,
+            message: permission.message,
+            data: null,
+        };
+    }
+
+    const tenantId = await getMaintenanceTenantId();
+
+    if (!tenantId) {
+        return {
+            success: false,
+            message: "Aucun tenant actif n'est sélectionné.",
+            data: null,
+        };
+    }
+
+    try {
+        const [plans, typeparcs, parcs, sites, engins] =
+            await Promise.all([
+                prisma.planMaintenance.findMany({
+                    where: { tenantId, active: true },
+                    select: {
+                        id: true,
+                        code: true,
+                        name: true,
+                    },
+                    orderBy: { code: "asc" },
+                }),
+
+                prisma.typeparc.findMany({
+                    where: { tenantId },
+                    select: { id: true, name: true },
+                    orderBy: { name: "asc" },
+                }),
+
+                prisma.parc.findMany({
+                    where: { tenantId },
+                    select: {
+                        id: true,
+                        name: true,
+                        typeparcId: true,
+                    },
+                    orderBy: { name: "asc" },
+                }),
+
+                prisma.site.findMany({
+                    where: { tenantId, active: true },
+                    select: { id: true, name: true },
+                    orderBy: { name: "asc" },
+                }),
+
+                prisma.engin.findMany({
+                    where: { tenantId, active: true },
+                    select: {
+                        id: true,
+                        name: true,
+                        parcId: true,
+                        siteId: true,
+                    },
+                    orderBy: { name: "asc" },
+                }),
+            ]);
+
+        return {
+            success: true,
+            message: "",
+            data: {
+                plans,
+                typeparcs,
+                parcs,
+                sites,
+                engins,
+            },
+        };
+    } catch (error) {
+        console.error("getOptionsAffectationMaintenance error:", error);
+
+        return {
+            success: false,
+            message: "Impossible de charger les options d'affectation.",
+            data: null,
+        };
+    }
+}
+
+/**
+ * Liste les affectations du tenant actif.
+ */
+export async function getAffectationsPlansMaintenance(): Promise<
+    ActionResult<AffectationPlanMaintenanceListItem[]>
+> {
+    const permission = await guard(
+        ACTION.READ,
+        RESOURCE.MAINTENANCE_PREVENTIVE,
+    );
+
+    if (!permission.success) {
+        return {
+            success: false,
+            message: permission.message,
+            data: [],
+        };
+    }
+
+    const tenantId = await getMaintenanceTenantId();
+
+    if (!tenantId) {
+        return {
+            success: false,
+            message: "Aucun tenant actif n'est sélectionné.",
+            data: [],
+        };
+    }
+
+    try {
+        const data = await prisma.affectationPlanMaintenance.findMany({
+            where: { tenantId },
+            include: {
+                planMaintenance: {
+                    select: {
+                        id: true,
+                        code: true,
+                        name: true,
+                        active: true,
+                    },
+                },
+                typeparc: {
+                    select: { id: true, name: true },
+                },
+                parc: {
+                    select: {
+                        id: true,
+                        name: true,
+                        typeparc: {
+                            select: { id: true, name: true },
+                        },
+                    },
+                },
+                site: {
+                    select: { id: true, name: true },
+                },
+                engin: {
+                    select: { id: true, name: true },
+                },
+            },
+            orderBy: [
+                { active: "desc" },
+                { createdAt: "desc" },
+            ],
+        });
+
+        return {
+            success: true,
+            message: "Affectations récupérées avec succès.",
+            data,
+        };
+    } catch (error) {
+        console.error("getAffectationsPlansMaintenance error:", error);
+
+        return {
+            success: false,
+            message: "Impossible de récupérer les affectations.",
+            data: [],
+        };
+    }
+}
+
+/**
+ * Active ou suspend une affectation sans supprimer son historique.
+ *
+ * À la réactivation, les chevauchements avec les autres
+ * affectations actives du même plan sont vérifiés.
+ */
+export async function setAffectationPlanMaintenanceActive(
+    id: string,
+    active: boolean,
+): Promise<ActionResult> {
+    const permission = await guard(
+        ACTION.UPDATE,
+        RESOURCE.MAINTENANCE_PREVENTIVE,
+    );
+
+    if (!permission.success) {
+        return permission;
+    }
+
+    const tenantId = await getMaintenanceTenantId();
+
+    if (!tenantId) {
+        return {
+            success: false,
+            message: "Aucun tenant actif n'est sélectionné.",
+        };
+    }
+
+    if (!id?.trim() || typeof active !== "boolean") {
+        return {
+            success: false,
+            message: "Affectation ou état demandé invalide.",
+        };
+    }
+
+    try {
+        return await prisma.$transaction(
+            async (tx) => {
+                const affectation =
+                    await tx.affectationPlanMaintenance.findFirst({
+                        where: { id, tenantId },
+                        include: {
+                            planMaintenance: {
+                                select: {
+                                    id: true,
+                                    name: true,
+                                    active: true,
+                                },
+                            },
+                        },
+                    });
+
+                if (!affectation) {
+                    return {
+                        success: false,
+                        message: "Affectation introuvable dans le tenant actif.",
+                    };
+                }
+
+                if (affectation.active === active) {
+                    return {
+                        success: true,
+                        message: active
+                            ? "Cette affectation est déjà active."
+                            : "Cette affectation est déjà suspendue.",
+                    };
+                }
+
+                if (active && !affectation.planMaintenance.active) {
+                    return {
+                        success: false,
+                        message:
+                            "Réactivez d'abord le plan de maintenance associé.",
+                    };
+                }
+
+                const engins = await tx.engin.findMany({
+                    where: {
+                        tenantId,
+                        active: true,
+                    },
+                    select: {
+                        id: true,
+                        name: true,
+                        parcId: true,
+                        siteId: true,
+                        parc: {
+                            select: {
+                                typeparcId: true,
+                            },
+                        },
+                    },
+                });
+
+                const enginsCibles = engins.filter((engin) =>
+                    matchesScope(engin, affectation),
+                );
+
+                if (active) {
+                    const autresAffectations =
+                        await tx.affectationPlanMaintenance.findMany({
+                            where: {
+                                tenantId,
+                                planMaintenanceId:
+                                    affectation.planMaintenanceId,
+                                active: true,
+                                NOT: { id },
+                            },
+                            select: {
+                                id: true,
+                                portee: true,
+                                typeparcId: true,
+                                parcId: true,
+                                siteId: true,
+                                enginId: true,
+                            },
+                        });
+
+                    const chevauchements = enginsCibles.filter((engin) =>
+                        autresAffectations.some((autre) =>
+                            matchesScope(engin, autre),
+                        ),
+                    );
+
+                    if (chevauchements.length > 0) {
+                        return {
+                            success: false,
+                            message:
+                                `Réactivation refusée : ${chevauchements.length} ` +
+                                "engin(s) sont déjà couverts par une autre affectation " +
+                                "active du même plan.",
+                        };
+                    }
+                }
+
+                await tx.affectationPlanMaintenance.update({
+                    where: { id },
+                    data: { active },
+                });
+
+                const enginIds = enginsCibles.map((engin) => engin.id);
+
+                if (enginIds.length > 0 && !active) {
+                    await tx.suiviPlanMaintenanceEngin.updateMany({
+                        where: {
+                            tenantId,
+                            planMaintenanceId:
+                                affectation.planMaintenanceId,
+                            enginId: { in: enginIds },
+                            active: true,
+                        },
+                        data: { active: false },
+                    });
+                }
+
+                if (active) {
+                    for (const engin of enginsCibles) {
+                        await tx.suiviPlanMaintenanceEngin.upsert({
+                            where: {
+                                planMaintenanceId_enginId_tenantId: {
+                                    planMaintenanceId:
+                                        affectation.planMaintenanceId,
+                                    enginId: engin.id,
+                                    tenantId,
+                                },
+                            },
+                            create: {
+                                planMaintenanceId:
+                                    affectation.planMaintenanceId,
+                                enginId: engin.id,
+                                tenantId,
+                                active: true,
+                                compteurDerniereMaintenance: null,
+                                dateDerniereMaintenance: null,
+                            },
+                            update: { active: true },
+                        });
+                    }
+                }
+
+                return {
+                    success: true,
+                    message: active
+                        ? `Affectation réactivée pour ${enginsCibles.length} engin(s) actif(s).`
+                        : "Affectation suspendue. Les références de maintenance sont conservées.",
+                };
+            },
+            {
+                isolationLevel: "Serializable",
+            },
+        );
+    } catch (error) {
+        console.error(
+            "setAffectationPlanMaintenanceActive error:",
+            error,
+        );
+
+        return {
+            success: false,
+            message:
+                "Impossible de modifier l'affectation. Vérifiez les données et réessayez.",
         };
     }
 }
