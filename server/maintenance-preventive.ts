@@ -90,6 +90,82 @@ type EnregistrerMaintenanceResponse =
         data: null;
     };
 
+type FiltresHistoriqueMaintenance = {
+    typeparcId?: string;
+    parcId?: string;
+    siteId?: string;
+    dateDebut?: string;
+    dateFin?: string;
+};
+
+type HistoriqueMaintenanceItem = {
+    id: string;
+    planMaintenanceId: string;
+    enginId: string;
+    dateMaintenance: string;
+    compteur: number;
+    commentaire: string | null;
+    createdAt: string;
+    planMaintenance: {
+        id: string;
+        code: string;
+        name: string;
+    };
+    engin: {
+        id: string;
+        name: string;
+        site: {
+            id: string;
+            name: string;
+        };
+        parc: {
+            id: string;
+            name: string;
+            typeparc: {
+                id: string;
+                name: string;
+            };
+        };
+    };
+};
+
+type HistoriqueMaintenanceResponse =
+    | {
+        success: true;
+        message: string;
+        data: HistoriqueMaintenanceItem[];
+    }
+    | {
+        success: false;
+        message: string;
+        data: [];
+    };
+
+function parseDateHistorique(
+    value: string | undefined,
+): { valid: boolean; date?: Date } {
+    if (!value?.trim()) {
+        return { valid: true };
+    }
+
+    const dateValue = value.trim();
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+        return { valid: false };
+    }
+
+    const date = new Date(`${dateValue}T00:00:00.000Z`);
+
+    if (
+        Number.isNaN(date.getTime()) ||
+        date.toISOString().slice(0, 10) !== dateValue
+    ) {
+        return { valid: false };
+    }
+
+    return { valid: true, date };
+}
+
 async function getMaintenanceTenantId(): Promise<string | null> {
     const { currentTenantId } = await getSession();
 
@@ -559,6 +635,30 @@ export async function enregistrerMaintenanceRealisee(
                     };
                 }
 
+                const doublon =
+                    await tx.historiqueMaintenancePreventive.findFirst({
+                        where: {
+                            tenantId,
+                            planMaintenanceId: values.planMaintenanceId,
+                            enginId: values.enginId,
+                            dateMaintenance,
+                            compteur: values.compteur,
+                            commentaire,
+                        },
+                        select: {
+                            id: true,
+                        },
+                    });
+
+                if (doublon) {
+                    return {
+                        success: false as const,
+                        message:
+                            "Une maintenance identique est déjà enregistrée pour cet engin, ce plan, cette date et ce compteur.",
+                        data: null,
+                    };
+                }
+
                 const dernierHistorique =
                     await tx.historiqueMaintenancePreventive.findFirst({
                         where: {
@@ -681,6 +781,186 @@ export async function enregistrerMaintenanceRealisee(
             message:
                 "Impossible d'enregistrer la maintenance. Vérifiez les données et réessayez.",
             data: null,
+        };
+    }
+}
+
+/**
+ * Consulte l'historique des maintenances réalisées.
+ *
+ * Les recherches sont limitées au tenant actif et au type de parc.
+ * Les filtres facultatifs permettent d'affiner par parc, site et période.
+ */
+export async function getHistoriqueMaintenancesPreventives(
+    filters: FiltresHistoriqueMaintenance,
+): Promise<HistoriqueMaintenanceResponse> {
+    const permission = await guard(
+        ACTION.READ,
+        RESOURCE.MAINTENANCE_PREVENTIVE,
+    );
+
+    if (!permission.success) {
+        return {
+            success: false,
+            message: permission.message,
+            data: [],
+        };
+    }
+
+    const tenantId = await getMaintenanceTenantId();
+
+    if (!tenantId) {
+        return {
+            success: false,
+            message: "Aucun tenant actif n'est sélectionné.",
+            data: [],
+        };
+    }
+
+    const typeparcId = filters.typeparcId?.trim();
+    const parcId = filters.parcId?.trim();
+    const siteId = filters.siteId?.trim();
+
+    if (!typeparcId) {
+        return {
+            success: false,
+            message: "Sélectionnez au minimum un type de parc.",
+            data: [],
+        };
+    }
+
+    const debut = parseDateHistorique(filters.dateDebut);
+    const fin = parseDateHistorique(filters.dateFin);
+
+    if (!debut.valid || !fin.valid) {
+        return {
+            success: false,
+            message: "La période sélectionnée contient une date invalide.",
+            data: [],
+        };
+    }
+
+    if (
+        debut.date &&
+        fin.date &&
+        debut.date.getTime() > fin.date.getTime()
+    ) {
+        return {
+            success: false,
+            message:
+                "La date de début doit être antérieure ou égale à la date de fin.",
+            data: [],
+        };
+    }
+
+    try {
+        const historique =
+            await prisma.historiqueMaintenancePreventive.findMany({
+                where: {
+                    tenantId,
+                    ...(debut.date || fin.date
+                        ? {
+                            dateMaintenance: {
+                                ...(debut.date
+                                    ? { gte: debut.date }
+                                    : {}),
+                                ...(fin.date
+                                    ? { lte: fin.date }
+                                    : {}),
+                            },
+                        }
+                        : {}),
+                    planMaintenance: {
+                        is: { tenantId },
+                    },
+                    engin: {
+                        is: {
+                            tenantId,
+                            ...(parcId ? { parcId } : {}),
+                            ...(siteId ? { siteId } : {}),
+                            parc: {
+                                is: {
+                                    tenantId,
+                                    typeparcId,
+                                },
+                            },
+                            site: {
+                                is: { tenantId },
+                            },
+                        },
+                    },
+                },
+                select: {
+                    id: true,
+                    planMaintenanceId: true,
+                    enginId: true,
+                    dateMaintenance: true,
+                    compteur: true,
+                    commentaire: true,
+                    createdAt: true,
+                    planMaintenance: {
+                        select: {
+                            id: true,
+                            code: true,
+                            name: true,
+                        },
+                    },
+                    engin: {
+                        select: {
+                            id: true,
+                            name: true,
+                            site: {
+                                select: {
+                                    id: true,
+                                    name: true,
+                                },
+                            },
+                            parc: {
+                                select: {
+                                    id: true,
+                                    name: true,
+                                    typeparc: {
+                                        select: {
+                                            id: true,
+                                            name: true,
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+                orderBy: [
+                    { dateMaintenance: "desc" },
+                    { createdAt: "desc" },
+                ],
+            });
+
+        const data: HistoriqueMaintenanceItem[] =
+            historique.map((item) => ({
+                ...item,
+                dateMaintenance: item.dateMaintenance
+                    .toISOString()
+                    .slice(0, 10),
+                createdAt: item.createdAt.toISOString(),
+            }));
+
+        return {
+            success: true,
+            message: "Historique des maintenances récupéré avec succès.",
+            data,
+        };
+    } catch (error) {
+        console.error(
+            "getHistoriqueMaintenancesPreventives error:",
+            error,
+        );
+
+        return {
+            success: false,
+            message:
+                "Impossible de récupérer l'historique des maintenances.",
+            data: [],
         };
     }
 }

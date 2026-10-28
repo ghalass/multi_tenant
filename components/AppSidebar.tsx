@@ -245,6 +245,11 @@ const maintenancePreventiveItems = {
       url: "/maintenance-preventive/echeances",
       icon: CalendarCheck,
       description: "Consulter les échéances de maintenance préventive",
+    }, {
+      title: "Historique",
+      url: "/maintenance-preventive/historique",
+      icon: ClipboardList,
+      description: "Consulter l'historique des maintenances réalisées",
     },
   ],
 };
