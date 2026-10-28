@@ -33,6 +33,9 @@ model Tenant {
   backlogs         Backlog[]
   plansMaintenance PlanMaintenance[]
 
+  affectationsPlansMaintenance AffectationPlanMaintenance[]
+  suivisPlansMaintenance       SuiviPlanMaintenanceEngin[]
+
   @@map("tenant")
 }
 
@@ -134,6 +137,8 @@ model Site {
   objectifs  Objectif[]
   backlogs   Backlog[]
 
+  affectationsMaintenance AffectationPlanMaintenance[]
+
   @@unique([name, tenantId])
   @@map("site")
 }
@@ -145,6 +150,8 @@ model Typeparc {
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   parcs  Parc[]
+
+  affectationsMaintenance AffectationPlanMaintenance[]
 
   @@unique([name, tenantId])
   @@map("typeparc")
@@ -163,6 +170,8 @@ model Parc {
   engins    Engin[]
   pannes    Panne[]
   objectifs Objectif[]
+
+  affectationsMaintenance AffectationPlanMaintenance[]
 
   @@unique([name, tenantId])
   @@map("parc")
@@ -183,6 +192,9 @@ model Engin {
   tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   saisiehrms Saisiehrm[]
   backlogs   Backlog[]
+
+  affectationsMaintenance AffectationPlanMaintenance[]
+  suivisPlansMaintenance  SuiviPlanMaintenanceEngin[]
 
   @@unique([name, tenantId])
   @@map("engin")
@@ -367,10 +379,80 @@ model PlanMaintenance {
   tenantId String
   tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
 
+  affectations AffectationPlanMaintenance[]
+  suivisEngins SuiviPlanMaintenanceEngin[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([code, tenantId])
   @@index([tenantId, active])
   @@map("plan_maintenance")
+}
+
+enum PorteeAffectationMaintenance {
+  TYPEPARC
+  PARC
+  SITE
+  ENGIN
+}
+
+model AffectationPlanMaintenance {
+  id                String                       @id @default(cuid(2))
+  planMaintenanceId String
+  tenantId          String
+  portee            PorteeAffectationMaintenance
+  typeparcId        String?
+  parcId            String?
+  siteId            String?
+  enginId           String?
+  active            Boolean                      @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  planMaintenance PlanMaintenance @relation(fields: [planMaintenanceId], references: [id], onDelete: Restrict)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+
+  typeparc Typeparc? @relation(fields: [typeparcId], references: [id], onDelete: Restrict)
+
+  parc Parc? @relation(fields: [parcId], references: [id], onDelete: Restrict)
+
+  site Site? @relation(fields: [siteId], references: [id], onDelete: Restrict)
+
+  engin Engin? @relation(fields: [enginId], references: [id], onDelete: Restrict)
+
+  @@unique([planMaintenanceId, tenantId, typeparcId])
+  @@unique([planMaintenanceId, tenantId, parcId])
+  @@unique([planMaintenanceId, tenantId, siteId])
+  @@unique([planMaintenanceId, tenantId, enginId])
+  @@index([tenantId, portee, active])
+  @@index([planMaintenanceId, active])
+  @@map("affectation_plan_maintenance")
+}
+
+model SuiviPlanMaintenanceEngin {
+  id                String @id @default(cuid(2))
+  planMaintenanceId String
+  enginId           String
+  tenantId          String
+
+  // Null signifie que le compteur de la dernière maintenance
+  // réelle n'a pas encore été renseigné.
+  compteurDerniereMaintenance Float?
+  dateDerniereMaintenance     DateTime? @db.Date
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  planMaintenance PlanMaintenance @relation(fields: [planMaintenanceId], references: [id], onDelete: Restrict)
+
+  engin Engin @relation(fields: [enginId], references: [id], onDelete: Restrict)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+
+  @@unique([planMaintenanceId, enginId, tenantId])
+  @@index([tenantId, enginId])
+  @@map("suivi_plan_maintenance_engin")
 }
