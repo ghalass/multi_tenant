@@ -369,12 +369,13 @@ model HistoriqueStatutBacklog {
 // ******************
 
 model PlanMaintenance {
-  id               String  @id @default(cuid(2))
-  code             String
-  name             String
-  description      String?
-  intervalleHeures Float
-  active           Boolean @default(true)
+  id                String  @id @default(cuid(2))
+  code              String
+  name              String
+  description       String?
+  intervalleHeures  Float
+  seuilAlerteHeures Float   @default(50)
+  active            Boolean @default(true)
 
   tenantId String
   tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)

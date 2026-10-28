@@ -6,7 +6,10 @@ import { ACTION } from "@/lib/enums";
 import { ActionResponse } from "@/lib/types/types"; import { getSession } from "@/lib/auth";
 import { ACTIVE, PAGINATION_SETTINGS, RESOURCE } from "@/lib/constantes";
 import { convertField } from "@/lib/convertField";
-
+import {
+  MaintenanceSyncError,
+  synchroniserSuivisMaintenancePourEngin,
+} from "@/lib/maintenance-preventive-sync";
 
 export interface EnginsSearchParams {
   name?: string;
@@ -206,19 +209,38 @@ export async function createEngin(
       return { success: false, message: "Cet engin existe déjà." };
     }
 
-    await prisma.engin.create({
-      data: {
-        name,
-        active: values.active,
-        parcId: values.parcId,
-        siteId: values.siteId,
-        initialHeureChassis: values.initialHeureChassis,
-        tenantId,
+    await prisma.$transaction(
+      async (tx) => {
+        const engin = await tx.engin.create({
+          data: {
+            name,
+            active: values.active,
+            parcId: values.parcId,
+            siteId: values.siteId,
+            initialHeureChassis: values.initialHeureChassis,
+            tenantId,
+          },
+        });
+
+        await synchroniserSuivisMaintenancePourEngin(
+          tx,
+          tenantId,
+          engin.id,
+        );
       },
-    });
+      {
+        isolationLevel: "Serializable",
+      },
+    );
 
     return { success: true, message: "Engin créé avec succès." };
   } catch (error) {
+    if (error instanceof MaintenanceSyncError) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
     console.error("createEngin error:", error);
     return { success: false, message: "Erreur lors de la création de l'engin." };
   }
@@ -282,16 +304,31 @@ export async function updateEngin(
       return { success: false, message: "Un autre engin porte déjà ce nom." };
     }
 
-    await prisma.engin.update({
-      where: { id: values.id },
-      data: {
-        name,
-        active: values.active,
-        parcId: values.parcId,
-        siteId: values.siteId,
-        initialHeureChassis: values.initialHeureChassis,
+    await prisma.$transaction(
+      async (tx) => {
+        const engin = await tx.engin.update({
+          where: {
+            id: values.id,
+          },
+          data: {
+            name,
+            active: values.active,
+            parcId: values.parcId,
+            siteId: values.siteId,
+            initialHeureChassis: values.initialHeureChassis,
+          },
+        });
+
+        await synchroniserSuivisMaintenancePourEngin(
+          tx,
+          tenantId,
+          engin.id,
+        );
       },
-    });
+      {
+        isolationLevel: "Serializable",
+      },
+    );
 
     return { success: true, message: "Engin modifié avec succès." };
   } catch (error) {
@@ -418,24 +455,44 @@ export async function importEngins(data: any) {
       ];
     }
 
-    const engin = await prisma.engin.upsert({
-      where: { name_tenantId: { name, tenantId: currentTenantId } },
-      update: {
-        name: name,
-        active: active,
-        parcId: parc.id,
-        siteId: site.id,
-        initialHeureChassis: initialHeureChassis,
+    const engin = await prisma.$transaction(
+      async (tx) => {
+        const result = await tx.engin.upsert({
+          where: {
+            name_tenantId: {
+              name,
+              tenantId: currentTenantId,
+            },
+          },
+          update: {
+            name,
+            active,
+            parcId: parc.id,
+            siteId: site.id,
+            initialHeureChassis,
+          },
+          create: {
+            name,
+            active,
+            parcId: parc.id,
+            siteId: site.id,
+            initialHeureChassis,
+            tenantId: currentTenantId,
+          },
+        });
+
+        await synchroniserSuivisMaintenancePourEngin(
+          tx,
+          currentTenantId,
+          result.id,
+        );
+
+        return result;
       },
-      create: {
-        name: name,
-        active: active,
-        parcId: parc.id,
-        siteId: site.id,
-        initialHeureChassis: initialHeureChassis,
-        tenantId: currentTenantId
+      {
+        isolationLevel: "Serializable",
       },
-    });
+    );
 
     return [
       {
@@ -445,6 +502,16 @@ export async function importEngins(data: any) {
       },
     ];
   } catch (error: unknown) {
+    if (error instanceof MaintenanceSyncError) {
+      return [
+        {
+          success: false,
+          data,
+          message: error.message,
+        },
+      ];
+    }
+
     console.error("Erreur lors de l'import des engins :", error);
 
     return [

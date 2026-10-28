@@ -7,6 +7,7 @@ import { ACTION } from "@/lib/enums";
 import { RESOURCE } from "@/lib/constantes";
 import { PorteeAffectationMaintenance } from "@/lib/generated/prisma/enums";
 import { Prisma } from "@/lib/generated/prisma/client";
+import { calculerCompteurCourant } from "@/lib/maintenance-preventive-compteur";
 
 type AffectationInput = {
     planMaintenanceId: string;
@@ -283,7 +284,10 @@ export async function createAffectationPlanMaintenance(
                 }
 
                 const engins = await tx.engin.findMany({
-                    where: { tenantId },
+                    where: {
+                        tenantId,
+                        active: true,
+                    },
                     select: {
                         id: true,
                         name: true,
@@ -486,6 +490,30 @@ export async function renseignerCompteurDerniereMaintenance(
                 success: false,
                 message:
                     "Aucun suivi n'existe pour ce plan et cet engin dans le tenant actif.",
+            };
+        }
+
+        const compteurCourant = await calculerCompteurCourant(
+            values.enginId,
+            tenantId,
+        );
+
+        if (!compteurCourant) {
+            return {
+                success: false,
+                message: "Engin introuvable dans le tenant actif.",
+            };
+        }
+
+        if (values.compteur > compteurCourant.compteurCourant) {
+            return {
+                success: false,
+                message:
+                    `Le compteur de référence (${values.compteur} h) ne peut pas ` +
+                    `dépasser le compteur courant calculé ` +
+                    `(${compteurCourant.compteurCourant} h) pour l'engin ` +
+                    `"${compteurCourant.enginName}". ` +
+                    "Vérifiez les relevés de compteur et les saisies HRM.",
             };
         }
 
