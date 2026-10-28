@@ -22,15 +22,16 @@ model Tenant {
   users       User[]
   memberships UserTenant[]
 
-  typeparcs  Typeparc[]
-  parcs      Parc[]
-  engins     Engin[]
-  typepannes Typepanne[]
-  pannes     Panne[]
-  saisiehrms Saisiehrm[]
-  saisiehims Saisiehim[]
-  objectifs  Objectif[]
-  backlogs   Backlog[]
+  typeparcs        Typeparc[]
+  parcs            Parc[]
+  engins           Engin[]
+  typepannes       Typepanne[]
+  pannes           Panne[]
+  saisiehrms       Saisiehrm[]
+  saisiehims       Saisiehim[]
+  objectifs        Objectif[]
+  backlogs         Backlog[]
+  plansMaintenance PlanMaintenance[]
 
   @@map("tenant")
 }
@@ -349,4 +350,27 @@ model HistoriqueStatutBacklog {
 
   @@index([backlogId, dateChangement])
   @@map("historique_statut_backlog")
+}
+
+// ******************
+// MAINTENANCE PRÉVENTIVE
+// ******************
+
+model PlanMaintenance {
+  id               String  @id @default(cuid(2))
+  code             String
+  name             String
+  description      String?
+  intervalleHeures Float
+  active           Boolean @default(true)
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([code, tenantId])
+  @@index([tenantId, active])
+  @@map("plan_maintenance")
 }
