@@ -9,8 +9,37 @@ import {
 import { AffectationPlanForm } from "./affectation-plan-form";
 import { AffectationsTable } from "./affectations-table";
 import { CompteursReferenceTable } from "./compteurs-reference-table";
+import { CompteursReferenceFilters } from "./compteurs-reference-filters";
 
-export default async function AffectationsMaintenancePage(): Promise<ReactElement> {
+type PageProps = {
+    searchParams: Promise<
+        Record<string, string | string[] | undefined>
+    >;
+};
+
+function readParam(
+    value: string | string[] | undefined,
+): string | undefined {
+    const result = Array.isArray(value) ? value[0] : value;
+    return result?.trim() || undefined;
+}
+
+export default async function AffectationsMaintenancePage({
+    searchParams,
+}: PageProps): Promise<ReactElement> {
+    const params = await searchParams;
+
+    const filters = {
+        typeparcId: readParam(params.typeparcId),
+        parcId: readParam(params.parcId),
+        siteId: readParam(params.siteId),
+    };
+
+    // Les résultats ne sont chargés qu'après une demande explicite.
+    const showCounterResults =
+        readParam(params.afficherCompteurs) === "1" &&
+        Boolean(filters.typeparcId);
+
     const [
         optionsResult,
         affectationsResult,
@@ -18,7 +47,9 @@ export default async function AffectationsMaintenancePage(): Promise<ReactElemen
     ] = await Promise.all([
         getOptionsAffectationMaintenance(),
         getAffectationsPlansMaintenance(),
-        getSuivisCompteursReference(),
+        showCounterResults
+            ? getSuivisCompteursReference(filters)
+            : Promise.resolve(null),
     ]);
 
     const options =
@@ -30,7 +61,7 @@ export default async function AffectationsMaintenancePage(): Promise<ReactElemen
             : [];
 
     const suivis =
-        suivisResult.success ? suivisResult.data ?? [] : [];
+        suivisResult?.success ? suivisResult.data ?? [] : [];
 
     return (
         <div className="space-y-6">
@@ -90,18 +121,50 @@ export default async function AffectationsMaintenancePage(): Promise<ReactElemen
                     </h2>
 
                     <p className="text-sm text-muted-foreground">
-                        Pour chaque suivi plan–engin actif, renseignez
-                        le compteur atteint lors de la dernière
-                        maintenance réelle. La date est facultative.
+                        Sélectionnez un type de parc, puis affinez
+                        éventuellement par parc et par site.
                     </p>
                 </div>
 
-                {!suivisResult.success ? (
+                {options ? (
+                    <CompteursReferenceFilters
+                        key={[
+                            filters.typeparcId ?? "",
+                            filters.parcId ?? "",
+                            filters.siteId ?? "",
+                        ].join("|")}
+                        options={{
+                            typeparcs: options.typeparcs,
+                            parcs: options.parcs,
+                            sites: options.sites,
+                            engins: options.engins,
+                        }}
+                        initialFilters={filters}
+                    />
+                ) : (
                     <p className="text-sm text-destructive">
-                        {suivisResult.message}
+                        Impossible de charger les options de filtrage.
+                    </p>
+                )}
+
+                {!showCounterResults ? (
+                    <p className="text-sm text-muted-foreground">
+                        Sélectionnez au minimum un type de parc, puis
+                        cliquez sur « Afficher les compteurs ».
+                    </p>
+                ) : !suivisResult?.success ? (
+                    <p className="text-sm text-destructive">
+                        {suivisResult?.message ||
+                            "Impossible de récupérer les compteurs."}
                     </p>
                 ) : (
-                    <CompteursReferenceTable suivis={suivis} />
+                    <>
+                        <p className="text-sm text-muted-foreground">
+                            {suivis.length} suivi(s) trouvé(s).
+                        </p>
+
+                        <CompteursReferenceTable suivis={suivis} />
+                    </>
                 )}
             </section>
         </div>

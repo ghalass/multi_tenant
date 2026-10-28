@@ -1020,9 +1020,13 @@ export async function setAffectationPlanMaintenanceActive(
  * Liste les suivis actifs par plan et engin pour renseigner
  * le compteur réel de la dernière maintenance.
  */
-export async function getSuivisCompteursReference(): Promise<
-    ActionResult<SuiviCompteurReference[]>
-> {
+export async function getSuivisCompteursReference(
+    filters: {
+        typeparcId?: string;
+        parcId?: string;
+        siteId?: string;
+    } = {},
+): Promise<ActionResult<SuiviCompteurReference[]>> {
     const permission = await guard(
         ACTION.READ,
         RESOURCE.MAINTENANCE_PREVENTIVE,
@@ -1053,7 +1057,22 @@ export async function getSuivisCompteursReference(): Promise<
                     tenantId,
                     active: true,
                     planMaintenance: { tenantId },
-                    engin: { tenantId },
+                    engin: {
+                        tenantId,
+                        ...(filters.parcId
+                            ? { parcId: filters.parcId }
+                            : {}),
+                        ...(filters.siteId
+                            ? { siteId: filters.siteId }
+                            : {}),
+                        ...(filters.typeparcId
+                            ? {
+                                parc: {
+                                    typeparcId: filters.typeparcId,
+                                },
+                            }
+                            : {}),
+                    },
                 },
                 select: {
                     id: true,
