@@ -11,6 +11,7 @@ import { getHistoriqueMaintenancesPreventives } from "@/server/maintenance-preve
 
 import { HistoriqueFilters } from "./historique-filters";
 import { HistoriqueTable } from "./historique-table";
+import Link from "next/link";
 
 type PageSearchParams = {
     [key: string]: string | string[] | undefined;
@@ -23,6 +24,33 @@ function readParam(
     return result?.trim() || undefined;
 }
 
+function buildPageHref(
+    params: PageSearchParams,
+    page: number,
+): string {
+    const query = new URLSearchParams();
+
+    for (const key of [
+        "typeparcId",
+        "parcId",
+        "enginId",
+        "siteId",
+        "dateDebut",
+        "dateFin",
+    ] as const) {
+        const value = readParam(params[key]);
+
+        if (value) {
+            query.set(key, value);
+        }
+    }
+
+    query.set("afficherHistorique", "1");
+    query.set("page", String(page));
+
+    return `?${query.toString()}`;
+}
+
 export default async function HistoriqueMaintenancePage({
     searchParams,
 }: {
@@ -33,10 +61,20 @@ export default async function HistoriqueMaintenancePage({
     const filters = {
         typeparcId: readParam(params.typeparcId),
         parcId: readParam(params.parcId),
+        enginId: readParam(params.enginId),
         siteId: readParam(params.siteId),
         dateDebut: readParam(params.dateDebut),
         dateFin: readParam(params.dateFin),
     };
+
+    const pageValue = Number(
+        readParam(params.page) ?? "1",
+    );
+
+    const requestedPage =
+        Number.isSafeInteger(pageValue) && pageValue > 0
+            ? pageValue
+            : 1;
 
     const showResults =
         readParam(params.afficherHistorique) === "1" &&
@@ -46,7 +84,10 @@ export default async function HistoriqueMaintenancePage({
         getOptionsAffectationMaintenance(),
 
         showResults
-            ? getHistoriqueMaintenancesPreventives(filters)
+            ? getHistoriqueMaintenancesPreventives({
+                ...filters,
+                page: requestedPage,
+            })
             : Promise.resolve(undefined),
     ]);
 
@@ -57,6 +98,10 @@ export default async function HistoriqueMaintenancePage({
     const historique = historiqueResult?.success
         ? historiqueResult.data
         : [];
+
+    const pagination = historiqueResult?.success
+        ? historiqueResult.pagination
+        : null;
 
     return (
         <div className="space-y-5">
@@ -88,6 +133,7 @@ export default async function HistoriqueMaintenancePage({
                         key={[
                             filters.typeparcId ?? "",
                             filters.parcId ?? "",
+                            filters.enginId ?? "",
                             filters.siteId ?? "",
                             filters.dateDebut ?? "",
                             filters.dateFin ?? "",
@@ -127,10 +173,61 @@ export default async function HistoriqueMaintenancePage({
                 ) : (
                     <div className="space-y-3">
                         <p className="text-sm text-muted-foreground">
-                            {historique.length} intervention(s) trouvée(s).
+                            {pagination?.totalItems ?? 0} intervention(s) trouvée(s).
                         </p>
 
                         <HistoriqueTable data={historique} />
+
+                        {pagination && pagination.totalPages > 1 && (
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                <p className="text-sm text-muted-foreground">
+                                    Page {pagination.page} sur {pagination.totalPages}
+                                </p>
+
+                                <nav
+                                    aria-label="Pagination de l'historique"
+                                    className="flex items-center gap-2"
+                                >
+                                    {pagination.page > 1 ? (
+                                        <Link
+                                            href={buildPageHref(
+                                                params,
+                                                pagination.page - 1,
+                                            )}
+                                            className="inline-flex items-center justify-center rounded-md border px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+                                        >
+                                            Précédent
+                                        </Link>
+                                    ) : (
+                                        <span
+                                            aria-disabled="true"
+                                            className="inline-flex cursor-not-allowed items-center justify-center rounded-md border px-3 py-2 text-sm text-muted-foreground opacity-50"
+                                        >
+                                            Précédent
+                                        </span>
+                                    )}
+
+                                    {pagination.page < pagination.totalPages ? (
+                                        <Link
+                                            href={buildPageHref(
+                                                params,
+                                                pagination.page + 1,
+                                            )}
+                                            className="inline-flex items-center justify-center rounded-md border px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+                                        >
+                                            Suivant
+                                        </Link>
+                                    ) : (
+                                        <span
+                                            aria-disabled="true"
+                                            className="inline-flex cursor-not-allowed items-center justify-center rounded-md border px-3 py-2 text-sm text-muted-foreground opacity-50"
+                                        >
+                                            Suivant
+                                        </span>
+                                    )}
+                                </nav>
+                            </div>
+                        )}
                     </div>
                 )}
             </CanAccess>

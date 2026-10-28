@@ -26,6 +26,7 @@ type HistoriqueFilters = {
     siteId?: string;
     dateDebut?: string;
     dateFin?: string;
+    enginId?: string;
 };
 
 type FilterOptions = {
@@ -72,6 +73,10 @@ export function HistoriqueFilters({
         initialFilters.dateFin ?? "",
     );
 
+    const [enginId, setEnginId] = useState(
+        initialFilters.enginId ?? "",
+    );
+
     const filteredParcs = useMemo(
         () =>
             options.parcs.filter(
@@ -101,6 +106,15 @@ export function HistoriqueFilters({
         [options.engins, parcById, typeparcId, parcId],
     );
 
+    const filteredEnginsForSelect = useMemo(
+        () =>
+            filteredEngins.filter(
+                (engin) =>
+                    !siteId || engin.siteId === siteId,
+            ),
+        [filteredEngins, siteId],
+    );
+
     const availableSiteIds = useMemo(
         () => new Set(filteredEngins.map((engin) => engin.siteId)),
         [filteredEngins],
@@ -118,11 +132,13 @@ export function HistoriqueFilters({
         setTypeparcId(value === ALL_VALUE ? "" : value);
         setParcId("");
         setSiteId("");
+        setEnginId("");
     }
 
     function handleParcChange(value: string): void {
         setParcId(value === ALL_VALUE ? "" : value);
         setSiteId("");
+        setEnginId("");
     }
 
     function handleSubmit(
@@ -133,6 +149,7 @@ export function HistoriqueFilters({
         if (!typeparcId) {
             return;
         }
+
 
         if (dateDebut && dateFin && dateDebut > dateFin) {
             return;
@@ -147,6 +164,7 @@ export function HistoriqueFilters({
         if (siteId) params.set("siteId", siteId);
         if (dateDebut) params.set("dateDebut", dateDebut);
         if (dateFin) params.set("dateFin", dateFin);
+        if (enginId) params.set("enginId", enginId);
 
         router.push(`${pathname}?${params.toString()}`);
     }
@@ -157,8 +175,26 @@ export function HistoriqueFilters({
         setSiteId("");
         setDateDebut("");
         setDateFin("");
+        setEnginId("");
 
         router.push(pathname);
+    }
+
+    function handleSiteChange(value: string): void {
+        const nextSiteId =
+            value === ALL_VALUE ? "" : value;
+
+        setSiteId(nextSiteId);
+
+        if (nextSiteId && enginId) {
+            const selectedEngin = options.engins.find(
+                (engin) => engin.id === enginId,
+            );
+
+            if (selectedEngin?.siteId !== nextSiteId) {
+                setEnginId("");
+            }
+        }
     }
 
     const periodeInvalide =
@@ -238,11 +274,7 @@ export function HistoriqueFilters({
 
                     <Select
                         value={siteId || ALL_VALUE}
-                        onValueChange={(value) =>
-                            setSiteId(
-                                value === ALL_VALUE ? "" : value,
-                            )
-                        }
+                        onValueChange={handleSiteChange}
                         disabled={!parcId}
                     >
                         <SelectTrigger>
@@ -255,6 +287,41 @@ export function HistoriqueFilters({
                             </SelectItem>
 
                             {filteredSites.map((item) => (
+                                <SelectItem
+                                    key={item.id}
+                                    value={item.id}
+                                >
+                                    {item.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                <div className="space-y-2">
+                    <label className="text-sm font-medium">
+                        Engin
+                    </label>
+
+                    <Select
+                        value={enginId || ALL_VALUE}
+                        onValueChange={(value) =>
+                            setEnginId(
+                                value === ALL_VALUE ? "" : value,
+                            )
+                        }
+                        disabled={!typeparcId}
+                    >
+                        <SelectTrigger>
+                            <SelectValue placeholder="Tous les engins" />
+                        </SelectTrigger>
+
+                        <SelectContent>
+                            <SelectItem value={ALL_VALUE}>
+                                Tous les engins
+                            </SelectItem>
+
+                            {filteredEnginsForSelect.map((item) => (
                                 <SelectItem
                                     key={item.id}
                                     value={item.id}

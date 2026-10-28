@@ -93,9 +93,11 @@ type EnregistrerMaintenanceResponse =
 type FiltresHistoriqueMaintenance = {
     typeparcId?: string;
     parcId?: string;
+    enginId?: string;
     siteId?: string;
     dateDebut?: string;
     dateFin?: string;
+    page?: number;
 };
 
 type HistoriqueMaintenanceItem = {
@@ -134,12 +136,20 @@ type HistoriqueMaintenanceResponse =
         success: true;
         message: string;
         data: HistoriqueMaintenanceItem[];
+        pagination: {
+            page: number;
+            pageSize: number;
+            totalItems: number;
+            totalPages: number;
+        };
     }
     | {
         success: false;
         message: string;
         data: [];
     };
+
+const HISTORIQUE_PAGE_SIZE = 20;
 
 function parseDateHistorique(
     value: string | undefined,
@@ -819,7 +829,15 @@ export async function getHistoriqueMaintenancesPreventives(
 
     const typeparcId = filters.typeparcId?.trim();
     const parcId = filters.parcId?.trim();
+    const enginId = filters.enginId?.trim();
     const siteId = filters.siteId?.trim();
+
+    const requestedPage =
+        typeof filters.page === "number" &&
+            Number.isSafeInteger(filters.page) &&
+            filters.page > 0
+            ? filters.page
+            : 1;
 
     if (!typeparcId) {
         return {
@@ -854,90 +872,126 @@ export async function getHistoriqueMaintenancesPreventives(
     }
 
     try {
-        const historique =
-            await prisma.historiqueMaintenancePreventive.findMany({
-                where: {
-                    tenantId,
-                    ...(debut.date || fin.date
-                        ? {
-                            dateMaintenance: {
-                                ...(debut.date
-                                    ? { gte: debut.date }
-                                    : {}),
-                                ...(fin.date
-                                    ? { lte: fin.date }
-                                    : {}),
-                            },
-                        }
-                        : {}),
-                    planMaintenance: {
-                        is: { tenantId },
+        const where = {
+            tenantId,
+
+            ...(enginId ? { enginId } : {}),
+
+            ...(debut.date || fin.date
+                ? {
+                    dateMaintenance: {
+                        ...(debut.date ? { gte: debut.date } : {}),
+                        ...(fin.date ? { lte: fin.date } : {}),
                     },
-                    engin: {
+                }
+                : {}),
+
+            planMaintenance: {
+                is: { tenantId },
+            },
+
+            engin: {
+                is: {
+                    tenantId,
+                    ...(parcId ? { parcId } : {}),
+                    ...(siteId ? { siteId } : {}),
+                    parc: {
                         is: {
                             tenantId,
-                            ...(parcId ? { parcId } : {}),
-                            ...(siteId ? { siteId } : {}),
-                            parc: {
-                                is: {
-                                    tenantId,
-                                    typeparcId,
-                                },
-                            },
-                            site: {
-                                is: { tenantId },
-                            },
+                            typeparcId,
                         },
+                    },
+                    site: {
+                        is: { tenantId },
                     },
                 },
-                select: {
-                    id: true,
-                    planMaintenanceId: true,
-                    enginId: true,
-                    dateMaintenance: true,
-                    compteur: true,
-                    commentaire: true,
-                    createdAt: true,
-                    planMaintenance: {
-                        select: {
-                            id: true,
-                            code: true,
-                            name: true,
-                        },
-                    },
-                    engin: {
-                        select: {
-                            id: true,
-                            name: true,
-                            site: {
-                                select: {
-                                    id: true,
-                                    name: true,
-                                },
+            },
+        };
+
+        const result = await prisma.$transaction(async (tx) => {
+            const totalItems =
+                await tx.historiqueMaintenancePreventive.count({
+                    where,
+                });
+
+            const totalPages = Math.max(
+                1,
+                Math.ceil(totalItems / HISTORIQUE_PAGE_SIZE),
+            );
+
+            // Évite de rester sur une page devenue inexistante.
+            const page = Math.min(requestedPage, totalPages);
+
+            const historique =
+                await tx.historiqueMaintenancePreventive.findMany({
+                    where,
+
+                    skip: (page - 1) * HISTORIQUE_PAGE_SIZE,
+                    take: HISTORIQUE_PAGE_SIZE,
+
+                    select: {
+                        id: true,
+                        planMaintenanceId: true,
+                        enginId: true,
+                        dateMaintenance: true,
+                        compteur: true,
+                        commentaire: true,
+                        createdAt: true,
+
+                        planMaintenance: {
+                            select: {
+                                id: true,
+                                code: true,
+                                name: true,
                             },
-                            parc: {
-                                select: {
-                                    id: true,
-                                    name: true,
-                                    typeparc: {
-                                        select: {
-                                            id: true,
-                                            name: true,
+                        },
+
+                        engin: {
+                            select: {
+                                id: true,
+                                name: true,
+
+                                site: {
+                                    select: {
+                                        id: true,
+                                        name: true,
+                                    },
+                                },
+
+                                parc: {
+                                    select: {
+                                        id: true,
+                                        name: true,
+
+                                        typeparc: {
+                                            select: {
+                                                id: true,
+                                                name: true,
+                                            },
                                         },
                                     },
                                 },
                             },
                         },
                     },
-                },
-                orderBy: [
-                    { dateMaintenance: "desc" },
-                    { createdAt: "desc" },
-                ],
-            });
+
+                    orderBy: [
+                        { dateMaintenance: "desc" },
+                        { createdAt: "desc" },
+                        { id: "desc" },
+                    ],
+                });
+
+            return {
+                historique,
+                totalItems,
+                totalPages,
+                page,
+            };
+        });
 
         const data: HistoriqueMaintenanceItem[] =
-            historique.map((item) => ({
+            result.historique.map((item) => ({
                 ...item,
                 dateMaintenance: item.dateMaintenance
                     .toISOString()
@@ -949,6 +1003,12 @@ export async function getHistoriqueMaintenancesPreventives(
             success: true,
             message: "Historique des maintenances récupéré avec succès.",
             data,
+            pagination: {
+                page: result.page,
+                pageSize: HISTORIQUE_PAGE_SIZE,
+                totalItems: result.totalItems,
+                totalPages: result.totalPages,
+            },
         };
     } catch (error) {
         console.error(
