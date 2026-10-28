@@ -22,16 +22,17 @@ model Tenant {
   users       User[]
   memberships UserTenant[]
 
-  typeparcs        Typeparc[]
-  parcs            Parc[]
-  engins           Engin[]
-  typepannes       Typepanne[]
-  pannes           Panne[]
-  saisiehrms       Saisiehrm[]
-  saisiehims       Saisiehim[]
-  objectifs        Objectif[]
-  backlogs         Backlog[]
-  plansMaintenance PlanMaintenance[]
+  typeparcs                          Typeparc[]
+  parcs                              Parc[]
+  engins                             Engin[]
+  typepannes                         Typepanne[]
+  pannes                             Panne[]
+  saisiehrms                         Saisiehrm[]
+  saisiehims                         Saisiehim[]
+  objectifs                          Objectif[]
+  backlogs                           Backlog[]
+  plansMaintenance                   PlanMaintenance[]
+  historiquesMaintenancesPreventives HistoriqueMaintenancePreventive[]
 
   affectationsPlansMaintenance AffectationPlanMaintenance[]
   suivisPlansMaintenance       SuiviPlanMaintenanceEngin[]
@@ -195,6 +196,7 @@ model Engin {
 
   affectationsMaintenance AffectationPlanMaintenance[]
   suivisPlansMaintenance  SuiviPlanMaintenanceEngin[]
+  historiqueMaintenances  HistoriqueMaintenancePreventive[]
 
   @@unique([name, tenantId])
   @@map("engin")
@@ -380,8 +382,9 @@ model PlanMaintenance {
   tenantId String
   tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
 
-  affectations AffectationPlanMaintenance[]
-  suivisEngins SuiviPlanMaintenanceEngin[]
+  affectations           AffectationPlanMaintenance[]
+  suivisEngins           SuiviPlanMaintenanceEngin[]
+  historiqueMaintenances HistoriqueMaintenancePreventive[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -457,4 +460,27 @@ model SuiviPlanMaintenanceEngin {
   @@unique([planMaintenanceId, enginId, tenantId])
   @@index([tenantId, enginId])
   @@map("suivi_plan_maintenance_engin")
+}
+
+model HistoriqueMaintenancePreventive {
+  id                String @id @default(cuid(2))
+  planMaintenanceId String
+  enginId           String
+  tenantId          String
+
+  dateMaintenance DateTime @db.Date
+  compteur        Float
+  commentaire     String?
+
+  createdAt DateTime @default(now())
+
+  planMaintenance PlanMaintenance @relation(fields: [planMaintenanceId], references: [id], onDelete: Restrict)
+
+  engin Engin @relation(fields: [enginId], references: [id], onDelete: Restrict)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, enginId, dateMaintenance])
+  @@index([tenantId, planMaintenanceId, dateMaintenance])
+  @@map("historique_maintenance_preventive")
 }
