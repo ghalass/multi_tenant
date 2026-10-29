@@ -63,6 +63,13 @@ export interface ParetoMtbfItem {
     objectif_mtbf: number | null;
 }
 
+export interface ParetoDispoItem {
+    mois: string;
+    dispo: number | null;
+    engins_actifs: number;
+    objectif_dispo: number | null;
+}
+
 export interface RapportParetoData {
     typeParcId: string;
     typeParcName: string;
@@ -81,6 +88,7 @@ export interface RapportParetoData {
     mtbfAnnuel: number | null;
     indisponibilites: ParetoIndisponibiliteItem[];
     evolutionMtbf: ParetoMtbfItem[];
+    evolutionDispo: ParetoDispoItem[];
 }
 
 type PanneAccumulator = {
@@ -102,6 +110,7 @@ type PanneAccumulator = {
 type MonthlyAccumulator = {
     nho: number;
     hrm: number;
+    him: number;
     ni: number;
 };
 
@@ -493,8 +502,9 @@ export async function getRapportPareto(
             () => ({
                 nho: 0,
                 hrm: 0,
+                him: 0,
                 ni: 0,
-            })
+            }),
         );
 
         const pannesMap = new Map<string, PanneAccumulator>();
@@ -520,6 +530,7 @@ export async function getRapportPareto(
 
                 // Le NI est cumulé pour tous les mois de l'année.
                 statsMois.ni += ni;
+                statsMois.him += him;
 
                 // Le Pareto des pannes concerne uniquement le mois sélectionné.
                 if (!estMoisSelectionne) {
@@ -624,6 +635,7 @@ export async function getRapportPareto(
                     select: {
                         siteId: true,
                         mtbf: true,
+                        dispo: true,
                     },
                 })
                 : [];
@@ -647,6 +659,25 @@ export async function getRapportPareto(
                 )
                 : null;
 
+        const objectifsDispo = objectifs
+            .map((objectif) => objectif.dispo)
+            .filter(
+                (value): value is number =>
+                    value !== null &&
+                    Number.isFinite(Number(value)),
+            )
+            .map(safeNumber);
+
+        const objectifDispoMoyen =
+            objectifsDispo.length > 0
+                ? round(
+                    objectifsDispo.reduce(
+                        (total, value) => total + value,
+                        0,
+                    ) / objectifsDispo.length,
+                )
+                : null;
+
         const evolutionMtbf: ParetoMtbfItem[] = MONTH_NAMES.map(
             (nomMois, index) => {
                 const stats = monthlyStats[index];
@@ -659,6 +690,25 @@ export async function getRapportPareto(
                             : null,
                     engins_actifs: engins.length,
                     objectif_mtbf: objectifMtbfMoyen,
+                };
+            },
+        );
+
+        const evolutionDispo: ParetoDispoItem[] = MONTH_NAMES.map(
+            (nomMois, index) => {
+                const stats = monthlyStats[index];
+
+                return {
+                    mois: nomMois,
+                    dispo:
+                        stats.nho > 0
+                            ? round(
+                                ((stats.nho - stats.him) / stats.nho) *
+                                100,
+                            )
+                            : null,
+                    engins_actifs: engins.length,
+                    objectif_dispo: objectifDispoMoyen,
                 };
             },
         );
@@ -705,6 +755,7 @@ export async function getRapportPareto(
             mtbfAnnuel,
             indisponibilites,
             evolutionMtbf,
+            evolutionDispo,
         };
 
         return {

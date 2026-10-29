@@ -51,6 +51,7 @@ import {
 import { exportExcel } from "@/lib/xlsxFn";
 
 import type {
+    ParetoDispoItem,
     ParetoIndisponibiliteItem,
     RapportParetoData,
 } from "@/server/rapports/rapport_pareto";
@@ -132,6 +133,57 @@ function ObjectifLabel(props: any) {
             fontSize={9}
         >
             Objectif {Number(value).toFixed(2)} h
+        </text>
+    );
+}
+
+function DispoLabel(props: any) {
+    const { x, y, value } = props;
+
+    if (
+        x == null ||
+        y == null ||
+        value == null ||
+        !Number.isFinite(Number(value))
+    ) {
+        return null;
+    }
+
+    return (
+        <text
+            x={x}
+            y={y - 9}
+            fill="#8884d8"
+            textAnchor="middle"
+            fontSize={9}
+        >
+            {Number(value).toFixed(2)}%
+        </text>
+    );
+}
+
+function CountBarLabel(props: any) {
+    const { x, y, width, value } = props;
+
+    if (
+        x == null ||
+        y == null ||
+        width == null ||
+        value == null ||
+        !Number.isFinite(Number(value))
+    ) {
+        return null;
+    }
+
+    return (
+        <text
+            x={x + width / 2}
+            y={y - 5}
+            fill="#666"
+            textAnchor="middle"
+            fontSize={10}
+        >
+            {Number(value)}
         </text>
     );
 }
@@ -785,6 +837,166 @@ function EvolutionMtbf({
     );
 }
 
+function EvolutionDispo({
+    data,
+    periode,
+}: {
+    data: RapportParetoData;
+    periode: string;
+}) {
+    const dispoData: ParetoDispoItem[] = data.evolutionDispo;
+
+    const objectifDispo =
+        dispoData.find(
+            (item) => item.objectif_dispo !== null,
+        )?.objectif_dispo ?? null;
+
+    return (
+        <Card className="gap-2 py-3">
+            <CardHeader className="space-y-1 p-2 pb-0.5 text-center">
+                <CardTitle className="text-base">
+                    Évolution DISPO — {data.parcName} — {periode}
+                </CardTitle>
+
+                <CardDescription className="text-xs">
+                    Disponibilité mensuelle calculée par
+                    (NHO − HIM) / NHO × 100, avec l’objectif DISPO
+                    de référence.
+                </CardDescription>
+            </CardHeader>
+
+            <CardContent className="space-y-2 p-2 pt-0.5">
+                <div
+                    id="pareto-dispo-chart"
+                    className="h-[260px] w-full"
+                >
+                    <ResponsiveContainer width="100%" height="100%">
+                        <RechartsLineChart
+                            data={dispoData}
+                            margin={{
+                                top: 18,
+                                right: 12,
+                                left: -10,
+                                bottom: 5,
+                            }}
+                        >
+                            <CartesianGrid strokeDasharray="3 3" />
+
+                            <XAxis
+                                dataKey="mois"
+                                tick={{ fontSize: 10 }}
+                            />
+
+                            <YAxis
+                                width={55}
+                                domain={[0, 100]}
+                                tick={{ fontSize: 10 }}
+                                tickFormatter={(value) => `${value}%`}
+                            />
+
+                            <Tooltip
+                                formatter={(value, name) => [
+                                    value == null
+                                        ? "Non calculable"
+                                        : `${Number(value).toFixed(2)}%`,
+                                    name === "DISPO (%)"
+                                        ? "DISPO"
+                                        : "Objectif DISPO",
+                                ]}
+                            />
+
+                            <Legend wrapperStyle={{ fontSize: 11 }} />
+
+                            <Line
+                                type="monotone"
+                                dataKey="dispo"
+                                name="DISPO (%)"
+                                stroke="#8884d8"
+                                strokeWidth={2}
+                                connectNulls={false}
+                                activeDot={{ r: 5 }}
+                            >
+                                <LabelList
+                                    dataKey="dispo"
+                                    content={<DispoLabel />}
+                                />
+                            </Line>
+
+                            {objectifDispo !== null && (
+                                <Line
+                                    type="monotone"
+                                    dataKey="objectif_dispo"
+                                    name="Objectif DISPO"
+                                    stroke="#16a34a"
+                                    strokeWidth={2}
+                                    strokeDasharray="5 5"
+                                    connectNulls
+                                    dot={false}
+                                />
+                            )}
+                        </RechartsLineChart>
+                    </ResponsiveContainer>
+                </div>
+
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                    <Card className="gap-1 py-2">
+                        <CardHeader className="p-1 pb-0 text-center">
+                            <CardTitle className="text-xs font-medium">
+                                Engins actifs
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-1 pt-0 text-center">
+                            <div className="text-base font-semibold">
+                                {data.enginsActifs}
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="gap-1 py-2">
+                        <CardHeader className="p-1 pb-0 text-center">
+                            <CardTitle className="text-xs font-medium">
+                                HIM annuel
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-1 pt-0 text-center">
+                            <div className="text-base font-semibold">
+                                {formatNumber(
+                                    data.evolutionDispo.reduce(
+                                        (total, item) => total,
+                                        0,
+                                    ),
+                                )}
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="gap-1 py-2">
+                        <CardHeader className="p-1 pb-0 text-center">
+                            <CardTitle className="text-xs font-medium">
+                                Objectif DISPO
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-1 pt-0 text-center">
+                            <div className="text-base font-semibold">
+                                {objectifDispo === null
+                                    ? "Non défini"
+                                    : `${formatNumber(objectifDispo)}%`}
+                            </div>
+                            <p className="text-[10px] text-muted-foreground">
+                                {data.enginName
+                                    ? `Engin : ${data.enginName}`
+                                    : data.siteName
+                                        ? `Site : ${data.siteName}`
+                                        : "Tous les sites"}
+                            </p>
+                        </CardContent>
+                    </Card>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
 export default function ParetoResult({
     data,
     periode,
@@ -810,14 +1022,111 @@ export default function ParetoResult({
         .filter(Boolean)
         .join(" / ");
 
+    function ParetoNi({
+        data,
+        periode,
+    }: {
+        data: RapportParetoData;
+        periode: string;
+    }) {
+        const topNi = [...data.indisponibilites]
+            .filter((item) => item.niTotal > 0)
+            .sort((a, b) => b.niTotal - a.niTotal)
+            .slice(0, 10);
+
+        return (
+            <Card>
+                <CardHeader className="space-y-1 p-3 pb-1">
+                    <CardTitle className="text-base">
+                        Pareto NI — {data.parcName} — {periode}
+                    </CardTitle>
+
+                    <CardDescription className="text-xs">
+                        Top 10 des pannes classées par nombre d’interventions
+                        enregistrées pendant le mois sélectionné.
+                    </CardDescription>
+                </CardHeader>
+
+                <CardContent className="space-y-2 p-3 pt-1">
+                    {topNi.length === 0 ? (
+                        <div className="py-5 text-center text-sm text-muted-foreground">
+                            <AlertCircle className="mx-auto mb-2 size-8 opacity-50" />
+                            Aucune intervention panne enregistrée pour ce mois.
+                        </div>
+                    ) : (
+                        <div
+                            id="pareto-ni-chart"
+                            className="h-[270px] w-full"
+                        >
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart
+                                    data={topNi}
+                                    margin={{
+                                        top: 18,
+                                        right: 8,
+                                        left: -18,
+                                        bottom: 45,
+                                    }}
+                                >
+                                    <CartesianGrid strokeDasharray="3 3" />
+
+                                    <XAxis
+                                        dataKey="panne"
+                                        angle={-35}
+                                        textAnchor="end"
+                                        interval={0}
+                                        height={65}
+                                        tick={{ fontSize: 10 }}
+                                    />
+
+                                    <YAxis
+                                        width={52}
+                                        allowDecimals={false}
+                                        tick={{ fontSize: 10 }}
+                                    />
+
+                                    <Tooltip
+                                        formatter={(value) => [
+                                            `${Number(value ?? 0)} intervention(s)`,
+                                            "NI",
+                                        ]}
+                                        labelFormatter={(label) =>
+                                            String(label ?? "")
+                                        }
+                                    />
+
+                                    <Legend
+                                        wrapperStyle={{ fontSize: 11 }}
+                                    />
+
+                                    <Bar
+                                        dataKey="niTotal"
+                                        name="Nombre d’interventions (NI)"
+                                        fill="#8884d8"
+                                        radius={[3, 3, 0, 0]}
+                                    >
+                                        <LabelList
+                                            dataKey="niTotal"
+                                            content={<CountBarLabel />}
+                                        />
+                                    </Bar>
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+        );
+    }
+
     return (
         <div className="space-y-2">
             <p className="text-xs text-muted-foreground">
                 {perimetre} — {periode}
             </p>
 
-            <Tabs defaultValue="indispo" className="space-y-2">
-                <TabsList className="grid w-full grid-cols-2">
+            <Tabs defaultValue="indispo" className="w-full min-w-0">
+                <TabsList className="grid h-auto w-full grid-cols-2 gap-1 md:grid-cols-4">
                     <TabsTrigger
                         value="indispo"
                         className="gap-2 text-xs sm:text-sm"
@@ -827,12 +1136,30 @@ export default function ParetoResult({
                     </TabsTrigger>
 
                     <TabsTrigger
+                        value="dispo"
+                        className="gap-2 text-xs sm:text-sm"
+                    >
+                        <LineChart className="size-4" />
+                        Évolution DISPO
+                    </TabsTrigger>
+
+                    <TabsTrigger
+                        value="ni"
+                        className="gap-2 text-xs sm:text-sm"
+                    >
+                        <BarChart3 className="size-4" />
+                        Pareto NI
+                    </TabsTrigger>
+
+                    <TabsTrigger
                         value="mtbf"
                         className="gap-2 text-xs sm:text-sm"
                     >
                         <LineChart className="size-4" />
                         Évolution MTBF
                     </TabsTrigger>
+
+
                 </TabsList>
 
                 <TabsContent value="indispo">
@@ -843,11 +1170,25 @@ export default function ParetoResult({
                     />
                 </TabsContent>
 
+                <TabsContent value="ni">
+                    <ParetoNi
+                        data={data}
+                        periode={periode}
+                    />
+                </TabsContent>
+
                 <TabsContent value="mtbf">
                     <EvolutionMtbf
                         data={data}
                         periode={periode}
                         filenameSuffix={filenameSuffix}
+                    />
+                </TabsContent>
+
+                <TabsContent value="dispo">
+                    <EvolutionDispo
+                        data={data}
+                        periode={periode}
                     />
                 </TabsContent>
             </Tabs>
