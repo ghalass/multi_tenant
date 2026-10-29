@@ -20,7 +20,7 @@ type Metrics = {
     util: number;
     sw: number;
     tdm: number;
-    mtbf: number;
+    mtbf: number | null;
 };
 
 type PeriodData = {

@@ -379,7 +379,7 @@ export async function getRapportRje(
     const mtbf =
       ni > 0
         ? (hrm / ni).toFixed(2)
-        : nho.toFixed(2);
+        : "—";
 
     const tdm =
       nho > 0

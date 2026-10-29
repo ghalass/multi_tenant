@@ -653,11 +653,10 @@ export async function getRapportPareto(
 
                 return {
                     mois: nomMois,
-                    mtbf: round(
+                    mtbf:
                         stats.ni > 0
-                            ? stats.hrm / stats.ni
-                            : stats.nho,
-                    ),
+                            ? round(stats.hrm / stats.ni)
+                            : null,
                     engins_actifs: engins.length,
                     objectif_mtbf: objectifMtbfMoyen,
                 };
@@ -669,21 +668,15 @@ export async function getRapportPareto(
             0,
         );
 
-        const nhoTotalAnnee = monthlyStats.reduce(
-            (total, stats) => total + stats.nho,
-            0,
-        );
-
         const niTotalAnnee = monthlyStats.reduce(
             (total, stats) => total + stats.ni,
             0,
         );
 
-        const mtbfAnnuel = round(
+        const mtbfAnnuel =
             niTotalAnnee > 0
-                ? hrmTotalAnnee / niTotalAnnee
-                : nhoTotalAnnee,
-        );
+                ? round(hrmTotalAnnee / niTotalAnnee)
+                : null;
 
         const siteName =
             siteId && enginsDuSite.length > 0

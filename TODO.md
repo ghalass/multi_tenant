@@ -52,18 +52,8 @@ faire:
 -date d'exection ne doit pas être actif que quen status choisi est execute
 -N°backlog, date de détection, source, priorité : sur la même ligne 
 
------
-en plus de ce qui est dèjà dans la page backlogs/stats
-me rajouter des graphiques (charts) de statistique avec l'option de les changer en fonction de la période (date Du, Au)
-exemple des charts:
--évolution du total backlogs et total executé pendant la période (sur le même graphique), "pas de l'évolution est à définir, soit mois ou jour en fonction de la longueur de la période sélectionnée"
--la réparition des baclogs par source pour la période sélectionnée
--la réparition des baclogs par priorité pour la période sélectionnée
--la réparition des baclogs par status pour la période sélectionnée
-
 ------------
 A CORRIGER
--pour le calcul de MTBF partout dans l'application : si NI est 0 ou non renseigné donc MTBF=NHO (J, M, ou A) et non pas 0
 -page engins : ajouter filtre par site, tyeparc->parc
 -page pannes : ajouter filtre par parc, par typepanne
 -page rapports/rje : le filtre site doit se baser sur le site de saisie_hrm (la dernière) et non pas sur le site dans engin.site
