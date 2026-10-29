@@ -73,13 +73,15 @@ const schema = yup.object({
   nho: yup.number()
     .min(0, "La NHO ne peut pas être négative.")
     .max(24, "La NHO ne peut pas dépasser 24 heures.")
-    .required(),
+    .required()
+    .default(24),
   hrm: yup
     .number()
     .typeError("Saisissez une valeur numérique.")
     .min(0, "La HRM ne peut pas être négative.")
     .max(24, "La HRM ne peut pas dépasser 24 heures.")
-    .required("La HRM est obligatoire."),
+    .required("La HRM est obligatoire.")
+  ,
   compteur: yup
     .number()
     .transform((value, originalValue) =>
@@ -167,6 +169,7 @@ export function SaisieHrmForm({
       enginId: saisie?.enginId ?? "",
       siteId: initialEngin?.siteId ?? saisie?.siteId ?? "",
       hrm: saisie?.hrm ?? 0,
+      nho: saisie?.nho ?? 24,
       compteur: saisie?.compteur ?? null,
     },
   });
@@ -192,6 +195,7 @@ export function SaisieHrmForm({
       enginId: saisie?.enginId ?? "",
       siteId: nextSiteId,
       hrm: saisie?.hrm ?? 0,
+      nho: saisie?.nho ?? 24,
       compteur: saisie?.compteur ?? null,
     });
 
@@ -326,276 +330,317 @@ export function SaisieHrmForm({
 
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <FieldGroup className="gap-2">
-              <Controller
-                name="du"
-                control={form.control}
-                render={({ field, fieldState }) => (
-                  <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel htmlFor="hrm-date">
-                      Date
-                    </FieldLabel>
+              <div className="flex gap-2">
+                <Controller
+                  name="du"
+                  control={form.control}
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor="hrm-date">
+                        Date
+                      </FieldLabel>
 
-                    <Input
-                      id="hrm-date"
-                      type="date"
-                      {...field}
-                      disabled={loading}
-                      aria-invalid={fieldState.invalid}
-                    />
-
-                    {fieldState.invalid && (
-                      <FieldError errors={[fieldState.error]} />
-                    )}
-                  </Field>
-                )}
-              />
-
-              <Controller
-                name="siteId"
-                control={form.control}
-                render={({ field, fieldState }) => (
-                  <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel htmlFor="hrm-site-form">
-                      Site
-                    </FieldLabel>
-
-                    <Select
-                      value={field.value || "none"}
-                      onValueChange={(value) => {
-                        const nextSiteId =
-                          value === "none" ? "" : value;
-
-                        field.onChange(nextSiteId);
-                        setSelectedSiteId(nextSiteId);
-
-                        const currentEngin =
-                          selectableEngins.find(
-                            (engin) =>
-                              engin.id ===
-                              form.getValues("enginId"),
-                          );
-
-                        // Un changement de site invalide l'engin
-                        // s'il n'appartient pas au nouveau site.
-                        if (
-                          !currentEngin ||
-                          currentEngin.siteId !== nextSiteId
-                        ) {
-                          form.setValue("enginId", "", {
-                            shouldDirty: true,
-                            shouldValidate: true,
-                          });
-                        }
-
-                        const parcStillValid =
-                          nextSiteId !== "" &&
-                          selectableEngins.some(
-                            (engin) =>
-                              engin.siteId === nextSiteId &&
-                              engin.parcId === selectedParcId,
-                          );
-
-                        if (!parcStillValid) {
-                          setSelectedParcId("");
-                        }
-                      }}
-                      disabled={loading}
-                    >
-                      <SelectTrigger
-                        id="hrm-site-form"
-                        className="w-full"
+                      <Input
+                        id="hrm-date"
+                        type="date"
+                        {...field}
+                        disabled={loading}
                         aria-invalid={fieldState.invalid}
+                      />
+
+                      {fieldState.invalid && (
+                        <FieldError errors={[fieldState.error]} />
+                      )}
+                    </Field>
+                  )}
+                />
+
+                <Controller
+                  name="siteId"
+                  control={form.control}
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor="hrm-site-form">
+                        Site
+                      </FieldLabel>
+
+                      <Select
+                        value={field.value || "none"}
+                        onValueChange={(value) => {
+                          const nextSiteId =
+                            value === "none" ? "" : value;
+
+                          field.onChange(nextSiteId);
+                          setSelectedSiteId(nextSiteId);
+
+                          const currentEngin =
+                            selectableEngins.find(
+                              (engin) =>
+                                engin.id ===
+                                form.getValues("enginId"),
+                            );
+
+                          // Un changement de site invalide l'engin
+                          // s'il n'appartient pas au nouveau site.
+                          if (
+                            !currentEngin ||
+                            currentEngin.siteId !== nextSiteId
+                          ) {
+                            form.setValue("enginId", "", {
+                              shouldDirty: true,
+                              shouldValidate: true,
+                            });
+                          }
+
+                          const parcStillValid =
+                            nextSiteId !== "" &&
+                            selectableEngins.some(
+                              (engin) =>
+                                engin.siteId === nextSiteId &&
+                                engin.parcId === selectedParcId,
+                            );
+
+                          if (!parcStillValid) {
+                            setSelectedParcId("");
+                          }
+                        }}
+                        disabled={loading}
                       >
-                        <SelectValue placeholder="Sélectionner un site" />
-                      </SelectTrigger>
+                        <SelectTrigger
+                          id="hrm-site-form"
+                          className="w-full"
+                          aria-invalid={fieldState.invalid}
+                        >
+                          <SelectValue placeholder="Sélectionner un site" />
+                        </SelectTrigger>
 
-                      <SelectContent>
-                        <SelectItem value="none">
-                          Sélectionner un site
-                        </SelectItem>
-
-                        {sites.map((site) => (
-                          <SelectItem
-                            key={site.id}
-                            value={site.id}
-                          >
-                            {site.name}
+                        <SelectContent>
+                          <SelectItem value="none">
+                            Sélectionner un site
                           </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
 
-                    {fieldState.invalid && (
-                      <FieldError errors={[fieldState.error]} />
-                    )}
-                  </Field>
-                )}
-              />
+                          {sites.map((site) => (
+                            <SelectItem
+                              key={site.id}
+                              value={site.id}
+                            >
+                              {site.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
 
-              <Field>
-                <FieldLabel htmlFor="hrm-parc-form">
-                  Parc
-                </FieldLabel>
+                      {fieldState.invalid && (
+                        <FieldError errors={[fieldState.error]} />
+                      )}
+                    </Field>
+                  )}
+                />
+              </div>
 
-                <Select
-                  value={selectedParcId || "none"}
-                  onValueChange={(value) => {
-                    const nextParcId =
-                      value === "none" ? "" : value;
+              <div className="flex gap-2">
+                <Field>
+                  <FieldLabel htmlFor="hrm-parc-form">
+                    Parc
+                  </FieldLabel>
 
-                    setSelectedParcId(nextParcId);
+                  <Select
+                    value={selectedParcId || "none"}
+                    onValueChange={(value) => {
+                      const nextParcId =
+                        value === "none" ? "" : value;
 
-                    const currentEngin =
-                      selectableEngins.find(
-                        (engin) =>
-                          engin.id ===
-                          form.getValues("enginId"),
-                      );
+                      setSelectedParcId(nextParcId);
 
-                    if (
-                      !currentEngin ||
-                      currentEngin.parcId !== nextParcId
-                    ) {
-                      form.setValue("enginId", "", {
-                        shouldDirty: true,
-                        shouldValidate: true,
-                      });
-                    }
-                  }}
-                  disabled={
-                    loading ||
-                    !selectedSiteId ||
-                    filteredParcs.length === 0
-                  }
-                >
-                  <SelectTrigger
-                    id="hrm-parc-form"
-                    className="w-full"
-                  >
-                    <SelectValue placeholder="Sélectionner un parc" />
-                  </SelectTrigger>
+                      const currentEngin =
+                        selectableEngins.find(
+                          (engin) =>
+                            engin.id ===
+                            form.getValues("enginId"),
+                        );
 
-                  <SelectContent>
-                    <SelectItem value="none">
-                      Sélectionner un parc
-                    </SelectItem>
-
-                    {filteredParcs.map((parc) => (
-                      <SelectItem
-                        key={parc.id}
-                        value={parc.id}
-                      >
-                        {parc.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-
-              <Controller
-                name="enginId"
-                control={form.control}
-                render={({ field, fieldState }) => (
-                  <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel htmlFor="hrm-engin-form">
-                      Engin
-                    </FieldLabel>
-
-                    <Select
-                      value={field.value || "none"}
-                      onValueChange={(value) => {
-                        const nextEngin =
-                          selectableEngins.find(
-                            (engin) => engin.id === value,
-                          );
-
-                        if (!nextEngin) {
-                          field.onChange("");
-                          return;
-                        }
-
-                        field.onChange(nextEngin.id);
-
-                        // Synchroniser le site et le parc sur l'engin choisi.
-                        setSelectedSiteId(nextEngin.siteId);
-                        setSelectedParcId(nextEngin.parcId);
-
-                        form.setValue("siteId", nextEngin.siteId, {
+                      if (
+                        !currentEngin ||
+                        currentEngin.parcId !== nextParcId
+                      ) {
+                        form.setValue("enginId", "", {
                           shouldDirty: true,
                           shouldValidate: true,
                         });
-                      }}
-                      disabled={
-                        loading ||
-                        !selectedSiteId ||
-                        !selectedParcId ||
-                        filteredEngins.length === 0
                       }
+                    }}
+                    disabled={
+                      loading ||
+                      !selectedSiteId ||
+                      filteredParcs.length === 0
+                    }
+                  >
+                    <SelectTrigger
+                      id="hrm-parc-form"
+                      className="w-full"
                     >
-                      <SelectTrigger
-                        id="hrm-engin-form"
-                        className="w-full"
-                        aria-invalid={fieldState.invalid}
-                      >
-                        <SelectValue placeholder="Sélectionner un engin" />
-                      </SelectTrigger>
+                      <SelectValue placeholder="Sélectionner un parc" />
+                    </SelectTrigger>
 
-                      <SelectContent>
-                        <SelectItem value="none">
-                          Sélectionner un engin
+                    <SelectContent>
+                      <SelectItem value="none">
+                        Sélectionner un parc
+                      </SelectItem>
+
+                      {filteredParcs.map((parc) => (
+                        <SelectItem
+                          key={parc.id}
+                          value={parc.id}
+                        >
+                          {parc.name}
                         </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
 
-                        {filteredEngins.map((engin) => (
-                          <SelectItem
-                            key={engin.id}
-                            value={engin.id}
-                          >
-                            {engin.name}
+                <Controller
+                  name="enginId"
+                  control={form.control}
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor="hrm-engin-form">
+                        Engin
+                      </FieldLabel>
+
+                      <Select
+                        value={field.value || "none"}
+                        onValueChange={(value) => {
+                          const nextEngin =
+                            selectableEngins.find(
+                              (engin) => engin.id === value,
+                            );
+
+                          if (!nextEngin) {
+                            field.onChange("");
+                            return;
+                          }
+
+                          field.onChange(nextEngin.id);
+
+                          // Synchroniser le site et le parc sur l'engin choisi.
+                          setSelectedSiteId(nextEngin.siteId);
+                          setSelectedParcId(nextEngin.parcId);
+
+                          form.setValue("siteId", nextEngin.siteId, {
+                            shouldDirty: true,
+                            shouldValidate: true,
+                          });
+                        }}
+                        disabled={
+                          loading ||
+                          !selectedSiteId ||
+                          !selectedParcId ||
+                          filteredEngins.length === 0
+                        }
+                      >
+                        <SelectTrigger
+                          id="hrm-engin-form"
+                          className="w-full"
+                          aria-invalid={fieldState.invalid}
+                        >
+                          <SelectValue placeholder="Sélectionner un engin" />
+                        </SelectTrigger>
+
+                        <SelectContent>
+                          <SelectItem value="none">
+                            Sélectionner un engin
                           </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
 
-                    {fieldState.invalid && (
-                      <FieldError errors={[fieldState.error]} />
-                    )}
-                  </Field>
-                )}
-              />
+                          {filteredEngins.map((engin) => (
+                            <SelectItem
+                              key={engin.id}
+                              value={engin.id}
+                            >
+                              {engin.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
 
-              <Controller
-                name="hrm"
-                control={form.control}
-                render={({ field, fieldState }) => (
-                  <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel htmlFor="hrm-value">
-                      HRM (heures de marche)
-                    </FieldLabel>
+                      {fieldState.invalid && (
+                        <FieldError errors={[fieldState.error]} />
+                      )}
+                    </Field>
+                  )}
+                />
+              </div>
 
-                    <Input
-                      id="hrm-value"
-                      type="number"
-                      min={0}
-                      max={24}
-                      step="any"
-                      value={field.value ?? ""}
-                      onChange={(event) =>
-                        field.onChange(
-                          event.target.value === ""
-                            ? ""
-                            : Number(event.target.value),
-                        )
-                      }
-                      disabled={loading}
-                      aria-invalid={fieldState.invalid}
-                    />
+              <div className="flex gap-2">
+                <Controller
+                  name="hrm"
+                  control={form.control}
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor="hrm-value">
+                        HRM (heures de marche)
+                      </FieldLabel>
 
-                    {fieldState.invalid && (
-                      <FieldError errors={[fieldState.error]} />
-                    )}
-                  </Field>
-                )}
-              />
+                      <Input
+                        id="hrm-value"
+                        type="number"
+                        min={0}
+                        max={24}
+                        step="any"
+                        value={field.value ?? ""}
+                        onChange={(event) =>
+                          field.onChange(
+                            event.target.value === ""
+                              ? ""
+                              : Number(event.target.value),
+                          )
+                        }
+                        disabled={loading}
+                        aria-invalid={fieldState.invalid}
+                      />
+
+                      {fieldState.invalid && (
+                        <FieldError errors={[fieldState.error]} />
+                      )}
+                    </Field>
+                  )}
+                />
+
+                <Controller
+                  name="nho"
+                  control={form.control}
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor="hrm-nho">
+                        NHO
+                      </FieldLabel>
+
+                      <Input
+                        id="hrm-nho"
+                        type="number"
+                        min={0}
+                        max={24}
+                        step="any"
+                        value={field.value ?? 24}
+                        onChange={(event) =>
+                          field.onChange(
+                            event.target.value === ""
+                              ? ""
+                              : Number(event.target.value),
+                          )
+                        }
+                        disabled={loading}
+                        aria-invalid={fieldState.invalid}
+                        required
+                      />
+
+                      {fieldState.invalid && (
+                        <FieldError errors={[fieldState.error]} />
+                      )}
+                    </Field>
+                  )}
+                />
+              </div>
 
               <Controller
                 name="compteur"
