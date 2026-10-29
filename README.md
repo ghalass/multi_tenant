@@ -28,3 +28,7 @@ pnpm prisma generate
 pnpm prisma db push
 
 rm -rf .next
+
+
+pnpm exec tsc --noEmit
+pnpm build

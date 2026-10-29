@@ -14,6 +14,9 @@ import {
 export interface EnginsSearchParams {
   name?: string;
   active?: string;
+  siteId?: string;
+  typeparcId?: string;
+  parcId?: string;
   currentPage?: number | string;
   itemsPerPage?: number | string;
 }
@@ -68,6 +71,19 @@ export async function getAllEngins(
 
   if (filters.active === ACTIVE.YES) where.active = true;
   if (filters.active === ACTIVE.NO) where.active = false;
+  if (filters.siteId) {
+    where.siteId = filters.siteId;
+  }
+
+  if (filters.typeparcId) {
+    where.parc = {
+      typeparcId: filters.typeparcId,
+    };
+  }
+
+  if (filters.parcId) {
+    where.parcId = filters.parcId;
+  }
 
   const [engins, totalItems] = await Promise.all([
     prisma.engin.findMany({
@@ -103,24 +119,51 @@ export async function getEnginOptions() {
   const permission = await guard(ACTION.READ, RESOURCE.ENGIN);
 
   if (!permission.success) {
-    return { success: false, message: permission.message, data: [] };
+    return {
+      success: false,
+      message: permission.message,
+      data: {
+        sites: [],
+        typeparcs: [],
+        parcs: [],
+      },
+    };
   }
 
   const tenantId = await getEnginTenantId();
 
   if (!tenantId) {
-    return { success: false, message: "Aucun tenant actif.", data: [] };
+    return {
+      success: false,
+      message: "Aucun tenant actif.",
+      data: {
+        sites: [],
+        typeparcs: [],
+        parcs: [],
+      },
+    };
   }
 
-  const [sites, parcs] = await Promise.all([
+  const [sites, typeparcs, parcs] = await Promise.all([
     prisma.site.findMany({
       where: { tenantId, active: true },
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),
-    prisma.parc.findMany({
+
+    prisma.typeparc.findMany({
       where: { tenantId },
       select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+
+    prisma.parc.findMany({
+      where: { tenantId },
+      select: {
+        id: true,
+        name: true,
+        typeparcId: true,
+      },
       orderBy: { name: "asc" },
     }),
   ]);
@@ -128,7 +171,11 @@ export async function getEnginOptions() {
   return {
     success: true,
     message: "",
-    data: { sites, parcs },
+    data: {
+      sites,
+      typeparcs,
+      parcs,
+    },
   };
 }
 
