@@ -1,3 +1,4 @@
+
 "use server";
 
 import { prisma } from "@/lib/prisma";
@@ -282,7 +283,8 @@ export async function getRapportRje(
     ),
   );
 
-  // NHO réelles enregistrées dans saisie_hrm.
+  // NHO enregistrées dans saisie_hrm.
+  // Si un site est sélectionné, seules ses saisies sont agrégées.
   const getNho = async (
     enginId: string,
     startDate: Date,
@@ -295,6 +297,7 @@ export async function getRapportRje(
       where: {
         tenantId: currentTenantId,
         enginId,
+        ...(siteId ? { siteId } : {}),
         du: {
           gte: startDate,
           lt: endDateExclusive,
@@ -305,7 +308,7 @@ export async function getRapportRje(
     return result._sum.nho ?? 0;
   };
 
-  // Agrégation HIM, HRM et NI.
+  // Agrégation HIM, HRM et NI à partir de saisie_hrm.
   // NI correspond à la somme du champ ni, pas au nombre de lignes.
   const getHimHrmNi = async (
     enginId: string,
@@ -328,6 +331,7 @@ export async function getRapportRje(
             du: dateFilter,
             enginId,
             tenantId: currentTenantId,
+            ...(siteId ? { siteId } : {}),
           },
         },
       }),
@@ -340,6 +344,7 @@ export async function getRapportRje(
           du: dateFilter,
           enginId,
           tenantId: currentTenantId,
+          ...(siteId ? { siteId } : {}),
         },
       }),
 
@@ -353,6 +358,7 @@ export async function getRapportRje(
             du: dateFilter,
             enginId,
             tenantId: currentTenantId,
+            ...(siteId ? { siteId } : {}),
           },
         },
       }),
@@ -394,8 +400,10 @@ export async function getRapportRje(
   };
 
   // Récupérer les engins actifs du parc.
-  // Sans site : tous les sites du parc.
-  // Avec site : uniquement les engins du site sélectionné.
+  // Sans filtre de site : comportement initial conservé.
+  // Avec un site : l'engin doit avoir une saisie_hrm
+  // pour ce site à la date sélectionnée.
+  // Le filtre n'utilise donc plus engin.site.
   const engins = await prisma.engin.findMany({
     where: {
       tenantId: currentTenantId,
@@ -410,14 +418,18 @@ export async function getRapportRje(
         },
       },
 
-      site: {
-        tenantId: currentTenantId,
-        ...(siteId ? { id: siteId } : {}),
-      },
-
       saisiehrms: {
         some: {
           tenantId: currentTenantId,
+          ...(siteId
+            ? {
+              siteId,
+              du: {
+                gte: dateCible,
+                lt: finJournee,
+              },
+            }
+            : {}),
         },
       },
     },
@@ -445,7 +457,7 @@ export async function getRapportRje(
 
   const finalData = await Promise.all(
     engins.map(async (engin) => {
-      // Site enregistré pour l'engin à la date sélectionnée.
+      // Site enregistré dans saisie_hrm à la date sélectionnée.
       const saisieJour = await prisma.saisiehrm.findFirst({
         where: {
           enginId: engin.id,
@@ -454,6 +466,7 @@ export async function getRapportRje(
             gte: dateCible,
             lt: finJournee,
           },
+          ...(siteId ? { siteId } : {}),
         },
         select: {
           siteId: true,
@@ -465,8 +478,18 @@ export async function getRapportRje(
         },
       });
 
-      const siteObjectifId = saisieJour?.siteId ?? engin.siteId;
-      const siteName = saisieJour?.site?.name ?? engin.site.name;
+      // En cas de filtre, le site choisi prévaut.
+      // Sans filtre, on utilise le site saisi pour la journée,
+      // puis le site de l'engin en dernier recours.
+      const siteObjectifId =
+        siteId ?? saisieJour?.siteId ?? engin.siteId;
+
+      const siteName =
+        saisieJour?.site?.name ??
+        (siteId
+          ? ""
+          : engin.site.name);
+
       const annee = dateCible.getUTCFullYear();
 
       const objectif = await prisma.objectif.findUnique({
@@ -484,16 +507,22 @@ export async function getRapportRje(
         },
       });
 
-      const [dataJ, dataM, dataA, nho_j, nho_m, nho_a] =
-        await Promise.all([
-          getHimHrmNi(engin.id, dateCible, finJournee),
-          getHimHrmNi(engin.id, debutMois, finJournee),
-          getHimHrmNi(engin.id, debutAnnee, finJournee),
+      const [
+        dataJ,
+        dataM,
+        dataA,
+        nho_j,
+        nho_m,
+        nho_a,
+      ] = await Promise.all([
+        getHimHrmNi(engin.id, dateCible, finJournee),
+        getHimHrmNi(engin.id, debutMois, finJournee),
+        getHimHrmNi(engin.id, debutAnnee, finJournee),
 
-          getNho(engin.id, dateCible, finJournee),
-          getNho(engin.id, debutMois, finJournee),
-          getNho(engin.id, debutAnnee, finJournee),
-        ]);
+        getNho(engin.id, dateCible, finJournee),
+        getNho(engin.id, debutMois, finJournee),
+        getNho(engin.id, debutAnnee, finJournee),
+      ]);
 
       const indicatorsJ = calculateIndicators(
         dataJ.him,
@@ -515,6 +544,7 @@ export async function getRapportRje(
         dataA.ni,
         nho_a,
       );
+
       return {
         engin: engin.name,
         parcId: engin.parcId,
@@ -559,6 +589,7 @@ export async function getRapportRje(
   );
 
   const currentPage = Math.max(filters?.currentPage ?? 1, 1);
+
   const itemsPerPage = Math.max(
     filters?.itemsPerPage ?? PAGINATION_SETTINGS.itemsPerPage,
     1,
