@@ -28,6 +28,10 @@ type Option = {
     name: string;
 };
 
+type ParcOption = Option & {
+    typeparcId: string;
+};
+
 export default async function PannesPage({
     searchParams,
 }: {
@@ -45,10 +49,12 @@ export default async function PannesPage({
     const options = optionsResponse.success
         ? optionsResponse.data as {
             typepannes: Option[];
-            parcs: Option[];
+            typeparcs: Option[];
+            parcs: ParcOption[];
         }
         : {
             typepannes: [],
+            typeparcs: [],
             parcs: [],
         };
 
@@ -94,17 +100,6 @@ export default async function PannesPage({
                 />
             )}
 
-            {optionsResponse.success &&
-                (
-                    options.typepannes.length === 0 ||
-                    options.parcs.length === 0
-                ) && (
-                    <DisplayError
-                        className="mt-4"
-                        error="Créez d'abord au moins un type de panne et un parc."
-                    />
-                )}
-
             <CanAccess
                 resource={RESOURCE.PANNE}
                 action={ACTION.READ}
@@ -112,6 +107,7 @@ export default async function PannesPage({
                 <div className="my-4">
                     <Search
                         typepannes={options.typepannes}
+                        typeparcs={options.typeparcs}
                         parcs={options.parcs}
                     />
                 </div>

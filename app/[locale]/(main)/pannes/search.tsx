@@ -25,13 +25,19 @@ type Option = {
     name: string;
 };
 
+type ParcOption = Option & {
+    typeparcId: string;
+};
+
 type Props = {
     typepannes: Option[];
-    parcs: Option[];
+    typeparcs: Option[];
+    parcs: ParcOption[];
 };
 
 export default function PannesSearch({
     typepannes,
+    typeparcs,
     parcs,
 }: Props) {
     const searchParams = useSearchParams();
@@ -78,6 +84,16 @@ export default function PannesSearch({
         300,
     );
 
+    function handleTypeparcChange(value: string) {
+        updateSearch.cancel();
+
+        // Un changement de type de parc invalide le parc précédent.
+        updateFilters({
+            typeparcId: value,
+            parcId: "",
+        });
+    }
+
     function clearSearch() {
         setSearch("");
         updateSearch.cancel();
@@ -97,6 +113,18 @@ export default function PannesSearch({
             );
         });
     }
+
+    const selectedTypeparcId =
+        searchParams.get("typeparcId") ?? "all";
+
+    const selectedParcId =
+        searchParams.get("parcId") ?? "all";
+
+    const filteredParcs = selectedTypeparcId === "all"
+        ? []
+        : parcs.filter(
+            (parc) => parc.typeparcId === selectedTypeparcId,
+        );
 
     return (
         <>
@@ -134,22 +162,56 @@ export default function PannesSearch({
                 </div>
 
                 <Select
-                    value={searchParams.get("parcId") ?? "all"}
-                    onValueChange={(value) =>
-                        updateFilters({ parcId: value })
-                    }
+                    value={selectedTypeparcId}
+                    onValueChange={handleTypeparcChange}
                     disabled={pending}
                 >
                     <SelectTrigger>
-                        <SelectValue placeholder="Parc" />
+                        <SelectValue placeholder="Type de parc" />
                     </SelectTrigger>
 
                     <SelectContent>
                         <SelectItem value="all">
-                            Tous les parcs
+                            Tous les types de parc
                         </SelectItem>
 
-                        {parcs.map((parc) => (
+                        {typeparcs.map((typeparc) => (
+                            <SelectItem
+                                key={typeparc.id}
+                                value={typeparc.id}
+                            >
+                                {typeparc.name}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+
+                <Select
+                    value={selectedParcId}
+                    onValueChange={(value) =>
+                        updateFilters({ parcId: value })
+                    }
+                    disabled={
+                        pending ||
+                        selectedTypeparcId === "all"
+                    }
+                >
+                    <SelectTrigger>
+                        <SelectValue
+                            placeholder={
+                                selectedTypeparcId === "all"
+                                    ? "Choisir d'abord un type de parc"
+                                    : "Parc"
+                            }
+                        />
+                    </SelectTrigger>
+
+                    <SelectContent>
+                        <SelectItem value="all">
+                            Tous les parcs de ce type
+                        </SelectItem>
+
+                        {filteredParcs.map((parc) => (
                             <SelectItem
                                 key={parc.id}
                                 value={parc.id}
@@ -161,9 +223,7 @@ export default function PannesSearch({
                 </Select>
 
                 <Select
-                    value={
-                        searchParams.get("typepanneId") ?? "all"
-                    }
+                    value={searchParams.get("typepanneId") ?? "all"}
                     onValueChange={(value) =>
                         updateFilters({ typepanneId: value })
                     }

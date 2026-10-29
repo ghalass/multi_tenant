@@ -9,6 +9,7 @@ import { PAGINATION_SETTINGS, RESOURCE } from "@/lib/constantes";
 
 export interface PannesSearchParams {
   name?: string;
+  typeparcId?: string;
   parcId?: string;
   typepanneId?: string;
   currentPage?: number | string;
@@ -42,7 +43,11 @@ export async function getPanneOptions() {
     return {
       success: false,
       message: permission.message,
-      data: { typepannes: [], parcs: [] },
+      data: {
+        typepannes: [],
+        typeparcs: [],
+        parcs: [],
+      },
     };
   }
 
@@ -52,12 +57,22 @@ export async function getPanneOptions() {
     return {
       success: false,
       message: "Aucun tenant actif.",
-      data: { typepannes: [], parcs: [] },
+      data: {
+        typepannes: [],
+        typeparcs: [],
+        parcs: [],
+      },
     };
   }
 
-  const [typepannes, parcs] = await Promise.all([
+  const [typepannes, typeparcs, parcs] = await Promise.all([
     prisma.typepanne.findMany({
+      where: { tenantId },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+
+    prisma.typeparc.findMany({
       where: { tenantId },
       select: { id: true, name: true },
       orderBy: { name: "asc" },
@@ -65,10 +80,24 @@ export async function getPanneOptions() {
 
     prisma.parc.findMany({
       where: { tenantId },
-      select: { id: true, name: true },
+      select: {
+        id: true,
+        name: true,
+        typeparcId: true,
+      },
       orderBy: { name: "asc" },
     }),
   ]);
+
+  return {
+    success: true,
+    message: "",
+    data: {
+      typepannes: [],
+      typeparcs: [],
+      parcs: [],
+    },
+  };
 
   return {
     success: true,
@@ -118,6 +147,7 @@ export async function getAllPannes(
       );
 
   const name = filters.name?.trim();
+  const typeparcId = filters.typeparcId?.trim();
   const parcId = filters.parcId?.trim();
   const typepanneId = filters.typepanneId?.trim();
 
@@ -130,9 +160,22 @@ export async function getAllPannes(
     };
   }
 
-  if (parcId) {
+  if (typeparcId || parcId) {
+    const parcFilter: {
+      id?: string;
+      typeparcId?: string;
+    } = {};
+
+    if (typeparcId) {
+      parcFilter.typeparcId = typeparcId;
+    }
+
+    if (parcId) {
+      parcFilter.id = parcId;
+    }
+
     where.parcs = {
-      some: { id: parcId },
+      some: parcFilter,
     };
   }
 
