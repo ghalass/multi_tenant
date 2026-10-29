@@ -558,6 +558,7 @@ export async function deletePanne(id: string) {
 }
 
 export async function importPannes(data: any) {
+  let importStage = "préparation des données";
   try {
     const permission = await guard(ACTION.IMPORT, RESOURCE.PANNE);
 
@@ -615,7 +616,7 @@ export async function importPannes(data: any) {
         message: "Erreur : le champ 'parcName' est requis.",
       }];
     }
-
+    importStage = "recherche du type de panne et du parc";
     const [typepanne, parc] = await Promise.all([
       prisma.typepanne.findUnique({
         where: {
@@ -651,7 +652,7 @@ export async function importPannes(data: any) {
         message: `Parc "${parcName}" non trouvé.`,
       }];
     }
-
+    importStage = "création ou mise à jour de la panne";
     const panne = await prisma.panne.upsert({
       where: {
         name_tenantId: {
@@ -670,7 +671,7 @@ export async function importPannes(data: any) {
         tenantId: currentTenantId,
       },
     });
-
+    importStage = "enregistrement de la description par parc";
     await prisma.panneParc.upsert({
       where: {
         panneId_parcId: {
@@ -702,13 +703,24 @@ export async function importPannes(data: any) {
         `Panne ${name.trim()} importée pour le parc ${parc.name}.`,
     }];
   } catch (error: unknown) {
-    console.error("Erreur lors de l'import des pannes :", error);
+    const detail =
+      error instanceof Error ? error.message : String(error);
 
-    return [{
-      success: false,
+    console.error("Erreur lors de l'import des pannes :", {
+      etape: importStage,
       data,
-      message:
-        "Une erreur interne est survenue lors de l'import des pannes. Vérifiez les données et consultez les journaux serveur si le problème persiste.",
-    }];
+      error,
+    });
+
+    return [
+      {
+        success: false,
+        data,
+        message:
+          process.env.NODE_ENV === "development"
+            ? `Échec de l'import à l'étape « ${importStage} » : ${detail}`
+            : "Une erreur interne est survenue lors de l'import des pannes. Vérifiez les données et consultez les journaux serveur si le problème persiste.",
+      },
+    ];
   }
 }
