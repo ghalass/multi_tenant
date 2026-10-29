@@ -62,6 +62,7 @@ type SaisieHrm = {
   enginId: string;
   siteId: string;
   hrm: number;
+  nho: number;
   compteur: number | null;
 };
 
@@ -69,6 +70,10 @@ const schema = yup.object({
   du: yup.string().required("La date est obligatoire."),
   enginId: yup.string().required("Sélectionnez un engin."),
   siteId: yup.string().required("Sélectionnez un site."),
+  nho: yup.number()
+    .min(0, "La NHO ne peut pas être négative.")
+    .max(24, "La NHO ne peut pas dépasser 24 heures.")
+    .required(),
   hrm: yup
     .number()
     .typeError("Saisissez une valeur numérique.")
@@ -233,6 +238,7 @@ export function SaisieHrmForm({
         siteId: selectedEngin.siteId,
 
         hrm: Number(values.hrm),
+        nho: values.nho,
         compteur:
           values.compteur === null ||
             values.compteur === undefined ||

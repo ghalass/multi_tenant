@@ -242,6 +242,7 @@ model Saisiehrm {
   enginId  String
   siteId   String
   hrm      Float
+  nho      Float    @default(24)
   compteur Float?
   tenantId String
 

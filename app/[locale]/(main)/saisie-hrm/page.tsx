@@ -49,6 +49,7 @@ export default async function SaisieHrmPage({
   const options = optionsResponse.success
     ? optionsResponse.data
     : EMPTY_OPTIONS;
+
   const saisies = response?.data ?? [];
 
   return (
@@ -60,7 +61,10 @@ export default async function SaisieHrmPage({
         </h1>
 
         <div className="flex flex-wrap items-center gap-3">
-          <CanAccess resource={RESOURCE.SAISIE_HRM} action={ACTION.CREATE}>
+          <CanAccess
+            resource={RESOURCE.SAISIE_HRM}
+            action={ACTION.CREATE}
+          >
             <SaisieHrmForm
               parcs={options.parcs}
               engins={options.engins}
@@ -69,15 +73,22 @@ export default async function SaisieHrmPage({
           </CanAccess>
 
           {hasSearched && (
-            <CanAccess resource={RESOURCE.SAISIE_HRM} action={ACTION.EXPORT}>
-              <ExportExcel tableName="saisie-hrm-table" fileName="Saisies_HRM" />
+            <CanAccess
+              resource={RESOURCE.SAISIE_HRM}
+              action={ACTION.EXPORT}
+            >
+              <ExportExcel
+                tableName="saisie-hrm-table"
+                fileName="Saisies_HRM"
+              />
             </CanAccess>
           )}
         </div>
       </div>
 
       <p className="mt-1 text-muted-foreground">
-        Consultez les saisies entre deux dates, et filtrez par type de parc, parc ou engin.
+        Consultez les saisies entre deux dates, et filtrez par type
+        de parc, parc ou engin.
       </p>
 
       {!optionsResponse.success && (
@@ -87,7 +98,6 @@ export default async function SaisieHrmPage({
         />
       )}
 
-      {/* Affiché indépendamment du tableau : le filtre Type de parc utilise une liste dédiée. */}
       <Search
         typeParcs={options.typeParcs}
         parcs={options.parcs}
@@ -97,13 +107,17 @@ export default async function SaisieHrmPage({
 
       {!hasSearched && (
         <p className="rounded-md border p-6 text-center text-muted-foreground">
-          Choisissez éventuellement une période et des filtres, puis cliquez sur « Afficher les saisies ».
+          Choisissez éventuellement une période et des filtres,
+          puis cliquez sur « Afficher les saisies ».
           Aucune saisie HRM n'est chargée au premier affichage.
         </p>
       )}
 
       {hasSearched && response && !response.success && (
-        <DisplayError className="mt-4" error={response.message} />
+        <DisplayError
+          className="mt-4"
+          error={response.message}
+        />
       )}
 
       {hasSearched && response?.success && (
@@ -116,14 +130,21 @@ export default async function SaisieHrmPage({
                   <TableHead>Engin</TableHead>
                   <TableHead>Site</TableHead>
                   <TableHead>HRM</TableHead>
+                  <TableHead>NHO</TableHead>
                   <TableHead>Compteur</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead className="text-right">
+                    Actions
+                  </TableHead>
                 </TableRow>
               </TableHeader>
+
               <TableBody>
                 {saisies.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center">
+                    <TableCell
+                      colSpan={7}
+                      className="h-24 text-center"
+                    >
                       Aucune saisie HRM trouvée pour ces critères.
                     </TableCell>
                   </TableRow>
@@ -131,21 +152,43 @@ export default async function SaisieHrmPage({
                   saisies.map((saisie: any) => (
                     <TableRow key={saisie.id}>
                       <TableCell>
-                        {new Date(saisie.du).toLocaleDateString("fr-FR", { timeZone: "UTC" })}
+                        {new Date(saisie.du).toLocaleDateString(
+                          "fr-FR",
+                          { timeZone: "UTC" },
+                        )}
                       </TableCell>
-                      <TableCell className="font-medium">{saisie.engin?.name ?? "—"}</TableCell>
-                      <TableCell>{saisie.site?.name ?? "—"}</TableCell>
+
+                      <TableCell className="font-medium">
+                        {saisie.engin?.name ?? "—"}
+                      </TableCell>
+
+                      <TableCell>
+                        {saisie.site?.name ?? "—"}
+                      </TableCell>
+
                       <TableCell>{saisie.hrm}</TableCell>
-                      <TableCell>{saisie.compteur ?? "—"}</TableCell>
+
+                      <TableCell>{saisie.nho}</TableCell>
+
+                      <TableCell>
+                        {saisie.compteur ?? "—"}
+                      </TableCell>
+
                       <TableCell className="flex justify-end gap-3">
-                        <CanAccess resource={RESOURCE.SAISIE_HRM} action={ACTION.UPDATE}>
+                        <CanAccess
+                          resource={RESOURCE.SAISIE_HRM}
+                          action={ACTION.UPDATE}
+                        >
                           <SaisieHrmForm
                             saisie={{
                               id: saisie.id,
-                              du: new Date(saisie.du).toISOString().slice(0, 10),
+                              du: new Date(saisie.du)
+                                .toISOString()
+                                .slice(0, 10),
                               enginId: saisie.enginId,
                               siteId: saisie.siteId,
                               hrm: saisie.hrm,
+                              nho: saisie.nho,
                               compteur: saisie.compteur,
                             }}
                             parcs={options.parcs}
@@ -153,7 +196,11 @@ export default async function SaisieHrmPage({
                             sites={options.sites}
                           />
                         </CanAccess>
-                        <CanAccess resource={RESOURCE.SAISIE_HRM} action={ACTION.DELETE}>
+
+                        <CanAccess
+                          resource={RESOURCE.SAISIE_HRM}
+                          action={ACTION.DELETE}
+                        >
                           <DeleteSaisieHrmForm
                             saisie={{
                               id: saisie.id,

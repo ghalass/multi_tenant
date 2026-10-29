@@ -507,6 +507,7 @@ export async function getRapportAnalyseIndispoParc(
         select: {
             du: true,
             enginId: true,
+            nho: true,
             saisiehim: {
                 where: {
                     tenantId: currentTenantId,

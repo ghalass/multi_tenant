@@ -23,7 +23,11 @@ import { deleteSaisieHrm } from "@/server/saisie_hrm";
 export function DeleteSaisieHrmForm({
     saisie,
 }: {
-    saisie: { id: string; du: string; engin: string };
+    saisie: {
+        id: string;
+        du: string;
+        engin: string;
+    };
 }) {
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -78,11 +82,15 @@ export function DeleteSaisieHrmForm({
 
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle>Supprimer la saisie HRM</DialogTitle>
+                        <DialogTitle>
+                            Supprimer la saisie HRM
+                        </DialogTitle>
+
                         <DialogDescription>
                             Confirmez-vous la suppression de la saisie du{" "}
                             {saisie.du} pour l'engin {saisie.engin} ?
-                            Si elle est liée à des saisies HIM, la suppression sera refusée.
+                            Si elle est liée à des saisies HIM, la suppression
+                            sera refusée.
                         </DialogDescription>
                     </DialogHeader>
 
@@ -94,7 +102,11 @@ export function DeleteSaisieHrmForm({
                             onClick={onSubmit}
                             disabled={loading}
                         >
-                            {loading ? <Spinner className="size-4" /> : "Supprimer"}
+                            {loading ? (
+                                <Spinner className="size-4" />
+                            ) : (
+                                "Supprimer"
+                            )}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

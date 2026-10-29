@@ -282,16 +282,28 @@ export async function getRapportRje(
     ),
   );
 
-  const nho_j = 24;
-  const nho_m = dateCible.getUTCDate() * 24;
+  // NHO réelles enregistrées dans saisie_hrm.
+  const getNho = async (
+    enginId: string,
+    startDate: Date,
+    endDateExclusive: Date,
+  ): Promise<number> => {
+    const result = await prisma.saisiehrm.aggregate({
+      _sum: {
+        nho: true,
+      },
+      where: {
+        tenantId: currentTenantId,
+        enginId,
+        du: {
+          gte: startDate,
+          lt: endDateExclusive,
+        },
+      },
+    });
 
-  const joursEcoules =
-    Math.floor(
-      (dateCible.getTime() - debutAnnee.getTime()) /
-      (24 * 60 * 60 * 1000),
-    ) + 1;
-
-  const nho_a = joursEcoules * 24;
+    return result._sum.nho ?? 0;
+  };
 
   // Agrégation HIM, HRM et NI.
   // NI correspond à la somme du champ ni, pas au nombre de lignes.
@@ -472,25 +484,16 @@ export async function getRapportRje(
         },
       });
 
-      const [dataJ, dataM, dataA] = await Promise.all([
-        getHimHrmNi(
-          engin.id,
-          dateCible,
-          finJournee,
-        ),
+      const [dataJ, dataM, dataA, nho_j, nho_m, nho_a] =
+        await Promise.all([
+          getHimHrmNi(engin.id, dateCible, finJournee),
+          getHimHrmNi(engin.id, debutMois, finJournee),
+          getHimHrmNi(engin.id, debutAnnee, finJournee),
 
-        getHimHrmNi(
-          engin.id,
-          debutMois,
-          finJournee,
-        ),
-
-        getHimHrmNi(
-          engin.id,
-          debutAnnee,
-          finJournee,
-        ),
-      ]);
+          getNho(engin.id, dateCible, finJournee),
+          getNho(engin.id, debutMois, finJournee),
+          getNho(engin.id, debutAnnee, finJournee),
+        ]);
 
       const indicatorsJ = calculateIndicators(
         dataJ.him,
@@ -512,7 +515,6 @@ export async function getRapportRje(
         dataA.ni,
         nho_a,
       );
-
       return {
         engin: engin.name,
         parcId: engin.parcId,

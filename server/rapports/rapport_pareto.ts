@@ -100,6 +100,7 @@ type PanneAccumulator = {
 };
 
 type MonthlyAccumulator = {
+    nho: number;
     hrm: number;
     ni: number;
 };
@@ -464,6 +465,7 @@ export async function getRapportPareto(
                         du: true,
                         enginId: true,
                         hrm: true,
+                        nho: true,
                         saisiehim: {
                             where: {
                                 tenantId,
@@ -489,16 +491,15 @@ export async function getRapportPareto(
         const monthlyStats: MonthlyAccumulator[] = Array.from(
             { length: 12 },
             () => ({
+                nho: 0,
                 hrm: 0,
                 ni: 0,
-            }),
+            })
         );
 
         const pannesMap = new Map<string, PanneAccumulator>();
 
         for (const saisie of saisies) {
-            const indexMois = saisie.du.getUTCMonth();
-            monthlyStats[indexMois].hrm += safeNumber(saisie.hrm);
 
             const estMoisSelectionne =
                 saisie.du >= debutMois &&
@@ -507,8 +508,6 @@ export async function getRapportPareto(
             for (const saisieHim of saisie.saisiehim) {
                 const him = safeNumber(saisieHim.him);
                 const ni = safeNumber(saisieHim.ni);
-
-                monthlyStats[indexMois].ni += ni;
 
                 if (!estMoisSelectionne) {
                     continue;
@@ -549,7 +548,7 @@ export async function getRapportPareto(
             }
         }
 
-        const nho = heuresMois * engins.length;
+        const nho = monthlyStats[mois - 1].nho;
 
         const indisponibilites: ParetoIndisponibiliteItem[] =
             Array.from(pannesMap.values())

@@ -5,7 +5,7 @@ import { guard } from "@/lib/rbac/middleware";
 import { ACTION } from "@/lib/enums";
 import { RESOURCE } from "@/lib/constantes";
 import { getSession } from "@/lib/auth";
-import { ActionResponse } from "@/lib/types/types";
+import type { ActionResponse } from "@/lib/types/types";
 
 export interface SearchParamsRapportEtatMensuel {
     mois?: number;
@@ -15,6 +15,7 @@ export interface SearchParamsRapportEtatMensuel {
 }
 
 type RawMetrics = {
+    nho: number;
     him: number;
     hrm: number;
     ni: number;
@@ -44,14 +45,15 @@ const round = (value: number): number =>
     Math.round((value + Number.EPSILON) * 100) / 100;
 
 function emptyRawMetrics(): RawMetrics {
-    return { him: 0, hrm: 0, ni: 0 };
+    return { nho: 0, him: 0, hrm: 0, ni: 0 };
 }
 
-function calculateMetrics(raw: RawMetrics, nho: number): Metrics {
-    const { him, hrm, ni } = raw;
-    const hrd = nho - (him + hrm);
+function calculateMetrics(raw: RawMetrics): Metrics {
+    const { nho, him, hrm, ni } = raw;
+    const hrd = nho - him - hrm;
 
     return {
+        nho: round(nho),
         him: round(him),
         hrm: round(hrm),
         ni,
@@ -65,20 +67,15 @@ function calculateMetrics(raw: RawMetrics, nho: number): Metrics {
     };
 }
 
-function createPeriodMetrics(
-    raw: RawMetrics,
-    nbreEngins: number,
-    heuresParEngin: number,
-): PeriodMetrics {
-    const nho = nbreEngins * heuresParEngin;
-
+function createPeriodMetrics(raw: RawMetrics): PeriodMetrics {
     return {
-        nho,
-        metrics: calculateMetrics(raw, nho),
+        nho: round(raw.nho),
+        metrics: calculateMetrics(raw),
     };
 }
 
 function addRawMetrics(target: RawMetrics, source: RawMetrics) {
+    target.nho += source.nho;
     target.him += source.him;
     target.hrm += source.hrm;
     target.ni += source.ni;
@@ -227,15 +224,6 @@ export async function getRapportEtatMensuel(
     const finMois = new Date(Date.UTC(annee, mois, 1));
     const debutAnnee = new Date(Date.UTC(annee, 0, 1));
 
-    const joursMois = new Date(Date.UTC(annee, mois, 0)).getUTCDate();
-    const joursCumules =
-        (finMois.getTime() - debutAnnee.getTime()) /
-        (24 * 60 * 60 * 1000);
-
-    const heuresMois = joursMois * 24;
-    const heuresCumulees = joursCumules * 24;
-
-    // Tous les engins actifs du parc sélectionné.
     const engins = await prisma.engin.findMany({
         where: {
             tenantId: currentTenantId,
@@ -297,6 +285,7 @@ export async function getRapportEtatMensuel(
         select: {
             du: true,
             enginId: true,
+            nho: true,
             hrm: true,
             saisiehim: {
                 where: { tenantId: currentTenantId },
@@ -324,7 +313,9 @@ export async function getRapportEtatMensuel(
         const cumul = cumulParEngin.get(saisie.enginId);
         if (!cumul) continue;
 
+        const nho = safeNumber(saisie.nho);
         const hrm = safeNumber(saisie.hrm);
+
         let him = 0;
         let ni = 0;
 
@@ -333,11 +324,13 @@ export async function getRapportEtatMensuel(
             ni += safeNumber(panne.ni);
         }
 
+        cumul.annee.nho += nho;
         cumul.annee.hrm += hrm;
         cumul.annee.him += him;
         cumul.annee.ni += ni;
 
         if (saisie.du >= debutMois && saisie.du < finMois) {
+            cumul.mois.nho += nho;
             cumul.mois.hrm += hrm;
             cumul.mois.him += him;
             cumul.mois.ni += ni;
@@ -398,8 +391,8 @@ export async function getRapportEtatMensuel(
             objectifUtilCount++;
         }
 
-        const mensuel = createPeriodMetrics(cumul.mois, 1, heuresMois);
-        const annuel = createPeriodMetrics(cumul.annee, 1, heuresCumulees);
+        const mensuel = createPeriodMetrics(cumul.mois);
+        const annuel = createPeriodMetrics(cumul.annee);
 
         return {
             enginId: engin.id,
@@ -410,22 +403,18 @@ export async function getRapportEtatMensuel(
             aggregatesMois: mensuel.metrics,
             aggregatesAnnee: annuel.metrics,
             objectifDispo:
-                objectif?.dispo != null ? round(safeNumber(objectif.dispo)) : null,
+                objectif?.dispo != null
+                    ? round(safeNumber(objectif.dispo))
+                    : null,
             objectifUtil:
-                objectif?.tdm != null ? round(safeNumber(objectif.tdm)) : null,
+                objectif?.tdm != null
+                    ? round(safeNumber(objectif.tdm))
+                    : null,
         };
     });
 
-    const parcMensuel = createPeriodMetrics(
-        rawParcMois,
-        engins.length,
-        heuresMois,
-    );
-    const parcAnnuel = createPeriodMetrics(
-        rawParcAnnee,
-        engins.length,
-        heuresCumulees,
-    );
+    const parcMensuel = createPeriodMetrics(rawParcMois);
+    const parcAnnuel = createPeriodMetrics(rawParcAnnee);
 
     const result = [
         {

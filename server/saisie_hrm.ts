@@ -12,19 +12,12 @@ export interface SaisieHrmSearchParams {
   name?: string;
   dateDu?: string;
   dateAu?: string;
-
-  // Filtres en cascade
   typeparcId?: string;
   parcId?: string;
   enginId?: string;
   siteId?: string;
-
-  // Déclenchement explicite de la recherche
   search?: string;
-
-  // Date utilisée sur la page de saisie journalière
   du?: string;
-
   currentPage?: number | string;
   itemsPerPage?: number | string;
 }
@@ -34,6 +27,7 @@ type SaisieHrmInput = {
   enginId: string;
   siteId: string;
   hrm: number;
+  nho: number;
   compteur: number | null;
 };
 
@@ -63,6 +57,33 @@ function parseSaisieHrmDate(value: string): Date | null {
   }
 
   return date;
+}
+
+function hasValue(value: unknown): boolean {
+  return (
+    value !== null &&
+    value !== undefined &&
+    !(typeof value === "string" && value.trim() === "")
+  );
+}
+
+function parseNumber(value: unknown): number | null {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
+
+  if (typeof value !== "string" || !value.trim()) {
+    return null;
+  }
+
+  const normalized = value.trim().replace(",", ".");
+
+  if (!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(normalized)) {
+    return null;
+  }
+
+  const result = Number(normalized);
+  return Number.isFinite(result) ? result : null;
 }
 
 export async function getSaisieHrmOptions() {
@@ -111,10 +132,7 @@ export async function getSaisieHrmOptions() {
     }),
 
     prisma.engin.findMany({
-      where: {
-        tenantId,
-        active: true,
-      },
+      where: { tenantId, active: true },
       select: {
         id: true,
         name: true,
@@ -125,14 +143,8 @@ export async function getSaisieHrmOptions() {
     }),
 
     prisma.site.findMany({
-      where: {
-        tenantId,
-        active: true,
-      },
-      select: {
-        id: true,
-        name: true,
-      },
+      where: { tenantId, active: true },
+      select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),
   ]);
@@ -140,12 +152,7 @@ export async function getSaisieHrmOptions() {
   return {
     success: true,
     message: "",
-    data: {
-      typeparcs,
-      parcs,
-      engins,
-      sites,
-    },
+    data: { typeparcs, parcs, engins, sites },
   };
 }
 
@@ -172,12 +179,14 @@ export async function getAllSaisieHrm(
     };
   }
 
-
   const currentPage = Math.max(Number(filters.currentPage) || 1, 1);
+
   const requestedItems = Number(
     filters.itemsPerPage ?? PAGINATION_SETTINGS.itemsPerPage,
   );
+
   const isUnpaged = requestedItems === 0;
+
   const itemsPerPage = isUnpaged
     ? 0
     : Math.max(
@@ -199,8 +208,6 @@ export async function getAllSaisieHrm(
     ? parseSaisieHrmDate(filters.dateAu)
     : null;
 
-  // Construire les filtres de l'engin sans imposer
-  // de sélectionner obligatoirement un type de parc.
   const enginWhere: any = {};
 
   if (name) {
@@ -210,22 +217,12 @@ export async function getAllSaisieHrm(
     };
   }
 
-  if (enginId) {
-    enginWhere.id = enginId;
-  }
-
-  if (parcId) {
-    enginWhere.parcId = parcId;
-  }
-
-  if (siteId) {
-    enginWhere.siteId = siteId;
-  }
+  if (enginId) enginWhere.id = enginId;
+  if (parcId) enginWhere.parcId = parcId;
+  if (siteId) enginWhere.siteId = siteId;
 
   if (typeparcId) {
-    enginWhere.parc = {
-      typeparcId,
-    };
+    enginWhere.parc = { typeparcId };
   }
 
   const where: any = {
@@ -257,6 +254,7 @@ export async function getAllSaisieHrm(
         tenant: { select: { name: true } },
       },
     }),
+
     prisma.saisiehrm.count({ where }),
   ]);
 
@@ -280,11 +278,13 @@ async function validateSaisieHrmInput(
   tenantId: string,
 ) {
   const du = parseSaisieHrmDate(values.du);
-  const hrm = Number(values.hrm);
+  const hrm = parseNumber(values.hrm);
+  const nho = parseNumber(values.nho);
+
   const compteur =
     values.compteur === null || values.compteur === undefined
       ? null
-      : Number(values.compteur);
+      : parseNumber(values.compteur);
 
   if (!du) {
     return { error: "La date de saisie est invalide." };
@@ -294,15 +294,38 @@ async function validateSaisieHrmInput(
     return { error: "L'engin et le site sont obligatoires." };
   }
 
-  if (!Number.isFinite(hrm) || hrm < 0 || hrm > 24) {
-    return { error: "La HRM doit être comprise entre 0 et 24." };
+  if (hrm === null || hrm < 0 || hrm > 24) {
+    return {
+      error: "La HRM doit être comprise entre 0 et 24.",
+    };
+  }
+
+  if (nho === null || nho < 0 || nho > 24) {
+    return {
+      error: "La NHO est obligatoire et doit être comprise entre 0 et 24.",
+    };
+  }
+
+  if (hrm > nho) {
+    return {
+      error: "La HRM ne peut pas dépasser la NHO.",
+    };
   }
 
   if (
-    compteur !== null &&
-    (!Number.isFinite(compteur) || compteur < 0)
+    values.compteur !== null &&
+    values.compteur !== undefined &&
+    compteur === null
   ) {
-    return { error: "Le compteur doit être un nombre positif ou nul." };
+    return {
+      error: "Le compteur doit être un nombre valide.",
+    };
+  }
+
+  if (compteur !== null && compteur < 0) {
+    return {
+      error: "Le compteur doit être positif ou nul.",
+    };
   }
 
   const [engin, site] = await Promise.all([
@@ -312,10 +335,7 @@ async function validateSaisieHrmInput(
         tenantId,
         active: true,
       },
-      select: {
-        id: true,
-        siteId: true,
-      },
+      select: { id: true, siteId: true },
     }),
 
     prisma.site.findFirst({
@@ -324,9 +344,7 @@ async function validateSaisieHrmInput(
         tenantId,
         active: true,
       },
-      select: {
-        id: true,
-      },
+      select: { id: true },
     }),
   ]);
 
@@ -348,7 +366,7 @@ async function validateSaisieHrmInput(
     };
   }
 
-  return { du, hrm, compteur };
+  return { du, hrm, nho, compteur };
 }
 
 export async function createSaisieHrm(values: SaisieHrmInput) {
@@ -393,14 +411,19 @@ export async function createSaisieHrm(values: SaisieHrmInput) {
         enginId: values.enginId,
         siteId: values.siteId,
         hrm: validated.hrm,
+        nho: validated.nho,
         compteur: validated.compteur,
         tenantId,
       },
     });
 
-    return { success: true, message: "Saisie HRM créée avec succès." };
+    return {
+      success: true,
+      message: "Saisie HRM créée avec succès.",
+    };
   } catch (error) {
     console.error("createSaisieHrm error:", error);
+
     return {
       success: false,
       message: "Erreur lors de la création de la saisie HRM.",
@@ -463,13 +486,18 @@ export async function updateSaisieHrm(
         enginId: values.enginId,
         siteId: values.siteId,
         hrm: validated.hrm,
+        nho: validated.nho,
         compteur: validated.compteur,
       },
     });
 
-    return { success: true, message: "Saisie HRM modifiée avec succès." };
+    return {
+      success: true,
+      message: "Saisie HRM modifiée avec succès.",
+    };
   } catch (error) {
     console.error("updateSaisieHrm error:", error);
+
     return {
       success: false,
       message: "Erreur lors de la modification de la saisie HRM.",
@@ -514,9 +542,13 @@ export async function deleteSaisieHrm(id: string) {
 
     await prisma.saisiehrm.delete({ where: { id } });
 
-    return { success: true, message: "Saisie HRM supprimée avec succès." };
+    return {
+      success: true,
+      message: "Saisie HRM supprimée avec succès.",
+    };
   } catch (error) {
     console.error("deleteSaisieHrm error:", error);
+
     return {
       success: false,
       message: "Erreur lors de la suppression de la saisie HRM.",
@@ -524,38 +556,11 @@ export async function deleteSaisieHrm(id: string) {
   }
 }
 
-function hasValue(value: unknown): boolean {
-  return (
-    value !== null &&
-    value !== undefined &&
-    !(typeof value === "string" && value.trim() === "")
-  );
-}
-
-function parseNumber(value: unknown): number | null {
-  if (typeof value === "number") {
-    return Number.isFinite(value) ? value : null;
-  }
-
-  if (typeof value !== "string" || !value.trim()) {
-    return null;
-  }
-
-  const normalized = value.trim().replace(",", ".");
-
-  if (!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(normalized)) {
-    return null;
-  }
-
-  const result = Number(normalized);
-  return Number.isFinite(result) ? result : null;
-}
-
 export async function importSaisieHrm(data: any) {
   try {
     const permission = await guard(
       ACTION.IMPORT,
-      RESOURCE.SAISIE_HRM
+      RESOURCE.SAISIE_HRM,
     );
 
     if (!permission.success) {
@@ -580,6 +585,9 @@ export async function importSaisieHrm(data: any) {
 
     const rawHrm = data?.hrm;
     const hrm = parseNumber(rawHrm);
+
+    const rawNho = data?.nho;
+    const nho = parseNumber(rawNho);
 
     const rawCompteur = data?.compteur;
     const hasCompteur = hasValue(rawCompteur);
@@ -614,19 +622,11 @@ export async function importSaisieHrm(data: any) {
       }];
     }
 
-    if (!hasValue(rawHrm)) {
+    if (!hasValue(rawHrm) || hrm === null) {
       return [{
         success: false,
         data,
-        message: "Le champ 'hrm' est obligatoire.",
-      }];
-    }
-
-    if (hrm === null) {
-      return [{
-        success: false,
-        data,
-        message: "Le champ 'hrm' doit être un nombre valide.",
+        message: "Le champ 'hrm' est obligatoire et doit être numérique.",
       }];
     }
 
@@ -635,6 +635,30 @@ export async function importSaisieHrm(data: any) {
         success: false,
         data,
         message: "Le champ 'hrm' doit être compris entre 0 et 24.",
+      }];
+    }
+
+    if (!hasValue(rawNho) || nho === null) {
+      return [{
+        success: false,
+        data,
+        message: "Le champ 'nho' est obligatoire et doit être numérique.",
+      }];
+    }
+
+    if (nho < 0 || nho > 24) {
+      return [{
+        success: false,
+        data,
+        message: "Le champ 'nho' doit être compris entre 0 et 24.",
+      }];
+    }
+
+    if (hrm > nho) {
+      return [{
+        success: false,
+        data,
+        message: "La HRM ne peut pas dépasser la NHO.",
       }];
     }
 
@@ -663,6 +687,7 @@ export async function importSaisieHrm(data: any) {
           },
         },
       }),
+
       prisma.site.findUnique({
         where: {
           name_tenantId: {
@@ -689,8 +714,15 @@ export async function importSaisieHrm(data: any) {
       }];
     }
 
-    // Une valeur compteur absente ne remplace pas
-    // une valeur existante lors d'une mise à jour.
+    // if (engin.siteId !== site.id) {
+    //   return [{
+    //     success: false,
+    //     data,
+    //     message: "Le site importé ne correspond pas au site de l'engin.",
+    //   }];
+    // }
+
+    // L'absence du compteur ne remplace pas sa valeur existante.
     const compteurData =
       hasCompteur && compteur !== null ? { compteur } : {};
 
@@ -702,16 +734,20 @@ export async function importSaisieHrm(data: any) {
           tenantId: currentTenantId,
         },
       },
+
       update: {
         siteId: site.id,
         hrm,
+        nho,
         ...compteurData,
       },
+
       create: {
         du,
         enginId: engin.id,
         siteId: site.id,
         hrm,
+        nho,
         tenantId: currentTenantId,
         ...compteurData,
       },
@@ -728,7 +764,8 @@ export async function importSaisieHrm(data: any) {
     return [{
       success: false,
       data,
-      message: "Échec de l'import HRM. Vérifiez les données et les journaux serveur.",
+      message:
+        "Échec de l'import HRM. Vérifiez les données et les journaux serveur.",
     }];
   }
 }

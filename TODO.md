@@ -60,3 +60,15 @@ exemple des charts:
 -la réparition des baclogs par source pour la période sélectionnée
 -la réparition des baclogs par priorité pour la période sélectionnée
 -la réparition des baclogs par status pour la période sélectionnée
+
+------------
+A CORRIGER
+-pour saisie_hrm : il faut rajouter la nho aux champs obligatoire (à l'import et au formulaire), et partout dans l'application il faut lire nho à partir du saisie_hrm
+-pour le calcul de MTBF partout dans l'application : si NI est 0 ou non renseigné donc MTBF=NHO et non pas 0
+-page engins : ajouter filtre par site, tyeparc->parc
+-page pannes : ajouter filtre par parc, par typepanne
+-page rapports/rje : le filtre site doit se baser sur le site de saisie_hrm (la dernière) et non pas sur le site dans engin.site
+-page rapports/etat-general : vérifie le calcul des heures chassis 
+-page rapports/pareto : 
+    rajoute Evolution DISPO (comme Evolution MTBF)
+    rajoute Pareto NI (comme Pareto Indisponibilité)
