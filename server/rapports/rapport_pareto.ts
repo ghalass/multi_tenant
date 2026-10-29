@@ -500,6 +500,15 @@ export async function getRapportPareto(
         const pannesMap = new Map<string, PanneAccumulator>();
 
         for (const saisie of saisies) {
+            const indexMois = saisie.du.getUTCMonth();
+            const statsMois = monthlyStats[indexMois];
+
+            const nhoSaisie = safeNumber(saisie.nho);
+            const hrmSaisie = safeNumber(saisie.hrm);
+
+            // Alimenter les indicateurs de chaque mois de l'année.
+            statsMois.nho += nhoSaisie;
+            statsMois.hrm += hrmSaisie;
 
             const estMoisSelectionne =
                 saisie.du >= debutMois &&
@@ -509,6 +518,10 @@ export async function getRapportPareto(
                 const him = safeNumber(saisieHim.him);
                 const ni = safeNumber(saisieHim.ni);
 
+                // Le NI est cumulé pour tous les mois de l'année.
+                statsMois.ni += ni;
+
+                // Le Pareto des pannes concerne uniquement le mois sélectionné.
                 if (!estMoisSelectionne) {
                     continue;
                 }
@@ -535,11 +548,12 @@ export async function getRapportPareto(
                 const enginName =
                     enginNameById.get(saisie.enginId) ?? "Inconnu";
 
-                const enginPanne = panne.engins.get(saisie.enginId) ?? {
-                    name: enginName,
-                    him: 0,
-                    ni: 0,
-                };
+                const enginPanne =
+                    panne.engins.get(saisie.enginId) ?? {
+                        name: enginName,
+                        him: 0,
+                        ni: 0,
+                    };
 
                 enginPanne.him += him;
                 enginPanne.ni += ni;
@@ -639,10 +653,11 @@ export async function getRapportPareto(
 
                 return {
                     mois: nomMois,
-                    mtbf:
+                    mtbf: round(
                         stats.ni > 0
-                            ? round(stats.hrm / stats.ni)
-                            : null,
+                            ? stats.hrm / stats.ni
+                            : stats.nho,
+                    ),
                     engins_actifs: engins.length,
                     objectif_mtbf: objectifMtbfMoyen,
                 };
@@ -654,15 +669,21 @@ export async function getRapportPareto(
             0,
         );
 
+        const nhoTotalAnnee = monthlyStats.reduce(
+            (total, stats) => total + stats.nho,
+            0,
+        );
+
         const niTotalAnnee = monthlyStats.reduce(
             (total, stats) => total + stats.ni,
             0,
         );
 
-        const mtbfAnnuel =
+        const mtbfAnnuel = round(
             niTotalAnnee > 0
-                ? round(hrmTotalAnnee / niTotalAnnee)
-                : null;
+                ? hrmTotalAnnee / niTotalAnnee
+                : nhoTotalAnnee,
+        );
 
         const siteName =
             siteId && enginsDuSite.length > 0

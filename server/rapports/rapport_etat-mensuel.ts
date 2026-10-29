@@ -63,7 +63,7 @@ function calculateMetrics(raw: RawMetrics): Metrics {
         util: round(hrm + hrd !== 0 ? (hrm / (hrm + hrd)) * 100 : 0),
         sw: 0,
         tdm: round(nho > 0 ? (hrm / nho) * 100 : 0),
-        mtbf: round(ni > 0 ? hrm / ni : 0),
+        mtbf: round(ni > 0 ? hrm / ni : nho),
     };
 }
 
