@@ -89,21 +89,17 @@ export async function getPanneOptions() {
     }),
   ]);
 
-  return {
-    success: true,
-    message: "",
-    data: {
-      typepannes: [],
-      typeparcs: [],
-      parcs: [],
-    },
-  };
 
   return {
     success: true,
     message: "",
-    data: { typepannes, parcs },
+    data: {
+      typepannes,
+      typeparcs,
+      parcs,
+    },
   };
+
 }
 
 export async function getAllPannes(

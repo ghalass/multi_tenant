@@ -58,7 +58,7 @@ ok ok tout fonctionne,
 lire tout les fichiers du projet https://github.com/ghalass/multi_tenant
 ne modifie jamais jamais jamais jamais jamais jamais mon repo, mais plutôt me donner ici (pas en téléchargement ) la version finale complète des codes à modifier en local
 faire:
--page pannes : ajouter filtre par parc, par typepanne
+-page pannes : ajouter filtre typeparc->parc, par typepanne
 -page rapports/rje : le filtre site doit se baser sur le site de saisie_hrm (la dernière) et non pas sur le site dans engin.site
 -page rapports/etat-general : vérifie le calcul des heures chassis 
 -page rapports/pareto : 
