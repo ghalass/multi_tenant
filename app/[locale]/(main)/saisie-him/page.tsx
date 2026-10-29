@@ -43,7 +43,10 @@ type EnginOption = Option & {
 
 type PanneOption = Option & {
     typepanneId: string;
-    parcs: Option[];
+    parcs: {
+        description: string | null;
+        parc: Option;
+    }[];
 };
 
 type Options = {

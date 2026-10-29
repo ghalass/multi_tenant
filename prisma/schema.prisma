@@ -169,7 +169,7 @@ model Parc {
   tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
 
   engins    Engin[]
-  pannes    Panne[]
+  pannes    PanneParc[]
   objectifs Objectif[]
 
   affectationsMaintenance AffectationPlanMaintenance[]
@@ -218,22 +218,34 @@ model Typepanne {
 }
 
 model Panne {
-  id          String  @id @default(cuid(2))
+  id          String @id @default(cuid(2))
   name        String
-  description String?
   typepanneId String
   tenantId    String
 
-  // Relations
   typepanne Typepanne @relation(fields: [typepanneId], references: [id], onDelete: Restrict)
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
 
   saisiehims Saisiehim[]
-  parcs      Parc[]
+  parcs      PanneParc[]
 
   @@unique([name, tenantId])
   @@map("panne")
+}
+
+model PanneParc {
+  panneId     String
+  parcId      String
+  description String?
+
+  panne Panne @relation(fields: [panneId], references: [id], onDelete: Cascade)
+
+  parc Parc @relation(fields: [parcId], references: [id], onDelete: Cascade)
+
+  @@id([panneId, parcId])
+  @@index([parcId])
+  @@map("panne_parc")
 }
 
 model Saisiehrm {

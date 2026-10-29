@@ -488,7 +488,12 @@ export async function getRapportPareto(
                                     select: {
                                         id: true,
                                         name: true,
-                                        description: true,
+                                        parcs: {
+                                            select: {
+                                                parcId: true,
+                                                description: true,
+                                            },
+                                        },
                                     },
                                 },
                             },
@@ -544,7 +549,9 @@ export async function getRapportPareto(
                         panneId: saisieHim.panneId,
                         panne: saisieHim.panne.name,
                         panneDescription:
-                            saisieHim.panne.description ?? "",
+                            saisieHim.panne.parcs.find(
+                                (item) => item.parcId === parcId,
+                            )?.description ?? "",
                         himTotal: 0,
                         niTotal: 0,
                         engins: new Map(),

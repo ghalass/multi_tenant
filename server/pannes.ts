@@ -16,11 +16,15 @@ export interface PannesSearchParams {
   itemsPerPage?: number | string;
 }
 
-type PanneInput = {
-  name: string;
+export type PanneParcInput = {
+  parcId: string;
   description?: string | null;
+};
+
+export type PanneInput = {
+  name: string;
   typepanneId: string;
-  parcIds: string[];
+  parcs: PanneParcInput[];
 };
 
 async function getPanneTenantId() {
@@ -39,15 +43,17 @@ async function getPanneTenantId() {
 export async function getPanneOptions() {
   const permission = await guard(ACTION.READ, RESOURCE.PANNE);
 
+  const emptyData = {
+    typepannes: [],
+    typeparcs: [],
+    parcs: [],
+  };
+
   if (!permission.success) {
     return {
       success: false,
       message: permission.message,
-      data: {
-        typepannes: [],
-        typeparcs: [],
-        parcs: [],
-      },
+      data: emptyData,
     };
   }
 
@@ -57,11 +63,7 @@ export async function getPanneOptions() {
     return {
       success: false,
       message: "Aucun tenant actif.",
-      data: {
-        typepannes: [],
-        typeparcs: [],
-        parcs: [],
-      },
+      data: emptyData,
     };
   }
 
@@ -89,7 +91,6 @@ export async function getPanneOptions() {
     }),
   ]);
 
-
   return {
     success: true,
     message: "",
@@ -99,7 +100,6 @@ export async function getPanneOptions() {
       parcs,
     },
   };
-
 }
 
 export async function getAllPannes(
@@ -125,10 +125,7 @@ export async function getAllPannes(
     };
   }
 
-  const currentPage = Math.max(
-    Number(filters.currentPage) || 1,
-    1,
-  );
+  const currentPage = Math.max(Number(filters.currentPage) || 1, 1);
 
   const requestedItems = Number(
     filters.itemsPerPage ?? PAGINATION_SETTINGS.itemsPerPage,
@@ -157,21 +154,17 @@ export async function getAllPannes(
   }
 
   if (typeparcId || parcId) {
-    const parcFilter: {
-      id?: string;
-      typeparcId?: string;
-    } = {};
+    const parcFilter: Record<string, string> = {};
 
-    if (typeparcId) {
-      parcFilter.typeparcId = typeparcId;
-    }
-
-    if (parcId) {
-      parcFilter.id = parcId;
-    }
+    if (typeparcId) parcFilter.typeparcId = typeparcId;
+    if (parcId) parcFilter.id = parcId;
 
     where.parcs = {
-      some: parcFilter,
+      some: {
+        parc: {
+          is: parcFilter,
+        },
+      },
     };
   }
 
@@ -189,17 +182,22 @@ export async function getAllPannes(
           ? 0
           : (currentPage - 1) * itemsPerPage,
 
-      take:
-        itemsPerPage === 0
-          ? undefined
-          : itemsPerPage,
+      take: itemsPerPage === 0 ? undefined : itemsPerPage,
 
       include: {
         typepanne: {
           select: { id: true, name: true },
         },
         parcs: {
-          select: { id: true, name: true },
+          include: {
+            parc: {
+              select: {
+                id: true,
+                name: true,
+                typeparcId: true,
+              },
+            },
+          },
         },
         tenant: {
           select: { name: true },
@@ -226,48 +224,86 @@ export async function getAllPannes(
   };
 }
 
-async function validatePanneInput(input: PanneInput, tenantId: string) {
+async function validatePanneInput(
+  input: PanneInput,
+  tenantId: string,
+) {
   const name = input.name?.trim();
   const typepanneId = input.typepanneId;
-  const parcIds = [...new Set(input.parcIds ?? [])];
 
-  if (!name) return { error: "Le nom de la panne est obligatoire." };
-  if (!typepanneId) return { error: "Sélectionnez un type de panne." };
-  if (parcIds.length === 0) return { error: "Sélectionnez au moins un parc." };
+  const parcs = (input.parcs ?? [])
+    .map((item) => ({
+      parcId: item.parcId,
+      description: item.description?.trim() || null,
+    }))
+    .filter((item) => Boolean(item.parcId));
 
-  const [typepanne, parcs] = await Promise.all([
+  const uniqueParcIds = new Set(parcs.map((item) => item.parcId));
+
+  if (!name) {
+    return { error: "Le nom de la panne est obligatoire." };
+  }
+
+  if (!typepanneId) {
+    return { error: "Sélectionnez un type de panne." };
+  }
+
+  if (parcs.length === 0) {
+    return { error: "Sélectionnez au moins un parc." };
+  }
+
+  if (uniqueParcIds.size !== parcs.length) {
+    return {
+      error: "Un parc ne peut être sélectionné qu'une seule fois.",
+    };
+  }
+
+  const [typepanne, existingParcs] = await Promise.all([
     prisma.typepanne.findFirst({
       where: { id: typepanneId, tenantId },
       select: { id: true },
     }),
+
     prisma.parc.findMany({
-      where: { id: { in: parcIds }, tenantId },
+      where: {
+        id: { in: [...uniqueParcIds] },
+        tenantId,
+      },
       select: { id: true },
     }),
   ]);
 
   if (!typepanne) {
-    return { error: "Le type de panne sélectionné est invalide." };
+    return {
+      error: "Le type de panne sélectionné est invalide.",
+    };
   }
 
-  if (parcs.length !== parcIds.length) {
-    return { error: "Un ou plusieurs parcs sont invalides." };
+  if (existingParcs.length !== uniqueParcIds.size) {
+    return {
+      error: "Un ou plusieurs parcs sont invalides.",
+    };
   }
 
-  return { name, typepanneId, parcIds };
+  return { name, typepanneId, parcs };
 }
 
 export async function createPanne(input: PanneInput) {
   const permission = await guard(ACTION.CREATE, RESOURCE.PANNE);
+
   if (!permission.success) {
     return { success: false, message: permission.message };
   }
 
   const tenantId = await getPanneTenantId();
-  if (!tenantId) return { success: false, message: "Aucun tenant actif." };
+
+  if (!tenantId) {
+    return { success: false, message: "Aucun tenant actif." };
+  }
 
   try {
     const validated = await validatePanneInput(input, tenantId);
+
     if ("error" in validated) {
       return { success: false, message: validated.error };
     }
@@ -275,34 +311,56 @@ export async function createPanne(input: PanneInput) {
     const duplicate = await prisma.panne.findFirst({
       where: {
         tenantId,
-        name: { equals: validated.name, mode: "insensitive" },
+        name: {
+          equals: validated.name,
+          mode: "insensitive",
+        },
       },
       select: { id: true },
     });
 
     if (duplicate) {
-      return { success: false, message: "Cette panne existe déjà." };
+      return {
+        success: false,
+        message: "Cette panne existe déjà.",
+      };
     }
 
     await prisma.panne.create({
       data: {
         name: validated.name,
-        description: input.description?.trim() || null,
         typepanneId: validated.typepanneId,
         tenantId,
-        parcs: { connect: validated.parcIds.map((id) => ({ id })) },
+        parcs: {
+          create: validated.parcs.map((item) => ({
+            description: item.description,
+            parc: {
+              connect: { id: item.parcId },
+            },
+          })),
+        },
       },
     });
 
-    return { success: true, message: "Panne créée avec succès." };
+    return {
+      success: true,
+      message: "Panne créée avec succès.",
+    };
   } catch (error) {
     console.error("createPanne error:", error);
-    return { success: false, message: "Erreur lors de la création de la panne." };
+
+    return {
+      success: false,
+      message: "Erreur lors de la création de la panne.",
+    };
   }
 }
 
-export async function updatePanne(input: PanneInput & { id: string }) {
+export async function updatePanne(
+  input: PanneInput & { id: string },
+) {
   const permission = await guard(ACTION.UPDATE, RESOURCE.PANNE);
+
   if (!permission.success) {
     return { success: false, message: permission.message };
   }
@@ -310,20 +368,35 @@ export async function updatePanne(input: PanneInput & { id: string }) {
   const { userId } = await getSession();
   const tenantId = await getPanneTenantId();
 
-  if (!userId) return { success: false, message: "Utilisateur non authentifié." };
-  if (!tenantId) return { success: false, message: "Aucun tenant actif." };
+  if (!userId) {
+    return {
+      success: false,
+      message: "Utilisateur non authentifié.",
+    };
+  }
+
+  if (!tenantId) {
+    return { success: false, message: "Aucun tenant actif." };
+  }
 
   try {
     const existing = await prisma.panne.findFirst({
-      where: { id: input.id, tenantId },
+      where: {
+        id: input.id,
+        tenantId,
+      },
       select: { id: true },
     });
 
     if (!existing) {
-      return { success: false, message: "Panne introuvable." };
+      return {
+        success: false,
+        message: "Panne introuvable.",
+      };
     }
 
     const validated = await validatePanneInput(input, tenantId);
+
     if ("error" in validated) {
       return { success: false, message: validated.error };
     }
@@ -331,35 +404,61 @@ export async function updatePanne(input: PanneInput & { id: string }) {
     const duplicate = await prisma.panne.findFirst({
       where: {
         tenantId,
-        name: { equals: validated.name, mode: "insensitive" },
+        name: {
+          equals: validated.name,
+          mode: "insensitive",
+        },
         NOT: { id: input.id },
       },
       select: { id: true },
     });
 
     if (duplicate) {
-      return { success: false, message: "Une autre panne porte déjà ce nom." };
+      return {
+        success: false,
+        message: "Une autre panne porte déjà ce nom.",
+      };
     }
 
-    await prisma.panne.update({
-      where: { id: input.id },
-      data: {
-        name: validated.name,
-        description: input.description?.trim() || null,
-        typepanneId: validated.typepanneId,
-        parcs: { set: validated.parcIds.map((id) => ({ id })) },
-      },
+    await prisma.$transaction(async (tx) => {
+      await tx.panne.update({
+        where: { id: input.id },
+        data: {
+          name: validated.name,
+          typepanneId: validated.typepanneId,
+        },
+      });
+
+      await tx.panneParc.deleteMany({
+        where: { panneId: input.id },
+      });
+
+      await tx.panneParc.createMany({
+        data: validated.parcs.map((item) => ({
+          panneId: input.id,
+          parcId: item.parcId,
+          description: item.description,
+        })),
+      });
     });
 
-    return { success: true, message: "Panne modifiée avec succès." };
+    return {
+      success: true,
+      message: "Panne modifiée avec succès.",
+    };
   } catch (error) {
     console.error("updatePanne error:", error);
-    return { success: false, message: "Erreur lors de la modification de la panne." };
+
+    return {
+      success: false,
+      message: "Erreur lors de la modification de la panne.",
+    };
   }
 }
 
 export async function deletePanne(id: string) {
   const permission = await guard(ACTION.DELETE, RESOURCE.PANNE);
+
   if (!permission.success) {
     return { success: false, message: permission.message };
   }
@@ -367,8 +466,16 @@ export async function deletePanne(id: string) {
   const { userId } = await getSession();
   const tenantId = await getPanneTenantId();
 
-  if (!userId) return { success: false, message: "Utilisateur non authentifié." };
-  if (!tenantId) return { success: false, message: "Aucun tenant actif." };
+  if (!userId) {
+    return {
+      success: false,
+      message: "Utilisateur non authentifié.",
+    };
+  }
+
+  if (!tenantId) {
+    return { success: false, message: "Aucun tenant actif." };
+  }
 
   try {
     const existing = await prisma.panne.findFirst({
@@ -377,7 +484,10 @@ export async function deletePanne(id: string) {
     });
 
     if (!existing) {
-      return { success: false, message: "Panne introuvable." };
+      return {
+        success: false,
+        message: "Panne introuvable.",
+      };
     }
 
     const used = await prisma.saisiehim.count({
@@ -387,15 +497,24 @@ export async function deletePanne(id: string) {
     if (used > 0) {
       return {
         success: false,
-        message: "Suppression impossible : cette panne est utilisée dans des saisies HIM.",
+        message:
+          "Suppression impossible : cette panne est utilisée dans des saisies HIM.",
       };
     }
 
     await prisma.panne.delete({ where: { id } });
-    return { success: true, message: "Panne supprimée avec succès." };
+
+    return {
+      success: true,
+      message: "Panne supprimée avec succès.",
+    };
   } catch (error) {
     console.error("deletePanne error:", error);
-    return { success: false, message: "Erreur lors de la suppression de la panne." };
+
+    return {
+      success: false,
+      message: "Erreur lors de la suppression de la panne.",
+    };
   }
 }
 
@@ -412,128 +531,145 @@ export async function importPannes(data: any) {
     }
 
     const { currentTenantId } = await getSession();
-    if (!currentTenantId) {
-      return [
-        {
-          success: false,
-          data: data,
-          message: `Erreur: Aucun tenant actif pour l'import`,
-        },
-      ];
-    }
-    // 
-    const name = convertField(data.name, "string");
-    const description = convertField(data.description, "string");
-    const typepanneName = convertField(data.typepanneName, "string");
-    const parcName = convertField(data.parcName, "string");
 
-    if (!name || name.trim() === "") {
-      return [
-        {
-          success: false,
-          data: data,
-          message: `Erreur: Le champ 'name' est requis`,
-        },
-      ];
+    if (!currentTenantId) {
+      return [{
+        success: false,
+        data,
+        message: "Erreur : aucun tenant actif pour l'import.",
+      }];
     }
-    if (!description || description.trim() === "") {
-      return [
-        {
-          success: false,
-          data: data,
-          message: `Erreur: Le champ 'description' est requis`,
-        },
-      ];
+
+    const name = convertField(data?.name, "string");
+    const description = convertField(data?.description, "string");
+    const typepanneName = convertField(data?.typepanneName, "string");
+    const parcName = convertField(data?.parcName, "string");
+
+    if (!name?.trim()) {
+      return [{
+        success: false,
+        data,
+        message: "Erreur : le champ 'name' est requis.",
+      }];
     }
-    if (!typepanneName) {
-      return [
-        {
-          success: false,
-          data: data,
-          message: `Erreur: Le champ 'typepanneName' est requis`,
-        },
-      ];
+
+    if (!description?.trim()) {
+      return [{
+        success: false,
+        data,
+        message: "Erreur : le champ 'description' est requis.",
+      }];
     }
-    if (!parcName) {
-      return [
-        {
-          success: false,
-          data: data,
-          message: `Erreur: Le champ 'parcName' est requis`,
-        },
-      ];
+
+    if (!typepanneName?.trim()) {
+      return [{
+        success: false,
+        data,
+        message: "Erreur : le champ 'typepanneName' est requis.",
+      }];
+    }
+
+    if (!parcName?.trim()) {
+      return [{
+        success: false,
+        data,
+        message: "Erreur : le champ 'parcName' est requis.",
+      }];
     }
 
     const [typepanne, parc] = await Promise.all([
-      prisma.typepanne.findUnique({ where: { name_tenantId: { name: typepanneName, tenantId: currentTenantId } } }),
-      prisma.parc.findUnique({ where: { name_tenantId: { name: parcName, tenantId: currentTenantId } } }),
+      prisma.typepanne.findUnique({
+        where: {
+          name_tenantId: {
+            name: typepanneName.trim(),
+            tenantId: currentTenantId,
+          },
+        },
+      }),
+
+      prisma.parc.findUnique({
+        where: {
+          name_tenantId: {
+            name: parcName.trim(),
+            tenantId: currentTenantId,
+          },
+        },
+      }),
     ]);
 
     if (!typepanne) {
-      return [
-        {
-          success: false,
-          data: data,
-          message: `typepanne "${typepanneName}" non trouvé`,
-        },
-      ];
+      return [{
+        success: false,
+        data,
+        message: `Type de panne "${typepanneName}" non trouvé.`,
+      }];
     }
 
     if (!parc) {
-      return [
-        {
-          success: false,
-          data: data,
-          message: `parc "${parcName}" non trouvé`,
-        },
-      ];
+      return [{
+        success: false,
+        data,
+        message: `Parc "${parcName}" non trouvé.`,
+      }];
     }
 
-    // Créer ou mettre à jour la panne avec relation implicite
     const panne = await prisma.panne.upsert({
-      where: { name_tenantId: { name: name, tenantId: currentTenantId } },
-      update: {
-        description: description,
-        typepanneId: typepanne.id,
-        // Mettre à jour la relation avec le parc
-        parcs: {
-          connect: { id: parc.id },
+      where: {
+        name_tenantId: {
+          name: name.trim(),
+          tenantId: currentTenantId,
         },
       },
+
+      update: {
+        typepanneId: typepanne.id,
+      },
+
       create: {
-        name: name,
-        description: description,
+        name: name.trim(),
         typepanneId: typepanne.id,
         tenantId: currentTenantId,
-        // Créer avec relation au parc
-        parcs: {
-          connect: { id: parc.id },
-        },
-      },
-      // Inclure les relations pour voir le résultat
-      include: {
-        typepanne: true,
-        parcs: true,
       },
     });
 
-    return [
-      {
-        success: true,
-        data: panne,
-        message: `Panne ${name}, ${parcName}, ${typepanneName} importé avec succès`,
+    await prisma.panneParc.upsert({
+      where: {
+        panneId_parcId: {
+          panneId: panne.id,
+          parcId: parc.id,
+        },
       },
-    ];
+
+      update: {
+        description: description.trim(),
+      },
+
+      create: {
+        panneId: panne.id,
+        parcId: parc.id,
+        description: description.trim(),
+      },
+    });
+
+    return [{
+      success: true,
+      data: {
+        id: panne.id,
+        name: panne.name,
+        parcName: parc.name,
+        description: description.trim(),
+      },
+      message:
+        `Panne ${name.trim()} importée pour le parc ${parc.name}.`,
+    }];
   } catch (error: unknown) {
     console.error("Erreur lors de l'import des pannes :", error);
 
-    return [
-      {
-        success: false,
-        data: data,
-        message:
-          "Une erreur interne est survenue lors de l'import des pannes. Vérifiez les données et consultez les journaux serveur si le problème persiste.",
-      },
-    ];
+    return [{
+      success: false,
+      data,
+      message:
+        "Une erreur interne est survenue lors de l'import des pannes. Vérifiez les données et consultez les journaux serveur si le problème persiste.",
+    }];
   }
 }

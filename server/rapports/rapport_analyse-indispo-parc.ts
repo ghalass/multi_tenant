@@ -422,20 +422,32 @@ export async function getRapportAnalyseIndispoParc(
                 select: { id: true, name: true },
             },
             pannes: {
-                where: { tenantId: currentTenantId },
+                where: {
+                    panne: {
+                        tenantId: currentTenantId,
+                    },
+                },
                 select: {
-                    id: true,
-                    name: true,
                     description: true,
-                    typepanneId: true,
-                    typepanne: {
+                    panne: {
                         select: {
                             id: true,
                             name: true,
+                            typepanneId: true,
+                            typepanne: {
+                                select: {
+                                    id: true,
+                                    name: true,
+                                },
+                            },
                         },
                     },
                 },
-                orderBy: { name: "asc" },
+                orderBy: {
+                    panne: {
+                        name: "asc",
+                    },
+                },
             },
             engins: {
                 where: {
@@ -485,12 +497,12 @@ export async function getRapportAnalyseIndispoParc(
         };
     }
 
-    const definitions: PanneDefinition[] = parc.pannes.map((panne) => ({
-        id: panne.id,
-        name: panne.name,
-        description: panne.description,
-        typepanneId: panne.typepanneId,
-        typepanneName: panne.typepanne.name,
+    const definitions: PanneDefinition[] = parc.pannes.map((item) => ({
+        id: item.panne.id,
+        name: item.panne.name,
+        description: item.description,
+        typepanneId: item.panne.typepanneId,
+        typepanneName: item.panne.typepanne.name,
     }));
 
     const enginIds = parc.engins.map((engin) => engin.id);

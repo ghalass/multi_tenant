@@ -43,7 +43,10 @@ type EnginOption = Option & {
 };
 
 type PanneOption = Option & {
-    parcs: Option[];
+    parcs: {
+        description: string | null;
+        parc: Option;
+    }[];
 };
 
 type Props = {
@@ -151,8 +154,8 @@ export default function Search({
             ? pannes
             : pannes.filter((panne) =>
                 panne.parcs.some(
-                    (parc) => parc.id === parcId,
-                ),
+                    (item) => item.parc.id === parcId,
+                )
             );
 
     function applySearch(event: FormEvent<HTMLFormElement>) {

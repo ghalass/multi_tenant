@@ -66,9 +66,11 @@ type EnginOption = Option & {
 };
 
 type PanneOption = Option & {
-    description?: string | null;
     typepanneId: string;
-    parcs: Option[];
+    parcs: {
+        description: string | null;
+        parc: Option;
+    }[];
 };
 
 type SaisieHimItem = {
@@ -214,7 +216,9 @@ export function SaisieHimForm({
             pannes.filter(
                 (panne) =>
                     panne.typepanneId === selectedTypePanneId &&
-                    panne.parcs.some((parc) => parc.id === selectedParcId),
+                    panne.parcs.some(
+                        (item) => item.parc.id === selectedParcId,
+                    )
             ),
         [pannes, selectedTypePanneId, selectedParcId],
     );
@@ -664,11 +668,17 @@ export function SaisieHimForm({
                                                     ))}
                                                 </SelectContent>
                                             </Select>
-                                            {selectedPanne?.description?.trim() && (
-                                                <p className="text-sm text-muted-foreground">
-                                                    {selectedPanne.description}
-                                                </p>
-                                            )}
+                                            {selectedPanne && (() => {
+                                                const relation = selectedPanne.parcs.find(
+                                                    (item) => item.parc.id === selectedParcId,
+                                                );
+
+                                                return relation?.description?.trim() ? (
+                                                    <p className="text-sm text-muted-foreground">
+                                                        {relation.description}
+                                                    </p>
+                                                ) : null;
+                                            })()}
                                             {fieldState.invalid && (
                                                 <FieldError errors={[fieldState.error]} />
                                             )}

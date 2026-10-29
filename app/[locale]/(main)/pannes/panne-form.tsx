@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
@@ -47,12 +46,6 @@ const schema = yup.object({
         .max(100)
         .required()
         .label("Le nom"),
-    description: yup
-        .string()
-        .max(500)
-        .nullable()
-        .defined()
-        .label("La description"),
     typepanneId: yup
         .string()
         .required("Sélectionnez un type de panne."),
@@ -64,14 +57,21 @@ const schema = yup.object({
 });
 
 type FormValues = yup.InferType<typeof schema>;
-type Option = { id: string; name: string };
+
+type Option = {
+    id: string;
+    name: string;
+};
+
+type PanneParcItem = Option & {
+    description: string | null;
+};
 
 type PanneItem = {
     id: string;
     name: string;
-    description: string | null;
     typepanneId: string;
-    parcs: Option[];
+    parcs: PanneParcItem[];
 };
 
 export function PanneForm({
@@ -88,15 +88,18 @@ export function PanneForm({
     const [isLoading, setIsLoading] = useState(false);
     const [isPending, startTransition] = useTransition();
     const [error, setError] = useState("");
+    const [descriptions, setDescriptions] = useState<Record<string, string>>(
+        {},
+    );
+
     const router = useRouter();
 
     const form = useForm<FormValues>({
         resolver: yupResolver(schema),
         defaultValues: {
             name: panne?.name ?? "",
-            description: panne?.description ?? "",
             typepanneId: panne?.typepanneId ?? "",
-            parcIds: panne?.parcs.map((parc) => parc.id) ?? [],
+            parcIds: panne?.parcs.map((item) => item.id) ?? [],
         },
     });
 
@@ -111,23 +114,27 @@ export function PanneForm({
 
         form.reset({
             name: panne?.name ?? "",
-            description: panne?.description ?? "",
             typepanneId: panne?.typepanneId ?? "",
-            parcIds: panne?.parcs.map((parc) => parc.id) ?? [],
+            parcIds: panne?.parcs.map((item) => item.id) ?? [],
         });
 
+        const initialDescriptions: Record<string, string> = {};
+
+        for (const item of panne?.parcs ?? []) {
+            initialDescriptions[item.id] = item.description ?? "";
+        }
+
+        setDescriptions(initialDescriptions);
         setError("");
     }, [open, panne, form]);
 
     function toggleAllParcs(checked: boolean) {
-        form.setValue(
-            "parcIds",
-            checked ? parcs.map((parc) => parc.id) : [],
-            {
-                shouldDirty: true,
-                shouldValidate: true,
-            },
-        );
+        const nextParcIds = checked ? parcs.map((item) => item.id) : [];
+
+        form.setValue("parcIds", nextParcIds, {
+            shouldDirty: true,
+            shouldValidate: true,
+        });
     }
 
     function toggleParc(parcId: string, checked: boolean) {
@@ -148,9 +155,11 @@ export function PanneForm({
 
             const payload = {
                 name: values.name.trim(),
-                description: values.description,
                 typepanneId: values.typepanneId,
-                parcIds: values.parcIds,
+                parcs: values.parcIds.map((parcId) => ({
+                    parcId,
+                    description: descriptions[parcId]?.trim() || null,
+                })),
             };
 
             const result = panne
@@ -198,123 +207,84 @@ export function PanneForm({
                     </Button>
                 </DialogTrigger>
 
-                <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg gap-2">
+                <DialogContent className="max-h-[90vh] gap-2 overflow-y-auto sm:max-w-xl">
                     <DialogHeader>
                         <DialogTitle>
                             {isEdit ? "Modifier une panne" : "Créer une panne"}
                         </DialogTitle>
                         <DialogDescription>
-                            Renseignez les informations de la panne et sélectionnez
-                            les parcs concernés.
+                            Chaque parc peut avoir sa propre description pour
+                            cette panne.
                         </DialogDescription>
                     </DialogHeader>
 
                     <DisplayError error={error} />
 
                     <form onSubmit={form.handleSubmit(onSubmit)}>
-                        <FieldGroup className="gap-2">
-                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                                <Field
-                                    data-invalid={Boolean(form.formState.errors.name)}
-                                >
-                                    <FieldLabel htmlFor="panne-name">
-                                        Nom de la panne
-                                    </FieldLabel>
-                                    <Input
-                                        id="panne-name"
-                                        {...form.register("name")}
-                                        maxLength={100}
-                                        disabled={isLoading}
-                                        aria-invalid={Boolean(
-                                            form.formState.errors.name,
-                                        )}
-                                    />
-                                    {form.formState.errors.name && (
-                                        <FieldError
-                                            errors={[form.formState.errors.name]}
-                                        />
-                                    )}
-                                </Field>
-
-                                <Controller
-                                    name="typepanneId"
-                                    control={form.control}
-                                    render={({ field, fieldState }) => (
-                                        <Field data-invalid={fieldState.invalid}>
-                                            <FieldLabel>
-                                                Type de panne
-                                            </FieldLabel>
-                                            <Select
-                                                value={field.value || "none"}
-                                                onValueChange={(value) =>
-                                                    field.onChange(
-                                                        value === "none" ? "" : value,
-                                                    )
-                                                }
-                                                disabled={isLoading}
-                                            >
-                                                <SelectTrigger
-                                                    className="w-full"
-                                                    aria-invalid={fieldState.invalid}
-                                                >
-                                                    <SelectValue placeholder="Sélectionner un type" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="none">
-                                                        Sélectionner un type
-                                                    </SelectItem>
-                                                    {typepannes.map((type) => (
-                                                        <SelectItem
-                                                            key={type.id}
-                                                            value={type.id}
-                                                        >
-                                                            {type.name}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                            {fieldState.invalid && (
-                                                <FieldError
-                                                    errors={[fieldState.error]}
-                                                />
-                                            )}
-                                        </Field>
-                                    )}
-                                />
-                            </div>
-
-                            <Field
-                                data-invalid={Boolean(
-                                    form.formState.errors.description,
-                                )}
-                            >
-                                <FieldLabel htmlFor="panne-description">
-                                    Description
+                        <FieldGroup className="gap-3">
+                            <Field data-invalid={Boolean(form.formState.errors.name)}>
+                                <FieldLabel htmlFor="panne-name">
+                                    Nom de la panne
                                 </FieldLabel>
-                                <Textarea
-                                    id="panne-description"
-                                    {...form.register("description")}
-                                    maxLength={500}
-                                    rows={3}
+                                <Input
+                                    id="panne-name"
+                                    {...form.register("name")}
+                                    maxLength={100}
                                     disabled={isLoading}
-                                    aria-invalid={Boolean(
-                                        form.formState.errors.description,
-                                    )}
+                                    aria-invalid={Boolean(form.formState.errors.name)}
                                 />
-                                {form.formState.errors.description && (
+                                {form.formState.errors.name && (
                                     <FieldError
-                                        errors={[
-                                            form.formState.errors.description,
-                                        ]}
+                                        errors={[form.formState.errors.name]}
                                     />
                                 )}
                             </Field>
 
-                            <Field
-                                data-invalid={Boolean(
-                                    form.formState.errors.parcIds,
+                            <Controller
+                                name="typepanneId"
+                                control={form.control}
+                                render={({ field, fieldState }) => (
+                                    <Field data-invalid={fieldState.invalid}>
+                                        <FieldLabel>Type de panne</FieldLabel>
+                                        <Select
+                                            value={field.value || "none"}
+                                            onValueChange={(value) =>
+                                                field.onChange(
+                                                    value === "none" ? "" : value,
+                                                )
+                                            }
+                                            disabled={isLoading}
+                                        >
+                                            <SelectTrigger
+                                                className="w-full"
+                                                aria-invalid={fieldState.invalid}
+                                            >
+                                                <SelectValue placeholder="Sélectionner un type" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="none">
+                                                    Sélectionner un type
+                                                </SelectItem>
+                                                {typepannes.map((type) => (
+                                                    <SelectItem
+                                                        key={type.id}
+                                                        value={type.id}
+                                                    >
+                                                        {type.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        {fieldState.invalid && (
+                                            <FieldError
+                                                errors={[fieldState.error]}
+                                            />
+                                        )}
+                                    </Field>
                                 )}
-                            >
+                            />
+
+                            <Field data-invalid={Boolean(form.formState.errors.parcIds)}>
                                 <div className="flex flex-wrap items-center justify-between gap-2">
                                     <FieldLabel>Parcs concernés</FieldLabel>
                                     <span className="text-xs text-muted-foreground">
@@ -323,7 +293,7 @@ export function PanneForm({
                                 </div>
 
                                 <div className="rounded-lg border">
-                                    <label className="flex cursor-pointer items-center gap-2 border-b bg-muted/40 px-4 py-1 font-medium">
+                                    <label className="flex cursor-pointer items-center gap-2 border-b bg-muted/40 px-4 py-2 font-medium">
                                         <input
                                             type="checkbox"
                                             checked={allParcsSelected}
@@ -338,32 +308,27 @@ export function PanneForm({
                                     </label>
 
                                     {parcs.length > 0 ? (
-                                        <div className="grid max-h-56 grid-cols-1 gap-1 overflow-y-auto p-2 sm:grid-cols-2">
-                                            {parcs.map((parc) => {
-                                                const checked =
-                                                    selectedParcIds.includes(parc.id);
-
-                                                return (
-                                                    <label
-                                                        key={parc.id}
-                                                        className="flex cursor-pointer items-center gap-2 rounded-md px-2 text-sm hover:bg-muted/60"
-                                                    >
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={checked}
-                                                            onChange={(event) =>
-                                                                toggleParc(
-                                                                    parc.id,
-                                                                    event.target.checked,
-                                                                )
-                                                            }
-                                                            disabled={isLoading}
-                                                            className="size-4 accent-primary"
-                                                        />
-                                                        <span>{parc.name}</span>
-                                                    </label>
-                                                );
-                                            })}
+                                        <div className="grid max-h-48 grid-cols-1 gap-1 overflow-y-auto p-2 sm:grid-cols-2">
+                                            {parcs.map((parc) => (
+                                                <label
+                                                    key={parc.id}
+                                                    className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-sm hover:bg-muted/60"
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={selectedParcIds.includes(parc.id)}
+                                                        onChange={(event) =>
+                                                            toggleParc(
+                                                                parc.id,
+                                                                event.target.checked,
+                                                            )
+                                                        }
+                                                        disabled={isLoading}
+                                                        className="size-4 accent-primary"
+                                                    />
+                                                    <span>{parc.name}</span>
+                                                </label>
+                                            ))}
                                         </div>
                                     ) : (
                                         <p className="p-4 text-sm text-muted-foreground">
@@ -378,6 +343,46 @@ export function PanneForm({
                                     />
                                 )}
                             </Field>
+
+                            {selectedParcIds.length > 0 && (
+                                <Field>
+                                    <FieldLabel>
+                                        Description pour chaque parc
+                                    </FieldLabel>
+
+                                    <div className="space-y-3">
+                                        {selectedParcIds.map((parcId) => {
+                                            const parc = parcs.find(
+                                                (item) => item.id === parcId,
+                                            );
+
+                                            return (
+                                                <div
+                                                    key={parcId}
+                                                    className="space-y-1 rounded-md border p-3"
+                                                >
+                                                    <FieldLabel>
+                                                        {parc?.name ?? "Parc"}
+                                                    </FieldLabel>
+                                                    <Textarea
+                                                        value={descriptions[parcId] ?? ""}
+                                                        onChange={(event) =>
+                                                            setDescriptions((current) => ({
+                                                                ...current,
+                                                                [parcId]: event.target.value,
+                                                            }))
+                                                        }
+                                                        maxLength={500}
+                                                        rows={2}
+                                                        disabled={isLoading}
+                                                        placeholder={`Description de la panne pour ${parc?.name ?? "ce parc"}`}
+                                                    />
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </Field>
+                            )}
                         </FieldGroup>
 
                         <DialogFooter className="mt-6">

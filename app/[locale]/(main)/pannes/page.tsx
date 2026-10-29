@@ -32,6 +32,12 @@ type ParcOption = Option & {
     typeparcId: string;
 };
 
+type PanneParcItem = {
+    description: string | null;
+    parc: Option & {
+        typeparcId: string;
+    };
+};
 export default async function PannesPage({
     searchParams,
 }: {
@@ -117,12 +123,9 @@ export default async function PannesPage({
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Panne</TableHead>
-                                <TableHead>Description</TableHead>
+                                <TableHead>Descriptions par parc</TableHead>
                                 <TableHead>Type de panne</TableHead>
-                                <TableHead>Parcs</TableHead>
-                                <TableHead className="text-right">
-                                    Actions
-                                </TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
 
@@ -143,8 +146,17 @@ export default async function PannesPage({
                                             {panne.name}
                                         </TableCell>
 
-                                        <TableCell className="max-w-xs whitespace-normal">
-                                            {panne.description || "—"}
+                                        <TableCell className="min-w-64 max-w-md whitespace-normal">
+                                            <div className="space-y-2">
+                                                {panne.parcs.map((item: PanneParcItem) => (
+                                                    <div key={item.parc.id} className="border-b pb-2 last:border-b-0">
+                                                        <p className="font-medium">{item.parc.name}</p>
+                                                        <p className="text-sm text-muted-foreground">
+                                                            {item.description || "Aucune description"}
+                                                        </p>
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </TableCell>
 
                                         <TableCell>
@@ -163,7 +175,16 @@ export default async function PannesPage({
                                                 action={ACTION.UPDATE}
                                             >
                                                 <PanneForm
-                                                    panne={panne}
+                                                    panne={{
+                                                        id: panne.id,
+                                                        name: panne.name,
+                                                        typepanneId: panne.typepanneId,
+                                                        parcs: panne.parcs.map((item: PanneParcItem) => ({
+                                                            id: item.parc.id,
+                                                            name: item.parc.name,
+                                                            description: item.description,
+                                                        })),
+                                                    }}
                                                     typepannes={options.typepannes}
                                                     parcs={options.parcs}
                                                 />

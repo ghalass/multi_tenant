@@ -150,10 +150,18 @@ export async function getSaisieHimOptions() {
                 where: { tenantId },
                 select: {
                     id: true,
-                    name: true, description: true,
+                    name: true,
                     typepanneId: true,
                     parcs: {
-                        select: { id: true, name: true },
+                        select: {
+                            description: true,
+                            parc: {
+                                select: {
+                                    id: true,
+                                    name: true,
+                                },
+                            },
+                        },
                     },
                 },
                 orderBy: { name: "asc" },
@@ -464,7 +472,9 @@ async function validateSaisieHimInput(
                 id: values.panneId,
                 tenantId,
                 parcs: {
-                    some: { id: engin.parcId },
+                    some: {
+                        parcId: engin.parcId,
+                    },
                 },
             },
             select: { id: true },
@@ -901,8 +911,7 @@ export async function importSaisieHim(data: any) {
                 tenantId: currentTenantId,
                 parcs: {
                     some: {
-                        id: engin.parcId,
-                        tenantId: currentTenantId,
+                        parcId: engin.parcId,
                     },
                 },
             },
