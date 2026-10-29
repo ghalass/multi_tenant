@@ -9,8 +9,10 @@ import { PAGINATION_SETTINGS, RESOURCE } from "@/lib/constantes";
 
 export interface PannesSearchParams {
   name?: string;
-  currentPage?: number;
-  itemsPerPage?: number;
+  parcId?: string;
+  typepanneId?: string;
+  currentPage?: number | string;
+  itemsPerPage?: number | string;
 }
 
 type PanneInput = {
@@ -35,13 +37,23 @@ async function getPanneTenantId() {
 
 export async function getPanneOptions() {
   const permission = await guard(ACTION.READ, RESOURCE.PANNE);
+
   if (!permission.success) {
-    return { success: false, message: permission.message, data: null };
+    return {
+      success: false,
+      message: permission.message,
+      data: { typepannes: [], parcs: [] },
+    };
   }
 
   const tenantId = await getPanneTenantId();
+
   if (!tenantId) {
-    return { success: false, message: "Aucun tenant actif.", data: null };
+    return {
+      success: false,
+      message: "Aucun tenant actif.",
+      data: { typepannes: [], parcs: [] },
+    };
   }
 
   const [typepannes, parcs] = await Promise.all([
@@ -50,6 +62,7 @@ export async function getPanneOptions() {
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),
+
     prisma.parc.findMany({
       where: { tenantId },
       select: { id: true, name: true },
@@ -57,50 +70,104 @@ export async function getPanneOptions() {
     }),
   ]);
 
-  return { success: true, data: { typepannes, parcs } };
+  return {
+    success: true,
+    message: "",
+    data: { typepannes, parcs },
+  };
 }
 
-export async function getAllPannes(filters: PannesSearchParams = {}) {
+export async function getAllPannes(
+  filters: PannesSearchParams = {},
+) {
   const permission = await guard(ACTION.READ, RESOURCE.PANNE);
+
   if (!permission.success) {
-    return { success: false, message: permission.message, data: [] };
+    return {
+      success: false,
+      message: permission.message,
+      data: [],
+    };
   }
 
   const tenantId = await getPanneTenantId();
+
   if (!tenantId) {
-    return { success: false, message: "Aucun tenant actif.", data: [] };
+    return {
+      success: false,
+      message: "Aucun tenant actif.",
+      data: [],
+    };
   }
 
-  const currentPage = Math.max(Number(filters.currentPage) || 1, 1);
+  const currentPage = Math.max(
+    Number(filters.currentPage) || 1,
+    1,
+  );
+
+  const requestedItems = Number(
+    filters.itemsPerPage ?? PAGINATION_SETTINGS.itemsPerPage,
+  );
+
   const itemsPerPage =
-    Number(filters.itemsPerPage) === 0
+    requestedItems === 0
       ? 0
       : Math.max(
-        Number(filters.itemsPerPage) || PAGINATION_SETTINGS.itemsPerPage,
+        requestedItems || PAGINATION_SETTINGS.itemsPerPage,
         1,
       );
 
   const name = filters.name?.trim();
+  const parcId = filters.parcId?.trim();
+  const typepanneId = filters.typepanneId?.trim();
 
-  const where = {
-    tenantId,
-    ...(name
-      ? { name: { contains: name, mode: "insensitive" as const } }
-      : {}),
-  };
+  const where: any = { tenantId };
+
+  if (name) {
+    where.name = {
+      contains: name,
+      mode: "insensitive",
+    };
+  }
+
+  if (parcId) {
+    where.parcs = {
+      some: { id: parcId },
+    };
+  }
+
+  if (typepanneId) {
+    where.typepanneId = typepanneId;
+  }
 
   const [data, totalItems] = await Promise.all([
     prisma.panne.findMany({
       where,
       orderBy: { name: "asc" },
-      skip: itemsPerPage === 0 ? 0 : (currentPage - 1) * itemsPerPage,
-      take: itemsPerPage === 0 ? undefined : itemsPerPage,
+
+      skip:
+        itemsPerPage === 0
+          ? 0
+          : (currentPage - 1) * itemsPerPage,
+
+      take:
+        itemsPerPage === 0
+          ? undefined
+          : itemsPerPage,
+
       include: {
-        typepanne: { select: { id: true, name: true } },
-        parcs: { select: { id: true, name: true } },
-        tenant: { select: { name: true } },
+        typepanne: {
+          select: { id: true, name: true },
+        },
+        parcs: {
+          select: { id: true, name: true },
+        },
+        tenant: {
+          select: { name: true },
+        },
       },
     }),
+
     prisma.panne.count({ where }),
   ]);
 
@@ -111,7 +178,9 @@ export async function getAllPannes(filters: PannesSearchParams = {}) {
     meta: {
       totalItems,
       totalPages:
-        itemsPerPage === 0 ? 1 : Math.ceil(totalItems / itemsPerPage),
+        itemsPerPage === 0
+          ? 1
+          : Math.ceil(totalItems / itemsPerPage),
       currentPage,
       itemsPerPage,
     },
