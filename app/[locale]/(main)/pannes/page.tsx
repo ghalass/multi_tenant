@@ -50,7 +50,7 @@ export default async function PannesPage({
         getPanneOptions(),
     ]);
 
-    const pannes = response.data ?? [];
+    const lignes = response.data ?? [];
 
     const options = optionsResponse.success
         ? optionsResponse.data as {
@@ -129,8 +129,9 @@ export default async function PannesPage({
                             </TableRow>
                         </TableHeader>
 
+
                         <TableBody>
-                            {pannes.length === 0 ? (
+                            {lignes.length === 0 ? (
                                 <TableRow>
                                     <TableCell
                                         colSpan={4}
@@ -140,64 +141,76 @@ export default async function PannesPage({
                                     </TableCell>
                                 </TableRow>
                             ) : (
-                                pannes.map((panne: any) => (
-                                    <TableRow key={panne.id}>
-                                        <TableCell className="font-medium">
-                                            {panne.name}
-                                        </TableCell>
+                                lignes.map((ligne: any, index: number) => {
+                                    const panne = ligne.panne;
 
-                                        <TableCell className="min-w-64 max-w-md whitespace-normal">
-                                            <div className="space-y-2">
-                                                {panne.parcs.map((item: PanneParcItem) => (
-                                                    <div key={item.parc.id} className="border-b pb-2 last:border-b-0">
-                                                        <p className="font-medium">{item.parc.name}</p>
-                                                        <p className="text-sm text-muted-foreground">
-                                                            {item.description || "Aucune description"}
-                                                        </p>
+                                    // Afficher les actions une seule fois par panne
+                                    // sur la page, sans fusionner les cellules.
+                                    const afficherActions =
+                                        index === 0 ||
+                                        lignes[index - 1].panneId !== ligne.panneId;
+
+                                    return (
+                                        <TableRow
+                                            key={`${ligne.panneId}-${ligne.parcId}`}
+                                        >
+                                            <TableCell className="font-medium">
+                                                {panne.name}
+                                            </TableCell>
+
+                                            <TableCell className="min-w-64 max-w-md whitespace-normal">
+                                                <p className="font-medium">
+                                                    {ligne.parc.name}
+                                                </p>
+                                                <p className="text-sm text-muted-foreground">
+                                                    {ligne.description || "Aucune description"}
+                                                </p>
+                                            </TableCell>
+
+                                            <TableCell>
+                                                {panne.typepanne?.name ?? "—"}
+                                            </TableCell>
+
+                                            <TableCell>
+                                                {afficherActions && (
+                                                    <div className="flex justify-end gap-2">
+                                                        <CanAccess
+                                                            resource={RESOURCE.PANNE}
+                                                            action={ACTION.UPDATE}
+                                                        >
+                                                            <PanneForm
+                                                                panne={{
+                                                                    id: panne.id,
+                                                                    name: panne.name,
+                                                                    typepanneId: panne.typepanneId,
+                                                                    parcs: panne.parcs.map(
+                                                                        (item: PanneParcItem) => ({
+                                                                            id: item.parc.id,
+                                                                            name: item.parc.name,
+                                                                            description: item.description,
+                                                                        }),
+                                                                    ),
+                                                                }}
+                                                                typepannes={options.typepannes}
+                                                                parcs={options.parcs}
+                                                            />
+                                                        </CanAccess>
+
+                                                        <CanAccess
+                                                            resource={RESOURCE.PANNE}
+                                                            action={ACTION.DELETE}
+                                                        >
+                                                            <DeletePanneForm panne={panne} />
+                                                        </CanAccess>
                                                     </div>
-                                                ))}
-                                            </div>
-                                        </TableCell>
-
-                                        <TableCell>
-                                            {panne.typepanne?.name ?? "—"}
-                                        </TableCell>
-
-
-                                        <TableCell className="flex justify-end gap-2">
-                                            <CanAccess
-                                                resource={RESOURCE.PANNE}
-                                                action={ACTION.UPDATE}
-                                            >
-                                                <PanneForm
-                                                    panne={{
-                                                        id: panne.id,
-                                                        name: panne.name,
-                                                        typepanneId: panne.typepanneId,
-                                                        parcs: panne.parcs.map((item: PanneParcItem) => ({
-                                                            id: item.parc.id,
-                                                            name: item.parc.name,
-                                                            description: item.description,
-                                                        })),
-                                                    }}
-                                                    typepannes={options.typepannes}
-                                                    parcs={options.parcs}
-                                                />
-                                            </CanAccess>
-
-                                            <CanAccess
-                                                resource={RESOURCE.PANNE}
-                                                action={ACTION.DELETE}
-                                            >
-                                                <DeletePanneForm
-                                                    panne={panne}
-                                                />
-                                            </CanAccess>
-                                        </TableCell>
-                                    </TableRow>
-                                ))
+                                                )}
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })
                             )}
                         </TableBody>
+
                     </Table>
                 </div>
 

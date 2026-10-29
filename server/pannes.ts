@@ -102,6 +102,7 @@ export async function getPanneOptions() {
   };
 }
 
+
 export async function getAllPannes(
   filters: PannesSearchParams = {},
 ) {
@@ -125,7 +126,10 @@ export async function getAllPannes(
     };
   }
 
-  const currentPage = Math.max(Number(filters.currentPage) || 1, 1);
+  const requestedPage = Math.max(
+    Number(filters.currentPage) || 1,
+    1,
+  );
 
   const requestedItems = Number(
     filters.itemsPerPage ?? PAGINATION_SETTINGS.itemsPerPage,
@@ -144,69 +148,106 @@ export async function getAllPannes(
   const parcId = filters.parcId?.trim();
   const typepanneId = filters.typepanneId?.trim();
 
-  const where: any = { tenantId };
+  // Filtres appliqués à la panne.
+  const panneWhere: any = { tenantId };
 
   if (name) {
-    where.name = {
+    panneWhere.name = {
       contains: name,
       mode: "insensitive",
     };
   }
 
+  if (typepanneId) {
+    panneWhere.typepanneId = typepanneId;
+  }
+
+  // Filtres appliqués au parc de chaque association.
+  const parcWhere: any = { tenantId };
+
+  if (typeparcId) {
+    parcWhere.typeparcId = typeparcId;
+  }
+
+  if (parcId) {
+    parcWhere.id = parcId;
+  }
+
+  const where: any = {
+    panne: {
+      is: panneWhere,
+    },
+    parc: {
+      is: parcWhere,
+    },
+  };
+
   if (typeparcId || parcId) {
-    const parcFilter: Record<string, string> = {};
-
-    if (typeparcId) parcFilter.typeparcId = typeparcId;
-    if (parcId) parcFilter.id = parcId;
-
-    where.parcs = {
-      some: {
-        parc: {
-          is: parcFilter,
-        },
-      },
+    where.parc = {
+      is: parcWhere,
     };
   }
 
-  if (typepanneId) {
-    where.typepanneId = typepanneId;
-  }
+  // La pagination compte les associations, pas les pannes distinctes.
+  const totalItems = await prisma.panneParc.count({ where });
 
-  const [data, totalItems] = await Promise.all([
-    prisma.panne.findMany({
-      where,
-      orderBy: { name: "asc" },
+  const totalPages =
+    itemsPerPage === 0
+      ? 1
+      : Math.max(1, Math.ceil(totalItems / itemsPerPage));
 
-      skip:
-        itemsPerPage === 0
-          ? 0
-          : (currentPage - 1) * itemsPerPage,
+  // Évite une page vide si les filtres ou le nombre de lignes changent.
+  const currentPage = Math.min(requestedPage, totalPages);
 
-      take: itemsPerPage === 0 ? undefined : itemsPerPage,
+  const data = await prisma.panneParc.findMany({
+    where,
 
-      include: {
-        typepanne: {
-          select: { id: true, name: true },
+    orderBy: [
+      { panne: { name: "asc" } },
+      { parc: { name: "asc" } },
+    ],
+
+    skip:
+      itemsPerPage === 0
+        ? 0
+        : (currentPage - 1) * itemsPerPage,
+
+    take: itemsPerPage === 0 ? undefined : itemsPerPage,
+
+    include: {
+      parc: {
+        select: {
+          id: true,
+          name: true,
+          typeparcId: true,
         },
-        parcs: {
-          include: {
-            parc: {
-              select: {
-                id: true,
-                name: true,
-                typeparcId: true,
+      },
+
+      panne: {
+        include: {
+          typepanne: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+
+          // Conserve tous les parcs de la panne pour le formulaire d'édition.
+          parcs: {
+            include: {
+              parc: {
+                select: {
+                  id: true,
+                  name: true,
+                  typeparcId: true,
+                },
               },
             },
           },
         },
-        tenant: {
-          select: { name: true },
-        },
       },
-    }),
-
-    prisma.panne.count({ where }),
-  ]);
+    },
+  });
 
   return {
     success: true,
@@ -214,15 +255,13 @@ export async function getAllPannes(
     data,
     meta: {
       totalItems,
-      totalPages:
-        itemsPerPage === 0
-          ? 1
-          : Math.ceil(totalItems / itemsPerPage),
+      totalPages,
       currentPage,
       itemsPerPage,
     },
   };
 }
+
 
 async function validatePanneInput(
   input: PanneInput,
