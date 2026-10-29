@@ -133,7 +133,7 @@ export default async function PannesPage({
                             {pannes.length === 0 ? (
                                 <TableRow>
                                     <TableCell
-                                        colSpan={5}
+                                        colSpan={4}
                                         className="h-24 text-center"
                                     >
                                         Aucune panne trouvée.
@@ -163,11 +163,6 @@ export default async function PannesPage({
                                             {panne.typepanne?.name ?? "—"}
                                         </TableCell>
 
-                                        <TableCell className="max-w-xs whitespace-normal">
-                                            {panne.parcs
-                                                .map((parc: Option) => parc.name)
-                                                .join(", ") || "—"}
-                                        </TableCell>
 
                                         <TableCell className="flex justify-end gap-2">
                                             <CanAccess
