@@ -19,10 +19,7 @@ type ColumnKey =
     | "site"
     | "parc"
     | "typeParc"
-    | "hrmMois"
-    | "heureChassisMois"
-    | "initialHeureChassis"
-    | "totalHeureChassis";
+    | "hrmMois";
 
 type Column = {
     key: ColumnKey;
@@ -42,9 +39,6 @@ type ReportRow = {
     parc: string;
     typeParc: string;
     hrmMois: number | null;
-    heureChassisMois: number | null;
-    initialHeureChassis: number | null;
-    totalHeureChassis: number | null;
 };
 
 const COLUMNS: Column[] = [
@@ -53,18 +47,6 @@ const COLUMNS: Column[] = [
     { key: "parc", label: "Parc" },
     { key: "typeParc", label: "Type de parc" },
     { key: "hrmMois", label: "HRM du mois (h)" },
-    {
-        key: "heureChassisMois",
-        label: "Heures châssis du mois (h)",
-    },
-    {
-        key: "initialHeureChassis",
-        label: "Heures châssis initiales (h)",
-    },
-    {
-        key: "totalHeureChassis",
-        label: "Total heures châssis (h)",
-    },
 ];
 
 function formatNumber(
@@ -107,9 +89,6 @@ function toEnginRow(
         parc: engin.parcName,
         typeParc: engin.typeParcName,
         hrmMois: engin.hrmMois,
-        heureChassisMois: engin.heureChassisMois,
-        initialHeureChassis: engin.initialHeureChassis,
-        totalHeureChassis: engin.totalHeureChassis,
     };
 }
 
@@ -130,13 +109,6 @@ export default function EtatGeneralTable({
         );
     }
 
-    /*
-     * Le rapport est généré pour un seul type de parc
-     * et un seul parc. Ces valeurs personnalisent l'en-tête
-     * de la première colonne.
-     *
-     * Exemple : Roulage - 785C - 07/2026
-     */
     const premierTypeParc = data[0];
     const premierParc = premierTypeParc?.parcs[0];
 
@@ -144,10 +116,6 @@ export default function EtatGeneralTable({
         ? `${premierTypeParc.typeParcName} - ${premierParc.parcName} - ${periode}`
         : `Engin - ${periode}`;
 
-    /*
-     * Préparation des lignes dans l'ordre fourni par le serveur :
-     * engins, total du parc, total du type de parc.
-     */
     const allRows: ReportRow[] = [];
 
     for (const typeParc of data) {
@@ -164,10 +132,6 @@ export default function EtatGeneralTable({
                 parc: "",
                 typeParc: "",
                 hrmMois: parc.totalParc.totalHRMMois,
-                heureChassisMois:
-                    parc.totalParc.totalHeureChassisMois,
-                initialHeureChassis: null,
-                totalHeureChassis: null,
             });
         }
 
@@ -178,12 +142,7 @@ export default function EtatGeneralTable({
             site: "",
             parc: "",
             typeParc: "",
-            hrmMois:
-                typeParc.totalTypeParc.totalHRMMois,
-            heureChassisMois:
-                typeParc.totalTypeParc.totalHeureChassisMois,
-            initialHeureChassis: null,
-            totalHeureChassis: null,
+            hrmMois: typeParc.totalTypeParc.totalHRMMois,
         });
     }
 
@@ -250,10 +209,6 @@ export default function EtatGeneralTable({
                 </div>
             </div>
 
-            {/*
-             * Table complète destinée à l'export Excel.
-             * Elle contient les mêmes colonnes et toutes les lignes.
-             */}
             <div className="hidden">
                 <Table id="rapport-etat-general-export-table">
                     <TableHeader>

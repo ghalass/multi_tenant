@@ -1,4 +1,3 @@
-
 import {
     Table,
     TableBody,
@@ -7,20 +6,33 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
+
 import { Truck } from "lucide-react";
+
 import {
     getAllEngins,
     getEnginOptions,
     type EnginsSearchParams,
 } from "@/server/engins";
-import { CreateEnginForm, UpdateEnginForm } from "./engin-form";
+
+import {
+    CreateEnginForm,
+    UpdateEnginForm,
+} from "./engin-form";
+
 import { DeleteEnginForm } from "./delete-engin-form";
 import Search from "./search";
+
 import Pagination from "@/components/pagination";
 import DisplayError from "@/components/display-error";
 import CanAccess from "@/components/can-access";
+
 import { ACTION } from "@/lib/enums";
-import { ACTIVE, RESOURCE } from "@/lib/constantes";
+import {
+    ACTIVE,
+    RESOURCE,
+} from "@/lib/constantes";
+
 import { ExportExcel } from "@/components/export-excel";
 import { Badge } from "@/components/ui/badge";
 
@@ -48,11 +60,11 @@ export default async function EnginsPage({
     const engins = response.data ?? [];
 
     const options = optionsResponse.success
-        ? optionsResponse.data as {
+        ? (optionsResponse.data as {
             sites: Option[];
             typeparcs: Option[];
             parcs: ParcOption[];
-        }
+        })
         : {
             sites: [],
             typeparcs: [],
@@ -91,8 +103,8 @@ export default async function EnginsPage({
             </div>
 
             <p className="mt-1 text-muted-foreground">
-                Gérez les engins, leurs parcs, leurs sites et leurs heures
-                châssis initiales.
+                Gérez les engins, leurs parcs et leurs sites.
+                Les compteurs sont renseignés dans les saisies HRM journalières.
             </p>
 
             {!response.success && (
@@ -132,9 +144,6 @@ export default async function EnginsPage({
                                 <TableHead>Engin</TableHead>
                                 <TableHead>Parc</TableHead>
                                 <TableHead>Site</TableHead>
-                                <TableHead>
-                                    Heures châssis initiales
-                                </TableHead>
                                 <TableHead>Statut</TableHead>
                                 <TableHead>Tenant</TableHead>
                                 <TableHead className="text-right">
@@ -147,7 +156,7 @@ export default async function EnginsPage({
                             {engins.length === 0 ? (
                                 <TableRow>
                                     <TableCell
-                                        colSpan={7}
+                                        colSpan={6}
                                         className="h-24 text-center"
                                     >
                                         Aucun engin trouvé.
@@ -166,10 +175,6 @@ export default async function EnginsPage({
 
                                         <TableCell>
                                             {engin.site?.name ?? "N/A"}
-                                        </TableCell>
-
-                                        <TableCell>
-                                            {engin.initialHeureChassis ?? 0}
                                         </TableCell>
 
                                         <TableCell>

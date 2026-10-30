@@ -179,13 +179,12 @@ model Parc {
 }
 
 model Engin {
-  id                  String  @id @default(cuid(2))
-  name                String
-  active              Boolean @default(true)
-  parcId              String
-  siteId              String
-  initialHeureChassis Float?  @default(0)
-  tenantId            String
+  id       String  @id @default(cuid(2))
+  name     String
+  active   Boolean @default(true)
+  parcId   String
+  siteId   String
+  tenantId String
 
   // Relations
   parc       Parc        @relation(fields: [parcId], references: [id], onDelete: Restrict)
@@ -266,6 +265,7 @@ model Saisiehrm {
   saisiehim Saisiehim[]
 
   @@unique([du, enginId, tenantId])
+  @@index([tenantId, enginId, du])
   @@map("saisie_hrm")
 }
 

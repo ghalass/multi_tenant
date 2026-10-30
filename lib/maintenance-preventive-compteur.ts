@@ -2,16 +2,14 @@ import "server-only";
 
 import { prisma } from "@/lib/prisma";
 
-export type CompteurSource =
-    | "DERNIER_RELEVE"
-    | "COMPTEUR_INITIAL_ET_HRM";
+export type CompteurSource = "DERNIER_RELEVE";
 
 export type CompteurCourantData = {
     enginId: string;
     enginName: string;
     compteurCourant: number;
     source: CompteurSource;
-    dateDernierReleve: string | null;
+    dateDernierReleve: string;
     compteurBase: number;
     hrmCumulees: number;
     nombreSaisiesHrmAjoutees: number;
@@ -21,20 +19,13 @@ export type CompteurCourantData = {
 /**
  * Calcule le compteur courant d'un engin.
  *
- * Si un relevé existe :
- * compteur courant = dernier relevé + HRM des dates suivantes.
- *
- * Sinon :
- * compteur courant = initialHeureChassis + somme des HRM.
- *
- * Les relevés sont considérés comme effectués en fin de journée.
- * Les HRM de la date du dernier relevé ne sont donc pas ajoutées
- * une seconde fois.
- *
- * Les journées sans saisie HRM ne sont pas reconstituées.
- *
- * Cette fonction interne ne remplace pas les contrôles d'accès
- * des actions serveur qui l'appellent.
+ * Règle :
+ * - Le compteur est relevé en fin de journée.
+ * - Le dernier relevé réel constitue la référence.
+ * - On ajoute uniquement les HRM des jours postérieurs
+ *   à la date de ce relevé.
+ * - Les journées sans saisie HRM ne sont pas reconstituées.
+ * - Sans relevé réel, le compteur est indisponible.
  */
 export async function calculerCompteurCourant(
     enginId: string,
@@ -48,7 +39,6 @@ export async function calculerCompteurCourant(
         select: {
             id: true,
             name: true,
-            initialHeureChassis: true,
         },
     });
 
@@ -86,15 +76,22 @@ export async function calculerCompteurCourant(
         },
     });
 
+    // Aucun compteur réel : impossible de calculer
+    // un compteur absolu à partir des seules HRM.
+    if (
+        !dernierReleve ||
+        dernierReleve.compteur === null
+    ) {
+        return null;
+    }
+
     const saisiesHrm = await prisma.saisiehrm.aggregate({
         where: {
             enginId,
             tenantId,
             du: {
+                gt: dernierReleve.du,
                 lte: aujourdHui,
-                ...(dernierReleve
-                    ? { gt: dernierReleve.du }
-                    : {}),
             },
         },
         _sum: {
@@ -105,27 +102,30 @@ export async function calculerCompteurCourant(
         },
     });
 
+    const compteurBase = dernierReleve.compteur;
     const hrmCumulees = saisiesHrm._sum.hrm ?? 0;
-
-    const compteurBase = dernierReleve
-        ? dernierReleve.compteur!
-        : (engin.initialHeureChassis ?? 0);
 
     return {
         enginId: engin.id,
         enginName: engin.name,
-        compteurCourant: compteurBase + hrmCumulees,
-        source: dernierReleve
-            ? "DERNIER_RELEVE"
-            : "COMPTEUR_INITIAL_ET_HRM",
-        dateDernierReleve: dernierReleve
-            ? dernierReleve.du.toISOString().slice(0, 10)
-            : null,
+
+        compteurCourant:
+            compteurBase + hrmCumulees,
+
+        source: "DERNIER_RELEVE",
+
+        dateDernierReleve:
+            dernierReleve.du.toISOString().slice(0, 10),
+
         compteurBase,
         hrmCumulees,
-        nombreSaisiesHrmAjoutees: saisiesHrm._count._all,
+
+        nombreSaisiesHrmAjoutees:
+            saisiesHrm._count._all,
+
         avertissement:
-            "Le calcul utilise uniquement les HRM enregistrées. " +
-            "Les journées sans saisie ne sont pas reconstituées.",
+            "Le calcul utilise le dernier relevé réel et les HRM " +
+            "enregistrées après sa date. Les journées sans saisie " +
+            "HRM ne sont pas reconstituées.",
     };
 }

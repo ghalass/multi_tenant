@@ -97,8 +97,7 @@ export default async function RapportEtatGeneral({
                     </h1>
 
                     <p className="mt-1 text-sm text-muted-foreground">
-                        Heures de marche et heures châssis mensuelles,
-                        par engin et par parc.
+                        Heures de marche mensuelles par engin et par parc.
                     </p>
                 </div>
 

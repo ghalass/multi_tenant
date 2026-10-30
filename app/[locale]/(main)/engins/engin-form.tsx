@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
@@ -13,14 +12,27 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import {
-    Field, FieldContent, FieldError, FieldGroup, FieldLabel,
+    Field,
+    FieldContent,
+    FieldError,
+    FieldGroup,
+    FieldLabel,
 } from "@/components/ui/field";
 import {
-    Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from "@/components/ui/select";
 import {
-    Dialog, DialogContent, DialogDescription, DialogFooter,
-    DialogHeader, DialogTitle, DialogTrigger,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
 } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
 import { GlobalLoader } from "@/components/global-loader";
@@ -28,7 +40,10 @@ import DisplayError from "@/components/display-error";
 import { createEngin, updateEngin } from "@/server/engins";
 import { sleep } from "@/lib/utils";
 
-type Option = { id: string; name: string };
+type Option = {
+    id: string;
+    name: string;
+};
 
 type Engin = {
     id: string;
@@ -36,42 +51,57 @@ type Engin = {
     active: boolean;
     parcId: string;
     siteId: string;
-    initialHeureChassis: number | null;
 };
 
 const schema = yup.object({
-    name: yup.string().trim().min(2).required().label("Nom de l'engin"),
+    name: yup
+        .string()
+        .trim()
+        .min(2)
+        .required()
+        .label("Nom de l'engin"),
+
     active: yup.boolean().required(),
-    parcId: yup.string().required().label("Parc"),
-    siteId: yup.string().required().label("Site"),
-    initialHeureChassis: yup.number().typeError("Saisissez un nombre")
-        .min(0).required().label("Heures châssis initiales"),
+
+    parcId: yup
+        .string()
+        .required()
+        .label("Parc"),
+
+    siteId: yup
+        .string()
+        .required()
+        .label("Site"),
 });
 
 type FormValues = yup.InferType<typeof schema>;
 
 function EnginForm({
-    engin, sites, parcs,
+    engin,
+    sites,
+    parcs,
 }: {
     engin?: Engin;
     sites: Option[];
     parcs: Option[];
 }) {
     const editing = Boolean(engin);
+
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [pending, startTransition] = useTransition();
     const [error, setError] = useState("");
+
     const router = useRouter();
 
     const form = useForm<FormValues>({
         resolver: yupResolver(schema),
+
         defaultValues: {
             name: engin?.name ?? "",
             active: engin?.active ?? true,
             parcId: engin?.parcId ?? "",
             siteId: engin?.siteId ?? "",
-            initialHeureChassis: engin?.initialHeureChassis ?? 0,
         },
     });
 
@@ -82,8 +112,8 @@ function EnginForm({
                 active: engin?.active ?? true,
                 parcId: engin?.parcId ?? "",
                 siteId: engin?.siteId ?? "",
-                initialHeureChassis: engin?.initialHeureChassis ?? 0,
             });
+
             setError("");
         }
     }, [open, form, engin]);
@@ -92,10 +122,14 @@ function EnginForm({
         try {
             setLoading(true);
             setError("");
+
             await sleep();
 
             const result = editing
-                ? await updateEngin({ ...values, id: engin!.id })
+                ? await updateEngin({
+                    ...values,
+                    id: engin!.id,
+                })
                 : await createEngin(values);
 
             if (!result.success) {
@@ -104,6 +138,7 @@ function EnginForm({
             }
 
             startTransition(() => router.refresh());
+
             toast.success(result.message);
             setOpen(false);
         } catch {
@@ -113,104 +148,190 @@ function EnginForm({
         }
     }
 
-    const disabled = loading || sites.length === 0 || parcs.length === 0;
+    const disabled =
+        loading ||
+        sites.length === 0 ||
+        parcs.length === 0;
 
     return (
         <>
             <GlobalLoader show={pending} />
-            <Dialog open={open} onOpenChange={setOpen}>
+
+            <Dialog
+                open={open}
+                onOpenChange={setOpen}
+            >
                 <DialogTrigger
                     disabled={disabled}
-                    aria-label={editing ? "Modifier l'engin" : "Créer un engin"}
-                    className={editing
-                        ? "text-primary hover:cursor-pointer"
-                        : "inline-flex items-center justify-center rounded-full bg-primary p-1 text-primary-foreground hover:bg-primary/90 disabled:opacity-50"}
+                    aria-label={
+                        editing
+                            ? "Modifier l'engin"
+                            : "Créer un engin"
+                    }
+                    className={
+                        editing
+                            ? "text-primary hover:cursor-pointer"
+                            : "inline-flex items-center justify-center rounded-full bg-primary p-1 text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                    }
                 >
-                    {editing ? <PenIcon className="size-4" /> : <PlusIcon className="size-4" />}
+                    {editing ? (
+                        <PenIcon className="size-4" />
+                    ) : (
+                        <PlusIcon className="size-4" />
+                    )}
                 </DialogTrigger>
 
-                <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+                <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle>{editing ? "Modifier l'engin" : "Créer un engin"}</DialogTitle>
+                        <DialogTitle>
+                            {editing
+                                ? "Modifier l'engin"
+                                : "Créer un engin"}
+                        </DialogTitle>
+
                         <DialogDescription>
                             Renseignez les informations de l'engin.
                         </DialogDescription>
+
                         <DisplayError error={error} />
                     </DialogHeader>
 
                     <form onSubmit={form.handleSubmit(onSubmit)}>
                         <FieldGroup className="gap-2">
-                            <Controller name="name" control={form.control} render={({ field, fieldState }) => (
-                                <Field data-invalid={fieldState.invalid}>
-                                    <FieldLabel>Nom de l'engin</FieldLabel>
-                                    <Input {...field} disabled={loading} aria-invalid={fieldState.invalid} />
-                                    {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-                                </Field>
-                            )} />
+                            <Controller
+                                name="name"
+                                control={form.control}
+                                render={({ field, fieldState }) => (
+                                    <Field data-invalid={fieldState.invalid}>
+                                        <FieldLabel>
+                                            Nom de l'engin
+                                        </FieldLabel>
 
-                            <Controller name="parcId" control={form.control} render={({ field, fieldState }) => (
-                                <Field data-invalid={fieldState.invalid}>
-                                    <FieldLabel>Parc</FieldLabel>
-                                    <Select value={field.value} onValueChange={field.onChange} disabled={loading}>
-                                        <SelectTrigger aria-invalid={fieldState.invalid}>
-                                            <SelectValue placeholder="Sélectionner un parc" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {parcs.map((item) => (
-                                                <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                    {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-                                </Field>
-                            )} />
+                                        <Input
+                                            {...field}
+                                            disabled={loading}
+                                            aria-invalid={fieldState.invalid}
+                                        />
 
-                            <Controller name="siteId" control={form.control} render={({ field, fieldState }) => (
-                                <Field data-invalid={fieldState.invalid}>
-                                    <FieldLabel>Site</FieldLabel>
-                                    <Select value={field.value} onValueChange={field.onChange} disabled={loading}>
-                                        <SelectTrigger aria-invalid={fieldState.invalid}>
-                                            <SelectValue placeholder="Sélectionner un site" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {sites.map((item) => (
-                                                <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                    {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-                                </Field>
-                            )} />
+                                        {fieldState.invalid && (
+                                            <FieldError
+                                                errors={[fieldState.error]}
+                                            />
+                                        )}
+                                    </Field>
+                                )}
+                            />
 
-                            <Controller name="initialHeureChassis" control={form.control} render={({ field, fieldState }) => (
-                                <Field data-invalid={fieldState.invalid}>
-                                    <FieldLabel>Heures châssis initiales</FieldLabel>
-                                    <Input
-                                        type="number"
-                                        min={0}
-                                        step="any"
-                                        value={field.value}
-                                        onChange={(event) => field.onChange(event.target.value === "" ? "" : Number(event.target.value))}
-                                        disabled={loading}
-                                        aria-invalid={fieldState.invalid}
-                                    />
-                                    {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-                                </Field>
-                            )} />
+                            <Controller
+                                name="parcId"
+                                control={form.control}
+                                render={({ field, fieldState }) => (
+                                    <Field data-invalid={fieldState.invalid}>
+                                        <FieldLabel>Parc</FieldLabel>
 
-                            <Controller name="active" control={form.control} render={({ field }) => (
-                                <Field orientation="horizontal">
-                                    <FieldContent className="flex flex-row items-center gap-2">
-                                        <FieldLabel>Actif</FieldLabel>
-                                        <Switch checked={field.value} onCheckedChange={field.onChange} disabled={loading} />
-                                    </FieldContent>
-                                </Field>
-                            )} />
+                                        <Select
+                                            value={field.value}
+                                            onValueChange={field.onChange}
+                                            disabled={loading}
+                                        >
+                                            <SelectTrigger
+                                                aria-invalid={fieldState.invalid}
+                                            >
+                                                <SelectValue placeholder="Sélectionner un parc" />
+                                            </SelectTrigger>
+
+                                            <SelectContent>
+                                                {parcs.map((item) => (
+                                                    <SelectItem
+                                                        key={item.id}
+                                                        value={item.id}
+                                                    >
+                                                        {item.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+
+                                        {fieldState.invalid && (
+                                            <FieldError
+                                                errors={[fieldState.error]}
+                                            />
+                                        )}
+                                    </Field>
+                                )}
+                            />
+
+                            <Controller
+                                name="siteId"
+                                control={form.control}
+                                render={({ field, fieldState }) => (
+                                    <Field data-invalid={fieldState.invalid}>
+                                        <FieldLabel>Site</FieldLabel>
+
+                                        <Select
+                                            value={field.value}
+                                            onValueChange={field.onChange}
+                                            disabled={loading}
+                                        >
+                                            <SelectTrigger
+                                                aria-invalid={fieldState.invalid}
+                                            >
+                                                <SelectValue placeholder="Sélectionner un site" />
+                                            </SelectTrigger>
+
+                                            <SelectContent>
+                                                {sites.map((item) => (
+                                                    <SelectItem
+                                                        key={item.id}
+                                                        value={item.id}
+                                                    >
+                                                        {item.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+
+                                        {fieldState.invalid && (
+                                            <FieldError
+                                                errors={[fieldState.error]}
+                                            />
+                                        )}
+                                    </Field>
+                                )}
+                            />
+
+                            <Controller
+                                name="active"
+                                control={form.control}
+                                render={({ field }) => (
+                                    <Field orientation="horizontal">
+                                        <FieldContent className="flex flex-row items-center gap-2">
+                                            <FieldLabel>Actif</FieldLabel>
+
+                                            <Switch
+                                                checked={field.value}
+                                                onCheckedChange={field.onChange}
+                                                disabled={loading}
+                                            />
+                                        </FieldContent>
+                                    </Field>
+                                )}
+                            />
                         </FieldGroup>
 
                         <DialogFooter className="mt-4 sm:justify-start">
-                            <Button type="submit" variant="outline" disabled={loading}>
-                                {loading ? <Spinner className="size-4" /> : editing ? "Modifier" : "Créer"}
+                            <Button
+                                type="submit"
+                                variant="outline"
+                                disabled={loading}
+                            >
+                                {loading ? (
+                                    <Spinner className="size-4" />
+                                ) : editing ? (
+                                    "Modifier"
+                                ) : (
+                                    "Créer"
+                                )}
                             </Button>
                         </DialogFooter>
                     </form>
@@ -220,14 +341,21 @@ function EnginForm({
     );
 }
 
-export function CreateEnginForm(props: { sites: Option[]; parcs: Option[] }) {
+export function CreateEnginForm(
+    props: {
+        sites: Option[];
+        parcs: Option[];
+    },
+) {
     return <EnginForm {...props} />;
 }
 
-export function UpdateEnginForm(props: {
-    engin: Engin;
-    sites: Option[];
-    parcs: Option[];
-}) {
+export function UpdateEnginForm(
+    props: {
+        engin: Engin;
+        sites: Option[];
+        parcs: Option[];
+    },
+) {
     return <EnginForm {...props} />;
 }

@@ -20,10 +20,7 @@ export interface EnginEtatGeneral {
     siteName: string;
     parcName: string;
     typeParcName: string;
-    initialHeureChassis: number;
     hrmMois: number;
-    heureChassisMois: number;
-    totalHeureChassis: number;
 }
 
 export interface ParcEtatGeneral {
@@ -35,7 +32,6 @@ export interface ParcEtatGeneral {
     totalParc: {
         nombreEngins: number;
         totalHRMMois: number;
-        totalHeureChassisMois: number;
     };
 }
 
@@ -46,7 +42,6 @@ export interface TypeParcEtatGeneral {
     totalTypeParc: {
         nombreEngins: number;
         totalHRMMois: number;
-        totalHeureChassisMois: number;
     };
 }
 
@@ -72,11 +67,11 @@ export interface TypeParcEtatGeneralOption {
 type Totals = {
     nombreEngins: number;
     totalHRMMois: number;
-    totalHeureChassisMois: number;
 };
 
 function safeNumber(value: unknown): number {
     const number = Number(value);
+
     return Number.isFinite(number) ? number : 0;
 }
 
@@ -84,7 +79,6 @@ function emptyTotals(): Totals {
     return {
         nombreEngins: 0,
         totalHRMMois: 0,
-        totalHeureChassisMois: 0,
     };
 }
 
@@ -126,7 +120,7 @@ async function getActiveTenantId(): Promise<
 
 /**
  * Options du formulaire :
- * type de parc -> parc -> sites disponibles dans le parc.
+ * type de parc -> parc -> engins disponibles.
  */
 export async function getOptionsRapportEtatGeneral(): Promise<ActionResponse> {
     const permission = await guard(ACTION.READ, RESOURCE.RAPPORT);
@@ -243,13 +237,8 @@ export async function getOptionsRapportEtatGeneral(): Promise<ActionResponse> {
 }
 
 /**
- * Génération du rapport pour :
- * - une période ;
- * - un type de parc ;
- * - un parc ;
- * - zéro, un ou plusieurs sites.
- *
- * Sans site sélectionné, tous les sites du parc sont pris en compte.
+ * Génération du rapport pour une période,
+ * un type de parc et un parc.
  */
 export async function getRapportEtatGeneral(
     filters?: SearchParamsRapportEtatGeneral,
@@ -305,10 +294,6 @@ export async function getRapportEtatGeneral(
             };
         }
 
-        /*
-         * Vérification que le parc appartient bien au type de parc
-         * sélectionné et au tenant actif.
-         */
         const parcSelectionne = await prisma.parc.findFirst({
             where: {
                 id: parcId,
@@ -339,13 +324,14 @@ export async function getRapportEtatGeneral(
             };
         }
 
-        const debutMois = new Date(Date.UTC(annee, mois - 1, 1));
-        const finMois = new Date(Date.UTC(annee, mois, 1));
+        const debutMois = new Date(
+            Date.UTC(annee, mois - 1, 1),
+        );
 
-        /*
-         * Un tableau siteIds vide signifie :
-         * ne pas appliquer de filtre par site.
-         */
+        const finMois = new Date(
+            Date.UTC(annee, mois, 1),
+        );
+
         const engins = await prisma.engin.findMany({
             where: {
                 tenantId,
@@ -362,7 +348,6 @@ export async function getRapportEtatGeneral(
             select: {
                 id: true,
                 name: true,
-                initialHeureChassis: true,
                 site: {
                     select: {
                         name: true,
@@ -378,14 +363,6 @@ export async function getRapportEtatGeneral(
                     },
                     select: {
                         hrm: true,
-                        saisiehim: {
-                            where: {
-                                tenantId,
-                            },
-                            select: {
-                                him: true,
-                            },
-                        },
                     },
                 },
             },
@@ -409,59 +386,29 @@ export async function getRapportEtatGeneral(
             };
         }
 
-        /*
-         * Calcul des valeurs de chaque engin.
-         */
-        const enginsResult: EnginEtatGeneral[] = engins.map((engin) => {
-            const hrmMois = engin.saisiehrms.reduce(
-                (total, saisie) =>
-                    total + safeNumber(saisie.hrm),
-                0,
-            );
+        const enginsResult: EnginEtatGeneral[] = engins.map(
+            (engin) => {
+                const hrmMois = engin.saisiehrms.reduce(
+                    (total, saisie) =>
+                        total + safeNumber(saisie.hrm),
+                    0,
+                );
 
-            /*
-             * Formule conservée du projet gmao_nextjs :
-             * heures châssis mensuelles = somme des HIM du mois.
-             */
-            const heureChassisMois = engin.saisiehrms.reduce(
-                (totalHim, saisie) =>
-                    totalHim +
-                    saisie.saisiehim.reduce(
-                        (totalSaisie, panne) =>
-                            totalSaisie + safeNumber(panne.him),
-                        0,
-                    ),
-                0,
-            );
+                return {
+                    enginId: engin.id,
+                    enginName: engin.name,
+                    siteName: engin.site.name,
+                    parcName: parcSelectionne.name,
+                    typeParcName: parcSelectionne.typeparc.name,
+                    hrmMois,
+                };
+            },
+        );
 
-            const initialHeureChassis = safeNumber(
-                engin.initialHeureChassis,
-            );
-
-            return {
-                enginId: engin.id,
-                enginName: engin.name,
-                siteName: engin.site.name,
-                parcName: parcSelectionne.name,
-                typeParcName: parcSelectionne.typeparc.name,
-                initialHeureChassis,
-                hrmMois,
-                heureChassisMois,
-                totalHeureChassis:
-                    initialHeureChassis + heureChassisMois,
-            };
-        });
-
-        /*
-         * Les totaux sont calculés uniquement sur les engins
-         * correspondant aux critères, y compris le filtre par site.
-         */
         const total = enginsResult.reduce<Totals>(
             (totaux, engin) => {
                 totaux.nombreEngins += 1;
                 totaux.totalHRMMois += engin.hrmMois;
-                totaux.totalHeureChassisMois +=
-                    engin.heureChassisMois;
 
                 return totaux;
             },
