@@ -45,6 +45,19 @@ export type PanneParcListItem = Prisma.PanneParcGetPayload<{
   };
 }>;
 
+function getPrismaErrorCode(error: unknown): string | undefined {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error
+  ) {
+    const code = (error as { code?: unknown }).code;
+    return typeof code === "string" ? code : undefined;
+  }
+
+  return undefined;
+}
+
 async function getPanneTenantId(): Promise<string | null> {
   const { currentTenantId } = await getSession();
 
@@ -58,7 +71,15 @@ async function getPanneTenantId(): Promise<string | null> {
   return tenant?.id ?? null;
 }
 
-export async function getPanneOptions(): Promise<{ success: boolean; message: string; data: { typepannes: { id: string; name: string; }[]; typeparcs: { id: string; name: string; }[]; parcs: { id: string; name: string; typeparcId: string; }[]; }; }> {
+export async function getPanneOptions(): Promise<{
+  success: boolean;
+  message: string;
+  data: {
+    typepannes: { id: string; name: string }[];
+    typeparcs: { id: string; name: string }[];
+    parcs: { id: string; name: string; typeparcId: string }[];
+  };
+}> {
   const permission = await guard(ACTION.READ, RESOURCE.PANNE);
 
   const emptyData = {
@@ -119,7 +140,6 @@ export async function getPanneOptions(): Promise<{ success: boolean; message: st
     },
   };
 }
-
 
 export async function getAllPannes(
   filters: PannesSearchParams = {},
@@ -280,11 +300,26 @@ export async function getAllPannes(
   };
 }
 
-
 async function validatePanneInput(
   input: PanneInput,
   tenantId: string,
-): Promise<{ error: string; name?: undefined; typepanneId?: undefined; parcs?: undefined; } | { name: string; typepanneId: string; parcs: { parcId: string; description: string | null; }[]; readonly error?: undefined; }> {
+): Promise<
+  | {
+    error: string;
+    name?: undefined;
+    typepanneId?: undefined;
+    parcs?: undefined;
+  }
+  | {
+    name: string;
+    typepanneId: string;
+    parcs: {
+      parcId: string;
+      description: string | null;
+    }[];
+    readonly error?: undefined;
+  }
+> {
   const name = input.name?.trim();
   const typepanneId = input.typepanneId;
 
@@ -345,7 +380,9 @@ async function validatePanneInput(
   return { name, typepanneId, parcs };
 }
 
-export async function createPanne(input: PanneInput): Promise<{ success: boolean; message: string | undefined; }> {
+export async function createPanne(
+  input: PanneInput,
+): Promise<{ success: boolean; message: string | undefined }> {
   const permission = await guard(ACTION.CREATE, RESOURCE.PANNE);
 
   if (!permission.success) {
@@ -415,7 +452,7 @@ export async function createPanne(input: PanneInput): Promise<{ success: boolean
 
 export async function updatePanne(
   input: PanneInput & { id: string },
-): Promise<{ success: boolean; message: string | undefined; }> {
+): Promise<{ success: boolean; message: string | undefined }> {
   const permission = await guard(ACTION.UPDATE, RESOURCE.PANNE);
 
   if (!permission.success) {
@@ -477,27 +514,81 @@ export async function updatePanne(
       };
     }
 
-    await prisma.$transaction(async (tx) => {
-      await tx.panne.update({
-        where: { id: input.id },
-        data: {
-          name: validated.name,
-          typepanneId: validated.typepanneId,
-        },
-      });
+    const updateResult = await prisma.$transaction(
+      async (tx) => {
+        // Relecture dans la transaction pour vérifier le type actuel.
+        const currentPanne = await tx.panne.findFirst({
+          where: {
+            id: input.id,
+            tenantId,
+          },
+          select: {
+            id: true,
+            typepanneId: true,
+          },
+        });
 
-      await tx.panneParc.deleteMany({
-        where: { panneId: input.id },
-      });
+        if (!currentPanne) {
+          return {
+            success: false as const,
+            message: "Panne introuvable.",
+          };
+        }
 
-      await tx.panneParc.createMany({
-        data: validated.parcs.map((item) => ({
-          panneId: input.id,
-          parcId: item.parcId,
-          description: item.description,
-        })),
-      });
-    });
+        // Une panne déjà utilisée dans HIM ne peut pas changer de catégorie.
+        if (currentPanne.typepanneId !== validated.typepanneId) {
+          const usedCount = await tx.saisiehim.count({
+            where: {
+              panneId: input.id,
+              tenantId,
+            },
+          });
+
+          if (usedCount > 0) {
+            return {
+              success: false as const,
+              message:
+                `Modification du type impossible : cette panne est utilisée dans ${usedCount} saisie(s) HIM. ` +
+                "Pour préserver l'historique, conservez son type actuel.",
+            };
+          }
+        }
+
+        await tx.panne.update({
+          where: { id: input.id },
+          data: {
+            name: validated.name,
+            typepanneId: validated.typepanneId,
+          },
+        });
+
+        await tx.panneParc.deleteMany({
+          where: { panneId: input.id },
+        });
+
+        await tx.panneParc.createMany({
+          data: validated.parcs.map((item) => ({
+            panneId: input.id,
+            parcId: item.parcId,
+            description: item.description,
+          })),
+        });
+
+        return {
+          success: true as const,
+        };
+      },
+      {
+        isolationLevel: "Serializable",
+      },
+    );
+
+    if (!updateResult.success) {
+      return {
+        success: false,
+        message: updateResult.message,
+      };
+    }
 
     return {
       success: true,
@@ -506,6 +597,14 @@ export async function updatePanne(
   } catch (error) {
     console.error("updatePanne error:", error);
 
+    if (getPrismaErrorCode(error) === "P2034") {
+      return {
+        success: false,
+        message:
+          "Les données ont été modifiées simultanément. Veuillez réessayer.",
+      };
+    }
+
     return {
       success: false,
       message: "Erreur lors de la modification de la panne.",
@@ -513,7 +612,9 @@ export async function updatePanne(
   }
 }
 
-export async function deletePanne(id: string): Promise<{ success: boolean; message: string; }> {
+export async function deletePanne(
+  id: string,
+): Promise<{ success: boolean; message: string }> {
   const permission = await guard(ACTION.DELETE, RESOURCE.PANNE);
 
   if (!permission.success) {
@@ -535,31 +636,61 @@ export async function deletePanne(id: string): Promise<{ success: boolean; messa
   }
 
   try {
-    const existing = await prisma.panne.findFirst({
-      where: { id, tenantId },
-      select: { id: true },
-    });
+    const deleteResult = await prisma.$transaction(
+      async (tx) => {
+        const existing = await tx.panne.findFirst({
+          where: { id, tenantId },
+          select: { id: true },
+        });
 
-    if (!existing) {
+        if (!existing) {
+          return {
+            status: "not-found" as const,
+          };
+        }
+
+        const usedCount = await tx.saisiehim.count({
+          where: {
+            panneId: id,
+            tenantId,
+          },
+        });
+
+        if (usedCount > 0) {
+          return {
+            status: "used" as const,
+            usedCount,
+          };
+        }
+
+        await tx.panne.delete({
+          where: { id },
+        });
+
+        return {
+          status: "deleted" as const,
+        };
+      },
+      {
+        isolationLevel: "Serializable",
+      },
+    );
+
+    if (deleteResult.status === "not-found") {
       return {
         success: false,
         message: "Panne introuvable.",
       };
     }
 
-    const used = await prisma.saisiehim.count({
-      where: { panneId: id, tenantId },
-    });
-
-    if (used > 0) {
+    if (deleteResult.status === "used") {
       return {
         success: false,
         message:
-          "Suppression impossible : cette panne est utilisée dans des saisies HIM.",
+          `Suppression impossible : cette panne est utilisée dans ${deleteResult.usedCount} saisie(s) HIM. ` +
+          "Son historique doit être conservé.",
       };
     }
-
-    await prisma.panne.delete({ where: { id } });
 
     return {
       success: true,
@@ -568,6 +699,24 @@ export async function deletePanne(id: string): Promise<{ success: boolean; messa
   } catch (error) {
     console.error("deletePanne error:", error);
 
+    const code = getPrismaErrorCode(error);
+
+    if (code === "P2034") {
+      return {
+        success: false,
+        message:
+          "Les données ont été modifiées simultanément. Veuillez réessayer.",
+      };
+    }
+
+    if (code === "P2003") {
+      return {
+        success: false,
+        message:
+          "Suppression impossible : cette panne est encore référencée par des données historiques.",
+      };
+    }
+
     return {
       success: false,
       message: "Erreur lors de la suppression de la panne.",
@@ -575,27 +724,37 @@ export async function deletePanne(id: string): Promise<{ success: boolean; messa
   }
 }
 
-export async function importPannes(data: Record<string, unknown>): Promise<{ success: boolean; data: null; message: string; }[] | { success: boolean; data: Record<string, unknown>; message: string; }[]> {
+export async function importPannes(
+  data: Record<string, unknown>,
+): Promise<
+  | { success: boolean; data: null; message: string }[]
+  | { success: boolean; data: Record<string, unknown>; message: string }[]
+> {
   let importStage = "préparation des données";
+
   try {
     const permission = await guard(ACTION.IMPORT, RESOURCE.PANNE);
 
     if (!permission.success) {
-      return [{
-        success: false,
-        data: null,
-        message: permission.message,
-      }];
+      return [
+        {
+          success: false,
+          data: null,
+          message: permission.message,
+        },
+      ];
     }
 
     const { currentTenantId } = await getSession();
 
     if (!currentTenantId) {
-      return [{
-        success: false,
-        data,
-        message: "Erreur : aucun tenant actif pour l'import.",
-      }];
+      return [
+        {
+          success: false,
+          data,
+          message: "Erreur : aucun tenant actif pour l'import.",
+        },
+      ];
     }
 
     const name = convertField(data?.name, "string");
@@ -604,37 +763,47 @@ export async function importPannes(data: Record<string, unknown>): Promise<{ suc
     const parcName = convertField(data?.parcName, "string");
 
     if (!name?.trim()) {
-      return [{
-        success: false,
-        data,
-        message: "Erreur : le champ 'name' est requis.",
-      }];
+      return [
+        {
+          success: false,
+          data,
+          message: "Erreur : le champ 'name' est requis.",
+        },
+      ];
     }
 
     if (!description?.trim()) {
-      return [{
-        success: false,
-        data,
-        message: "Erreur : le champ 'description' est requis.",
-      }];
+      return [
+        {
+          success: false,
+          data,
+          message: "Erreur : le champ 'description' est requis.",
+        },
+      ];
     }
 
     if (!typepanneName?.trim()) {
-      return [{
-        success: false,
-        data,
-        message: "Erreur : le champ 'typepanneName' est requis.",
-      }];
+      return [
+        {
+          success: false,
+          data,
+          message: "Erreur : le champ 'typepanneName' est requis.",
+        },
+      ];
     }
 
     if (!parcName?.trim()) {
-      return [{
-        success: false,
-        data,
-        message: "Erreur : le champ 'parcName' est requis.",
-      }];
+      return [
+        {
+          success: false,
+          data,
+          message: "Erreur : le champ 'parcName' est requis.",
+        },
+      ];
     }
+
     importStage = "recherche du type de panne et du parc";
+
     const [typepanne, parc] = await Promise.all([
       prisma.typepanne.findUnique({
         where: {
@@ -656,70 +825,138 @@ export async function importPannes(data: Record<string, unknown>): Promise<{ suc
     ]);
 
     if (!typepanne) {
-      return [{
-        success: false,
-        data,
-        message: `Type de panne "${typepanneName}" non trouvé.`,
-      }];
+      return [
+        {
+          success: false,
+          data,
+          message: `Type de panne "${typepanneName}" non trouvé.`,
+        },
+      ];
     }
 
     if (!parc) {
-      return [{
-        success: false,
-        data,
-        message: `Parc "${parcName}" non trouvé.`,
-      }];
+      return [
+        {
+          success: false,
+          data,
+          message: `Parc "${parcName}" non trouvé.`,
+        },
+      ];
     }
+
     importStage = "création ou mise à jour de la panne";
-    const panne = await prisma.panne.upsert({
-      where: {
-        name_tenantId: {
-          name: name.trim(),
-          tenantId: currentTenantId,
+
+    const importResult = await prisma.$transaction(
+      async (tx) => {
+        const existingPanne = await tx.panne.findUnique({
+          where: {
+            name_tenantId: {
+              name: name.trim(),
+              tenantId: currentTenantId,
+            },
+          },
+          select: {
+            id: true,
+            name: true,
+            typepanneId: true,
+          },
+        });
+
+        // L'import ne doit pas reclasser une panne déjà utilisée dans HIM.
+        if (
+          existingPanne &&
+          existingPanne.typepanneId !== typepanne.id
+        ) {
+          const usedCount = await tx.saisiehim.count({
+            where: {
+              panneId: existingPanne.id,
+              tenantId: currentTenantId,
+            },
+          });
+
+          if (usedCount > 0) {
+            return {
+              blocked: true as const,
+              usedCount,
+            };
+          }
+        }
+
+        const panne = await tx.panne.upsert({
+          where: {
+            name_tenantId: {
+              name: name.trim(),
+              tenantId: currentTenantId,
+            },
+          },
+
+          update: {
+            typepanneId: typepanne.id,
+          },
+
+          create: {
+            name: name.trim(),
+            typepanneId: typepanne.id,
+            tenantId: currentTenantId,
+          },
+        });
+
+        importStage = "enregistrement de la description par parc";
+
+        await tx.panneParc.upsert({
+          where: {
+            panneId_parcId: {
+              panneId: panne.id,
+              parcId: parc.id,
+            },
+          },
+
+          update: {
+            description: description.trim(),
+          },
+
+          create: {
+            panneId: panne.id,
+            parcId: parc.id,
+            description: description.trim(),
+          },
+        });
+
+        return {
+          blocked: false as const,
+          panne,
+        };
+      },
+      {
+        isolationLevel: "Serializable",
+      },
+    );
+
+    if (importResult.blocked) {
+      return [
+        {
+          success: false,
+          data,
+          message:
+            `Import refusé : cette panne est déjà utilisée dans ${importResult.usedCount} saisie(s) HIM. ` +
+            "Son type ne peut pas être modifié afin de préserver l'historique.",
         },
-      },
+      ];
+    }
 
-      update: {
-        typepanneId: typepanne.id,
-      },
-
-      create: {
-        name: name.trim(),
-        typepanneId: typepanne.id,
-        tenantId: currentTenantId,
-      },
-    });
-    importStage = "enregistrement de la description par parc";
-    await prisma.panneParc.upsert({
-      where: {
-        panneId_parcId: {
-          panneId: panne.id,
-          parcId: parc.id,
+    return [
+      {
+        success: true,
+        data: {
+          id: importResult.panne.id,
+          name: importResult.panne.name,
+          parcName: parc.name,
+          description: description.trim(),
         },
+        message:
+          `Panne ${name.trim()} importée pour le parc ${parc.name}.`,
       },
-
-      update: {
-        description: description.trim(),
-      },
-
-      create: {
-        panneId: panne.id,
-        parcId: parc.id,
-        description: description.trim(),
-      },
-    });
-
-    return [{
-      success: true,
-      data: {
-        id: panne.id,
-        name: panne.name,
-        parcName: parc.name,
-        description: description.trim(),
-      },
-      message:
-        `Panne ${name.trim()} importée pour le parc ${parc.name}.`,
-    }];
+    ];
   } catch (error: unknown) {
     const detail =
       error instanceof Error ? error.message : String(error);
