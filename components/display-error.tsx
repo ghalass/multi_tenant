@@ -1,29 +1,16 @@
-// import React from 'react'
-
-// export default function DisplayError({ error }: { error: string }) {
-//     return (
-//         <>
-//             {
-//                 error && (
-//                     <div className="mt-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
-//                         <p className="text-sm text-red-600 dark:text-red-400 text-center">
-//                             {error}
-//                         </p>
-//                     </div>
-//                 )
-//             }
-//         </>
-//     )
-// }
 import { AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { JSX } from "react";
 
 interface DisplayErrorProps {
     error?: string | null;
     className?: string;
 }
 
-export default function DisplayError({ error, className }: DisplayErrorProps) {
+export default function DisplayError({
+    error,
+    className,
+}: DisplayErrorProps): JSX.Element | null {
     if (!error) return null;
 
     return (

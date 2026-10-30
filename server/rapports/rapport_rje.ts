@@ -314,7 +314,7 @@ export async function getRapportRje(
     enginId: string,
     startDate: Date,
     endDateExclusive: Date,
-  ) => {
+  ): Promise<{ him: number; hrm: number; ni: number }> => {
     const dateFilter = {
       gte: startDate,
       lt: endDateExclusive,
@@ -376,7 +376,7 @@ export async function getRapportRje(
     hrm: number,
     ni: number,
     nho: number,
-  ) => {
+  ): { dispo: string; mtbf: string; tdm: string } => {
     const dispo =
       nho > 0
         ? ((1 - him / nho) * 100).toFixed(2)

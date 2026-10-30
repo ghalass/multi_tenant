@@ -2,9 +2,14 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 // import { UserProvider } from "@/context/UserContext";
-import { ReactNode, useState } from "react";
+import { useState } from "react";
+import type { JSX, ReactNode } from "react";
 
-export default function QueryProvider({ children }: { children: ReactNode }) {
+export default function QueryProvider({
+  children,
+}: {
+  children: ReactNode;
+}): JSX.Element {
   // Pour éviter que QueryClient soit recréé à chaque rendu :
   const [queryClient] = useState(
     () =>

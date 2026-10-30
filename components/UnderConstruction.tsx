@@ -1,4 +1,4 @@
-import React from "react";
+import React, { JSX } from "react";
 import { AlertCircle, Construction, Wrench, Clock, Home } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,7 @@ export default function UnderConstruction({
   pageName = "Cette page",
   estimatedCompletion,
   showHomeButton = true,
-}: UnderConstructionProps) {
+}: UnderConstructionProps): JSX.Element {
   return (
     <div className="flex items-center justify-center ">
       <Card className="w-full max-w-xl shadow-lg border bg-card">

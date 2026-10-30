@@ -4,7 +4,7 @@ import { sleep } from "@/lib/utils";
 import { ImportService } from "@/services/importService";
 import { NextRequest, NextResponse } from "next/server";
 
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
   // 1. Vérifier le JSON reçu
   let body: { sheetName?: unknown; data?: unknown };
 

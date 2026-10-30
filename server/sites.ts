@@ -103,7 +103,7 @@ export async function createSite({ name, active }: { name: string; active: boole
     };
   }
 
-  const { userId, currentTenantId } = await getSession();
+  const { currentTenantId } = await getSession();
 
   // if (!userId) {
   //   return {

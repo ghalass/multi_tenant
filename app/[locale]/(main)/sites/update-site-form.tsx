@@ -34,13 +34,14 @@ import { GlobalLoader } from "@/components/global-loader";
 import DisplayError from "@/components/display-error";
 import yup from "@/lib/yupFr";
 import { yupResolver } from "@hookform/resolvers/yup";
+import type { JSX } from "react";
 
 const formSchema = yup.object({
   name: yup.string().min(2).max(10).required().label("Le nom du site"),
   active: yup.boolean().required(),
 });
 
-export function UpdateSiteForm({ site }: { site: Site }) {
+export function UpdateSiteForm({ site }: { site: Site }): JSX.Element {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -53,7 +54,9 @@ export function UpdateSiteForm({ site }: { site: Site }) {
 
   const router = useRouter();
 
-  async function onSubmit(values: yup.InferType<typeof formSchema>) {
+  async function onSubmit(
+    values: yup.InferType<typeof formSchema>,
+  ): Promise<void> {
     try {
       setError("");
       setIsLoading(true);
@@ -85,7 +88,6 @@ export function UpdateSiteForm({ site }: { site: Site }) {
   useEffect(() => {
     if (!open) {
       form.reset();
-      setError("");
     }
   }, [open, form]);
 
@@ -93,7 +95,13 @@ export function UpdateSiteForm({ site }: { site: Site }) {
     <>
       <GlobalLoader show={isPending} />
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog
+        open={open}
+        onOpenChange={(nextOpen) => {
+          setOpen(nextOpen);
+          if (nextOpen) setError("");
+        }}
+      >
         <DialogTrigger className="text-primary hover:cursor-pointer">
           <PenIcon className="size-4" />
         </DialogTrigger>

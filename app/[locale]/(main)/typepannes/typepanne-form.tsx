@@ -62,7 +62,7 @@ export function TypePanneForm({
     typePanne,
 }: {
     typePanne?: TypePanneItem;
-}) {
+}): React.JSX.Element {
     const isEdit = Boolean(typePanne);
     const [open, setOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -84,11 +84,10 @@ export function TypePanneForm({
                 name: typePanne?.name ?? "",
                 description: typePanne?.description ?? "",
             });
-            setError("");
         }
     }, [open, typePanne, form]);
 
-    async function onSubmit(values: FormValues) {
+    async function onSubmit(values: FormValues): Promise<void> {
         try {
             setIsLoading(true);
             setError("");
@@ -124,7 +123,13 @@ export function TypePanneForm({
         <>
             <GlobalLoader show={isPending} />
 
-            <Dialog open={open} onOpenChange={setOpen}>
+            <Dialog
+                open={open}
+                onOpenChange={(nextOpen) => {
+                    setOpen(nextOpen);
+                    if (nextOpen) setError("");
+                }}
+            >
                 <DialogTrigger asChild>
                     <Button
                         type="button"

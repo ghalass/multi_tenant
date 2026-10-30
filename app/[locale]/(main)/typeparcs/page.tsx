@@ -17,12 +17,13 @@ import CanAccess from "@/components/can-access";
 import { ACTION } from "@/lib/enums";
 import { RESOURCE } from "@/lib/constantes";
 import { ExportExcel } from "@/components/export-excel";
+import type { JSX } from "react";
 
 export default async function TypeParcsPage({
     searchParams,
 }: {
     searchParams: Promise<searchParams>;
-}) {
+}): Promise<JSX.Element> {
     const filters = await searchParams;
     const response = await getAllTypeParcs(filters);
     const typeparcs = response?.data || [];

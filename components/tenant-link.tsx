@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { switchCurrentTenant } from "@/lib/auth";
 import { useRouter } from "next/navigation";
-import { useTransition } from "react";
+import { JSX, useTransition } from "react";
 import { toast } from "sonner";
 
 export default function TenantSwitcher({
@@ -14,11 +14,11 @@ export default function TenantSwitcher({
     tenantName: string;
     tenantId: string;
     currentTenantId?: string;
-}) {
+}): JSX.Element {
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
 
-    async function handleSwitch() {
+    async function handleSwitch(): Promise<void> {
         try {
             await switchCurrentTenant({
                 currentTenantId: tenantId,

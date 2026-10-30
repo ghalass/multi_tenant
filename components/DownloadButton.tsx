@@ -3,8 +3,9 @@
 
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
+import { JSX } from "react/jsx-runtime";
 
-export default function DownloadButtonSimple() {
+export default function DownloadButtonSimple(): JSX.Element {
   return (
     <>
       <p className="text-sm italic ">

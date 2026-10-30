@@ -5,11 +5,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Search, X } from 'lucide-react';
 import { useSearchParams, usePathname, useRouter } from 'next/navigation';
 import { useDebouncedCallback } from 'use-debounce';
-import { useRef, useState, useTransition } from 'react';
+import { useState, useTransition } from 'react';
+import type { JSX } from 'react';
 import { GlobalLoader } from '@/components/global-loader';
 import { ACTIVE } from '@/lib/constantes';
 
-export default function Filters() {
+export default function Filters(): JSX.Element {
     const searchParams = useSearchParams();
     const pathname = usePathname();
     const { replace } = useRouter();
@@ -36,7 +37,7 @@ export default function Filters() {
         });
     }, 300);
 
-    const clearSearch = () => {
+    const clearSearch = (): void => {
         setSearch('');
         const params = new URLSearchParams(searchParams);
         params.delete('name');

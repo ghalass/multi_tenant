@@ -1,16 +1,22 @@
 "use client";
+
 import * as React from "react";
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "@wrksz/themes/client";
 import { Button } from "@/components/ui/button";
 
-export default function ModeToggle() {
-  const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = React.useState(false);
+const subscribe = () => () => { };
+const getSnapshot = (): boolean => true;
+const getServerSnapshot = (): boolean => false;
 
-  React.useEffect(() => {
-    setMounted(true);
-  }, []);
+export default function ModeToggle(): React.JSX.Element {
+  const { theme, setTheme } = useTheme();
+
+  const mounted = React.useSyncExternalStore(
+    subscribe,
+    getSnapshot,
+    getServerSnapshot
+  );
 
   if (!mounted) {
     return (

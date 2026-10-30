@@ -1,9 +1,6 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import {
-  FieldGroup,
-} from "@/components/ui/field";
 
 import { toast } from "sonner";
 import { useState, useTransition } from "react";
@@ -20,15 +17,14 @@ import {
 } from "@/components/ui/dialog";
 import { sleep } from "@/lib/utils";
 import { useRouter } from "next/navigation";
-import { deleteSite } from "@/server/sites";
-import { Site, User } from "@/lib/generated/prisma/client";
+import type { User } from "@/lib/generated/prisma/client";
 import { Spinner } from "@/components/ui/spinner";
 import { GlobalLoader } from "@/components/global-loader";
 import { deleteUser } from "@/server/users";
 import DisplayError from "@/components/display-error";
+import type { JSX } from "react";
 
-
-export function DeleteUserForm({ user }: { user: User }) {
+export function DeleteUserForm({ user }: { user: User }): JSX.Element {
   const [isLoading, setIsLoading] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState("");
@@ -36,7 +32,7 @@ export function DeleteUserForm({ user }: { user: User }) {
 
   const router = useRouter();
 
-  async function onSubmit() {
+  async function onSubmit(): Promise<void> {
     try {
       setError("");
       setIsLoading(true);
@@ -74,7 +70,7 @@ export function DeleteUserForm({ user }: { user: User }) {
           <DialogHeader>
             <DialogTitle>Suppression</DialogTitle>
             <DialogDescription className="flex flex-col">
-              <span>Voulez-vous vraiment supprimer l'utilisateur ?</span>
+              <span>Voulez-vous vraiment supprimer l&apos;utilisateur ?</span>
               <span className="text-destructive italic">{user?.name}</span>
               <span className="text-destructive italic">{user?.email}</span>
             </DialogDescription>

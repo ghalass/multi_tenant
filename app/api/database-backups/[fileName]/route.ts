@@ -17,7 +17,7 @@ type RouteContext = {
 export async function GET(
     _request: Request,
     { params }: RouteContext,
-) {
+): Promise<Response> {
     try {
         const session = await getSession();
 

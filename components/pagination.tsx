@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 
 import { PAGINATION_SETTINGS } from "@/lib/constantes";
+import { JSX } from "react/jsx-runtime";
 
 interface PaginationProps {
     totalPages: number;
@@ -36,7 +37,7 @@ export default function Pagination({
     totalItems,
     itemsPerPage = PAGINATION_SETTINGS.itemsPerPage,
     perPageOptions = PAGINATION_SETTINGS.perPageOptions,
-}: PaginationProps) {
+}: PaginationProps): JSX.Element {
     const searchParams = useSearchParams();
     const pathname = usePathname();
     const { replace } = useRouter();
@@ -48,7 +49,7 @@ export default function Pagination({
         totalItems > 0 &&
         itemsPerPage >= totalItems;
 
-    function handlePageChange(pageNumber: number) {
+    function handlePageChange(pageNumber: number): void {
         const params = new URLSearchParams(searchParams.toString());
 
         params.set("currentPage", String(pageNumber));
@@ -56,7 +57,7 @@ export default function Pagination({
         replace(`${pathname}?${params.toString()}`);
     }
 
-    function handlePerPageChange(value: string) {
+    function handlePerPageChange(value: string): void {
         const params = new URLSearchParams(searchParams.toString());
 
         if (value === "all") {

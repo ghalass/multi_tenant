@@ -19,19 +19,20 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { GlobalLoader } from "@/components/global-loader";
 import DisplayError from "@/components/display-error";
+import type { JSX } from "react";
 
 export function DeleteTypePanneForm({
     typePanne,
 }: {
     typePanne: { id: string; name: string };
-}) {
+}): JSX.Element {
     const [open, setOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [isPending, startTransition] = useTransition();
     const [error, setError] = useState("");
     const router = useRouter();
 
-    async function onDelete() {
+    async function onDelete(): Promise<void> {
         try {
             setIsLoading(true);
             setError("");

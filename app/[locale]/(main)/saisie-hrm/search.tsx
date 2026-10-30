@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useTransition, type FormEvent } from "react";
+import { useState, useTransition, type FormEvent } from "react";
+import type { JSX } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Search as SearchIcon, RotateCcw } from "lucide-react";
 
@@ -42,7 +43,7 @@ export default function Search({
   parcs,
   engins,
   sites,
-}: Props) {
+}: Props): JSX.Element {
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const router = useRouter();
@@ -69,15 +70,6 @@ export default function Search({
     searchParams.get("dateAu") ?? "",
   );
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    setSiteId(searchParams.get("siteId") ?? "all");
-    setTypeparcId(searchParams.get("typeparcId") ?? "all");
-    setParcId(searchParams.get("parcId") ?? "all");
-    setEnginId(searchParams.get("enginId") ?? "all");
-    setDateDu(searchParams.get("dateDu") ?? "");
-    setDateAu(searchParams.get("dateAu") ?? "");
-  }, [searchParams]);
 
   // Les parcs doivent correspondre au type sélectionné
   // et disposer d'engins du site choisi, s'il y en a un.
@@ -116,7 +108,7 @@ export default function Search({
     return matchesSite && matchesType && matchesParc;
   });
 
-  function applySearch(event: FormEvent<HTMLFormElement>) {
+  function applySearch(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
     setError("");
 
@@ -159,7 +151,7 @@ export default function Search({
     });
   }
 
-  function clearFilters() {
+  function clearFilters(): void {
     setSiteId("all");
     setTypeparcId("all");
     setParcId("all");

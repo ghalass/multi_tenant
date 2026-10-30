@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -40,6 +40,7 @@ import {
   createSaisieHrm,
   updateSaisieHrm,
 } from "@/server/saisie_hrm";
+import type { JSX } from "react";
 
 type Option = {
   id: string;
@@ -106,7 +107,7 @@ export function SaisieHrmForm({
   parcs: ParcOption[];
   engins: EnginOption[];
   sites: Option[];
-}) {
+}): JSX.Element {
   const editing = Boolean(saisie);
   const router = useRouter();
 
@@ -174,14 +175,15 @@ export function SaisieHrmForm({
     },
   });
 
-  useEffect(() => {
-    if (!open) return;
+  const handleOpenChange = (nextOpen: boolean): void => {
+    setOpen(nextOpen);
+
+    if (!nextOpen) return;
 
     const currentEngin = engins.find(
       (engin) => engin.id === saisie?.enginId,
     );
 
-    // À la modification, le site et le parc proviennent de l'engin.
     const nextSiteId =
       currentEngin?.siteId ?? saisie?.siteId ?? "";
 
@@ -200,9 +202,9 @@ export function SaisieHrmForm({
     });
 
     setError("");
-  }, [open, saisie, engins, form]);
+  };
 
-  async function onSubmit(values: FormValues) {
+  async function onSubmit(values: FormValues): Promise<void> {
     setError("");
 
     if (!selectedSiteId) {
@@ -285,7 +287,7 @@ export function SaisieHrmForm({
     <>
       <GlobalLoader show={pending} />
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogTrigger asChild>
           <Button
             type="button"
@@ -322,7 +324,7 @@ export function SaisieHrmForm({
 
             <DialogDescription>
               Sélectionnez le site, le parc puis un engin de ce site.
-              Le site enregistré sera automatiquement celui de l'engin.
+              Le site enregistré sera automatiquement celui de l&apos;engin.
             </DialogDescription>
           </DialogHeader>
 

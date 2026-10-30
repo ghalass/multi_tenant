@@ -19,6 +19,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { GlobalLoader } from "@/components/global-loader";
 import DisplayError from "@/components/display-error";
 import { deleteSaisieHim } from "@/server/saisie_him";
+import type { JSX } from "react";
 
 export function DeleteSaisieHimForm({
     saisie,
@@ -29,14 +30,14 @@ export function DeleteSaisieHimForm({
         engin: string;
         panne: string;
     };
-}) {
+}): JSX.Element {
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [pending, startTransition] = useTransition();
     const [error, setError] = useState("");
     const router = useRouter();
 
-    async function onSubmit() {
+    async function onSubmit(): Promise<void> {
         try {
             setLoading(true);
             setError("");

@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Controller, useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { toast } from "sonner";
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { PenIcon } from "lucide-react";
 
 import {
@@ -69,7 +69,7 @@ export function UpdateRoleForm({
 
     const router = useRouter();
 
-    async function onSubmit(values: FormValues) {
+    async function onSubmit(values: FormValues): Promise<void> {
         try {
             setError("");
             setIsLoading(true);
@@ -103,17 +103,17 @@ export function UpdateRoleForm({
         }
     }
 
-    useEffect(() => {
-        if (!open) {
-            setError("");
-        }
-    }, [open]);
-
     return (
         <>
             <GlobalLoader show={isPending} />
 
-            <Dialog open={open} onOpenChange={setOpen}>
+            <Dialog
+                open={open}
+                onOpenChange={(value) => {
+                    setOpen(value);
+                    if (value) setError("");
+                }}
+            >
                 <DialogTrigger className="text-primary hover:cursor-pointer">
                     <PenIcon className="size-4" />
                 </DialogTrigger>

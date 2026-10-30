@@ -1,5 +1,5 @@
 // app/api/import/utils/convertField.ts
-const parseExcelDate = (value: any): Date | null => {
+const parseExcelDate = (value: unknown): Date | null => {
   if (value instanceof Date) {
     return isNaN(value.getTime()) ? null : value;
   }

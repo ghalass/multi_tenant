@@ -7,7 +7,6 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { Wrench } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import {
     getAllTypePannes,
     type TypePannesSearchParams,
@@ -21,12 +20,13 @@ import CanAccess from "@/components/can-access";
 import { ACTION } from "@/lib/enums";
 import { RESOURCE } from "@/lib/constantes";
 import { ExportExcel } from "@/components/export-excel";
+import type { JSX } from "react";
 
 export default async function TypePannesPage({
     searchParams,
 }: {
     searchParams: Promise<TypePannesSearchParams>;
-}) {
+}): Promise<JSX.Element> {
     const filters = await searchParams;
     const response = await getAllTypePannes(filters);
     const typepannes = response.data ?? [];

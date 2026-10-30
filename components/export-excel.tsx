@@ -3,13 +3,19 @@
 import { exportExcel } from "@/lib/xlsxFn";
 import { SaveIcon } from "lucide-react";
 import { Spinner } from "./ui/spinner";
-import { useState } from "react";
+import { JSX, useState } from "react";
 import { sleep } from "@/lib/utils";
 
-export function ExportExcel({ tableName, fileName }: { tableName: string; fileName: string }) {
+export function ExportExcel({
+    tableName,
+    fileName,
+}: {
+    tableName: string;
+    fileName: string;
+}): JSX.Element {
     const [isLoading, setIsLoading] = useState(false);
 
-    const handleExport = async () => {
+    const handleExport = async (): Promise<void> => {
         setIsLoading(true);
 
         // Laisse React afficher le spinner pendant au moins 300 ms

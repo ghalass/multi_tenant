@@ -17,8 +17,9 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 
 import LogoutButton from "./LogoutButton";
+import type { JSX } from "react";
 
-export default async function AuthButtons() {
+export default async function AuthButtons(): Promise<JSX.Element> {
   const session = await getSession();
   const userId = session?.userId;
 

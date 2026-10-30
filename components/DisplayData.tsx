@@ -1,6 +1,6 @@
-import React from "react";
+import type { JSX } from "react";
 
-const DisplayData = (data: any) => {
+const DisplayData = (data: unknown): JSX.Element => {
   return <pre>{JSON.stringify(data, null, 2)}</pre>;
 };
 

@@ -15,8 +15,9 @@ import { useDebouncedCallback } from "use-debounce";
 import { useEffect, useState, useTransition } from "react";
 import { Role } from "@/lib/generated/prisma/client";
 import { GlobalLoader } from "@/components/global-loader";
+import type { JSX } from "react";
 
-export default function Filters({ roles = [] }: { roles?: Role[] }) {
+export default function Filters({ roles = [] }: { roles?: Role[] }): JSX.Element {
     const searchParams = useSearchParams();
     const pathname = usePathname();
     const { replace } = useRouter();
@@ -52,7 +53,7 @@ export default function Filters({ roles = [] }: { roles?: Role[] }) {
         300
     );
 
-    const clearSearch = () => {
+    const clearSearch = (): void => {
         setSearch("");
         const params = new URLSearchParams(searchParams);
         params.delete("name");

@@ -35,6 +35,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Role } from "@/lib/generated/prisma/client";
 import yup from "@/lib/yupFr";
 import { yupResolver } from "@hookform/resolvers/yup";
+import type { JSX } from "react";
 
 const formSchema = yup.object({
   name: yup.string().min(2).required(),
@@ -44,7 +45,7 @@ const formSchema = yup.object({
   roleIds: yup.array().of(yup.string()).default([]),
 });
 
-export function CreateUserForm({ tenantId, roles }: { tenantId: string; roles: Role[] }) {
+export function CreateUserForm({ roles }: { roles: Role[] }): JSX.Element {
   const [isLoading, setIsLoading] = useState(false);
   const [isPending, startTransition] = useTransition();
 
@@ -63,7 +64,9 @@ export function CreateUserForm({ tenantId, roles }: { tenantId: string; roles: R
 
   const router = useRouter();
 
-  async function onSubmit(values: yup.InferType<typeof formSchema>) {
+  async function onSubmit(
+    values: yup.InferType<typeof formSchema>,
+  ): Promise<void> {
     try {
       setError("");
       setIsLoading(true);
@@ -103,14 +106,19 @@ export function CreateUserForm({ tenantId, roles }: { tenantId: string; roles: R
   useEffect(() => {
     if (!open) {
       form.reset();
-      setError("");
     }
   }, [open, form]);
 
   return (
     <div>
       <GlobalLoader show={isPending} />
-      <Dialog open={open} onOpenChange={setOpen} >
+      <Dialog
+        open={open}
+        onOpenChange={(nextOpen) => {
+          setOpen(nextOpen);
+          if (nextOpen) setError("");
+        }}
+      >
         <DialogTrigger disabled={isPending} className="mx-auto inline-flex items-center justify-center rounded-full bg-primary p-1 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 hover:cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50">
           <PlusIcon className="size-4" />
         </DialogTrigger>

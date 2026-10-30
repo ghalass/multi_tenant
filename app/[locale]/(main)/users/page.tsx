@@ -21,12 +21,15 @@ import CanAccess from "@/components/can-access";
 import { ACTION } from "@/lib/enums";
 import { ACTIVE, RESOURCE } from "@/lib/constantes";
 import { ExportExcel } from "@/components/export-excel";
+import type { JSX } from "react";
 
-export default async function UsersPage({ params, searchParams }: {
+export default async function UsersPage({
+  params,
+  searchParams,
+}: {
   params: Promise<{ tenantId: string }>;
   searchParams: Promise<UsersSearchParams>;
-}) {
-  const { tenantId } = await params;
+}): Promise<JSX.Element> {
   const filters = await searchParams;
 
   const response = await getAllUsers(filters);
@@ -47,7 +50,7 @@ export default async function UsersPage({ params, searchParams }: {
           </div>
         </h1>
         <CanAccess resource={resource} action={ACTION.CREATE}>
-          <CreateUserForm tenantId={tenantId} roles={roles} />
+          <CreateUserForm roles={roles} />
         </CanAccess>
         <CanAccess resource={RESOURCE.USER} action={ACTION.EXPORT}>
           <ExportExcel tableName="users-table" fileName="Utilisateurs" />
@@ -95,7 +98,7 @@ export default async function UsersPage({ params, searchParams }: {
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
                           {user.roles && user.roles.length > 0 ? (
-                            user.roles.map((role: any) => (
+                            user.roles.map((role) => (
                               <Badge
                                 key={role.id}
                                 variant="outline"

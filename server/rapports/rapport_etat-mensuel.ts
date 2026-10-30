@@ -74,7 +74,7 @@ function createPeriodMetrics(raw: RawMetrics): PeriodMetrics {
     };
 }
 
-function addRawMetrics(target: RawMetrics, source: RawMetrics) {
+function addRawMetrics(target: RawMetrics, source: RawMetrics): void {
     target.nho += source.nho;
     target.him += source.him;
     target.hrm += source.hrm;

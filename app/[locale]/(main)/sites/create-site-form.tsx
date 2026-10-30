@@ -33,13 +33,14 @@ import { Spinner } from "@/components/ui/spinner";
 import { GlobalLoader } from "@/components/global-loader";
 import DisplayError from "@/components/display-error";
 import yup from "@/lib/yupFr";
+import type { JSX } from "react";
 
 const formSchema = yup.object({
   name: yup.string().min(2).required().label("Le nom du site"),
   active: yup.boolean().required(),
 });
 
-export function CreateSiteForm() {
+export function CreateSiteForm(): JSX.Element {
   const [isLoading, setIsLoading] = useState(false);
   const [isPending, startTransition] = useTransition();
 
@@ -52,7 +53,9 @@ export function CreateSiteForm() {
 
   const router = useRouter();
 
-  async function onSubmit(values: yup.InferType<typeof formSchema>) {
+  async function onSubmit(
+    values: yup.InferType<typeof formSchema>,
+  ): Promise<void> {
     try {
       setError("");
       setIsLoading(true);
@@ -82,7 +85,6 @@ export function CreateSiteForm() {
   useEffect(() => {
     if (!open) {
       form.reset();
-      setError("");
     }
   }, [open, form]);
 
@@ -90,7 +92,13 @@ export function CreateSiteForm() {
   return (
     <div>
       <GlobalLoader show={isPending} />
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog
+        open={open}
+        onOpenChange={(nextOpen) => {
+          setOpen(nextOpen);
+          if (nextOpen) setError("");
+        }}
+      >
         <DialogTrigger className="mx-auto inline-flex items-center justify-center rounded-full bg-primary p-1 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 hover:cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50">
           <PlusIcon className="size-4" />
         </DialogTrigger>

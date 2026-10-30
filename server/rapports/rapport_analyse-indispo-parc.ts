@@ -102,24 +102,14 @@ function emptyTotaux(): TotauxPanne {
     };
 }
 
-function emptyTotauxScope(): TotauxScope {
-    return {
-        ...emptyTotaux(),
-        nhoMois: 0,
-        nhoAnnee: 0,
-        indispMois: 0,
-        indispAnnee: 0,
-    };
-}
-
-function addValeurs(target: ValeursBrutes, source: ValeursBrutes) {
+function addValeurs(target: ValeursBrutes, source: ValeursBrutes): void {
     target.niMois += source.niMois;
     target.niAnnee += source.niAnnee;
     target.himMois += source.himMois;
     target.himAnnee += source.himAnnee;
 }
 
-function addTotaux(target: TotauxPanne, source: TotauxPanne) {
+function addTotaux(target: TotauxPanne, source: TotauxPanne): void {
     target.niMois += source.niMois;
     target.niAnnee += source.niAnnee;
     target.himMois += source.himMois;
@@ -130,7 +120,7 @@ function addTotaux(target: TotauxPanne, source: TotauxPanne) {
     target.coeffHimAnnee += source.coeffHimAnnee;
 }
 
-function roundTotaux(target: TotauxPanne) {
+function roundTotaux(target: TotauxPanne): void {
     target.niMois = round(target.niMois);
     target.niAnnee = round(target.niAnnee);
     target.himMois = round(target.himMois);

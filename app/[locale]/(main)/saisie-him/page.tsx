@@ -25,6 +25,7 @@ import CanAccess from "@/components/can-access";
 import { ACTION } from "@/lib/enums";
 import { RESOURCE } from "@/lib/constantes";
 import { ExportExcel } from "@/components/export-excel";
+import type { JSX } from "react";
 
 type Option = {
     id: string;
@@ -71,7 +72,7 @@ export default async function SaisieHimPage({
     searchParams,
 }: {
     searchParams: Promise<SaisieHimSearchParams>;
-}) {
+}): Promise<JSX.Element> {
     const filters = await searchParams;
     const hasSearched = filters.search === "1";
 
@@ -86,8 +87,7 @@ export default async function SaisieHimPage({
         ? (optionsResponse.data as Options)
         : EMPTY_OPTIONS;
 
-    const saisies: any[] =
-        response?.success ? response.data : [];
+    const saisies = response?.success ? response.data : [];
 
     return (
         <div className="container mx-auto py-2">
@@ -139,6 +139,7 @@ export default async function SaisieHimPage({
             )}
 
             <Search
+                key={JSON.stringify(filters)}
                 typeParcs={options.typeParcs}
                 parcs={options.parcs}
                 engins={options.engins}

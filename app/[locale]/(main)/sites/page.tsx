@@ -7,7 +7,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { MapPin, SaveIcon } from "lucide-react";
+import { MapPin } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { getAllSites, searchParams } from "@/server/sites";
 import { CreateSiteForm } from "./create-site-form";
@@ -20,8 +20,13 @@ import CanAccess from "@/components/can-access";
 import { ACTION } from "@/lib/enums";
 import { ACTIVE, RESOURCE } from "@/lib/constantes";
 import { ExportExcel } from "@/components/export-excel";
+import type { JSX } from "react";
 
-export default async function SitesPage({ searchParams }: { searchParams: Promise<searchParams> }) {
+export default async function SitesPage({
+  searchParams,
+}: {
+  searchParams: Promise<searchParams>;
+}): Promise<JSX.Element> {
   const filters = await searchParams;
 
   const response = await getAllSites(filters);

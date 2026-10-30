@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -47,7 +47,7 @@ export function TypeParcForm({
     typeParc,
 }: {
     typeParc?: TypeParcItem;
-}) {
+}): React.JSX.Element {
     const isEdit = Boolean(typeParc);
     const [open, setOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -60,14 +60,16 @@ export function TypeParcForm({
         defaultValues: { name: typeParc?.name ?? "" },
     });
 
-    useEffect(() => {
-        if (open) {
+    function handleOpenChange(nextOpen: boolean): void {
+        if (nextOpen) {
             form.reset({ name: typeParc?.name ?? "" });
             setError("");
         }
-    }, [open, typeParc, form]);
 
-    async function onSubmit(values: FormValues) {
+        setOpen(nextOpen);
+    }
+
+    async function onSubmit(values: FormValues): Promise<void> {
         try {
             setIsLoading(true);
             setError("");
@@ -96,7 +98,7 @@ export function TypeParcForm({
         <>
             <GlobalLoader show={isPending} />
 
-            <Dialog open={open} onOpenChange={setOpen}>
+            <Dialog open={open} onOpenChange={handleOpenChange}>
                 <DialogTrigger asChild>
                     <Button
                         type="button"

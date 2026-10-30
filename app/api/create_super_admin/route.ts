@@ -12,7 +12,7 @@ const schema = yup.object({
   password: yup.string().min(12).required().label("Mot de passe"),
 });
 
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     // 1. Vérifier le secret d'initialisation
     const expected = process.env.SUPER_ADMIN_SETUP_TOKEN;

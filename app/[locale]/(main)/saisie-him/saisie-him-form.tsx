@@ -1,13 +1,14 @@
 "use client";
 
 import {
+    JSX,
     useEffect,
     useMemo,
     useState,
     useTransition,
 } from "react";
 import { useRouter } from "next/navigation";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { Pencil, Plus } from "lucide-react";
 import { toast } from "sonner";
@@ -135,7 +136,7 @@ export function SaisieHimForm({
     engins: EnginOption[];
     sites: Option[];
     pannes: PanneOption[];
-}) {
+}): JSX.Element {
     const editing = Boolean(saisie);
     const router = useRouter();
 
@@ -170,10 +171,25 @@ export function SaisieHimForm({
         },
     });
 
-    const selectedSiteId = form.watch("siteId");
-    const selectedTypeParcId = form.watch("typeparcId");
-    const selectedParcId = form.watch("parcId");
-    const selectedTypePanneId = form.watch("typepanneId");
+    const selectedSiteId = useWatch({
+        control: form.control,
+        name: "siteId",
+    });
+
+    const selectedTypeParcId = useWatch({
+        control: form.control,
+        name: "typeparcId",
+    });
+
+    const selectedParcId = useWatch({
+        control: form.control,
+        name: "parcId",
+    });
+
+    const selectedTypePanneId = useWatch({
+        control: form.control,
+        name: "typepanneId",
+    });
 
     const filteredParcs = useMemo(
         () =>
@@ -247,7 +263,7 @@ export function SaisieHimForm({
         setError("");
     }, [open, saisie, form, pannes]);
 
-    async function onSubmit(values: FormValues) {
+    async function onSubmit(values: FormValues): Promise<void> {
         setError("");
 
         const selectedEngin = selectableEngins.find(
@@ -668,7 +684,7 @@ export function SaisieHimForm({
                                                     ))}
                                                 </SelectContent>
                                             </Select>
-                                            {selectedPanne && (() => {
+                                            {selectedPanne && ((): JSX.Element | null => {
                                                 const relation = selectedPanne.parcs.find(
                                                     (item) => item.parc.id === selectedParcId,
                                                 );
@@ -730,7 +746,7 @@ export function SaisieHimForm({
                                                 min={0}
                                                 step={1}
                                                 value={field.value ?? ""}
-                                                onChange={(event) =>
+                                                onChange={(event): void =>
                                                     field.onChange(
                                                         event.target.value === ""
                                                             ? ""

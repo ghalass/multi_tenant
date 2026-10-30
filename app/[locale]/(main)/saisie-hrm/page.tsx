@@ -25,6 +25,7 @@ import CanAccess from "@/components/can-access";
 import { ACTION } from "@/lib/enums";
 import { RESOURCE } from "@/lib/constantes";
 import { ExportExcel } from "@/components/export-excel";
+import type { JSX } from "react";
 
 const EMPTY_OPTIONS: SaisieHrmPageOptions = {
   typeParcs: [],
@@ -37,7 +38,7 @@ export default async function SaisieHrmPage({
   searchParams,
 }: {
   searchParams: Promise<SaisieHrmSearchParams>;
-}) {
+}): Promise<JSX.Element> {
   const filters = await searchParams;
   const hasSearched = filters.search === "1";
 
@@ -99,6 +100,7 @@ export default async function SaisieHrmPage({
       )}
 
       <Search
+        key={JSON.stringify(filters)}
         typeParcs={options.typeParcs}
         parcs={options.parcs}
         engins={options.engins}
@@ -149,7 +151,7 @@ export default async function SaisieHrmPage({
                     </TableCell>
                   </TableRow>
                 ) : (
-                  saisies.map((saisie: any) => (
+                  saisies.map((saisie) => (
                     <TableRow key={saisie.id}>
                       <TableCell>
                         {new Date(saisie.du).toLocaleDateString(

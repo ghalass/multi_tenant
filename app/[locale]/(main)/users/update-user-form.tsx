@@ -35,6 +35,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Role, User } from "@/lib/generated/prisma/client";
 import yup from "@/lib/yupFr";
 import { yupResolver } from "@hookform/resolvers/yup";
+import type { JSX } from "react";
 
 const formSchema = yup.object({
   name: yup.string().min(2).required(),
@@ -52,7 +53,7 @@ export function UpdateUserForm({
 }: {
   user: UserWithRoles;
   roles: Role[];
-}) {
+}): JSX.Element {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -71,7 +72,7 @@ export function UpdateUserForm({
 
   const router = useRouter();
 
-  async function onSubmit(values: yup.InferType<typeof formSchema>) {
+  async function onSubmit(values: yup.InferType<typeof formSchema>): Promise<void> {
     try {
 
       setError("");
@@ -113,7 +114,6 @@ export function UpdateUserForm({
   useEffect(() => {
     if (!open) {
       form.reset();
-      setError("");
     }
   }, [open, form]);
 
@@ -121,7 +121,13 @@ export function UpdateUserForm({
     <>
       <GlobalLoader show={isPending} />
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog
+        open={open}
+        onOpenChange={(nextOpen) => {
+          setOpen(nextOpen);
+          if (nextOpen) setError("");
+        }}
+      >
         <DialogTrigger className="text-primary hover:cursor-pointer">
           <PenIcon className="size-4" />
         </DialogTrigger>

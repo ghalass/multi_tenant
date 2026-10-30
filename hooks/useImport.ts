@@ -1,15 +1,19 @@
 // app/hooks/useImport.ts
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQueryClient,
+  type UseMutationResult,
+} from "@tanstack/react-query";
 
 interface ImportData {
   sheetName: string;
-  data: any;
+  data: unknown;
 }
 
 interface ImportResult {
   success: boolean;
   message: string;
-  data: any;
+  data: unknown;
   summary?: {
     total: number;
     success: number;
@@ -29,8 +33,9 @@ const importData = async ({
     body: JSON.stringify({ sheetName, data }),
   });
 
-  const responseData = await response.json();
-
+  const responseData = (await response.json()) as ImportResult & {
+    error?: string;
+  };
   // Si le statut HTTP n'est pas 200-299
   if (!response.ok) {
     // Utiliser le message de l'API s'il existe
@@ -44,7 +49,11 @@ const importData = async ({
   return responseData;
 };
 
-export const useImport = () => {
+export const useImport = (): UseMutationResult<
+  ImportResult,
+  Error,
+  ImportData
+> => {
   const queryClient = useQueryClient();
 
   return useMutation({

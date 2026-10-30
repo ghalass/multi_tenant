@@ -6,8 +6,9 @@ import { useDebouncedCallback } from "use-debounce";
 import { Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { GlobalLoader } from "@/components/global-loader";
+import type { JSX } from "react";
 
-export default function TypeParcsSearch() {
+export default function TypeParcsSearch(): JSX.Element {
     const searchParams = useSearchParams();
     const pathname = usePathname();
     const router = useRouter();
@@ -34,7 +35,7 @@ export default function TypeParcsSearch() {
         });
     }, 300);
 
-    function clearSearch() {
+    function clearSearch(): void {
         setSearch("");
         updateSearch.cancel();
 

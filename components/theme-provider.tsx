@@ -4,9 +4,10 @@
 import {
   ThemeProvider as ThemesProvider,
 } from "@wrksz/themes/next";
+import type { ComponentProps, JSX } from "react";
 
 export function ThemeProvider(
-  props: React.ComponentProps<typeof ThemesProvider>,
-) {
+  props: ComponentProps<typeof ThemesProvider>,
+): JSX.Element {
   return <ThemesProvider {...props} />;
 }

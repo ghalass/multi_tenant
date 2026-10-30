@@ -1,9 +1,6 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import {
-  FieldGroup,
-} from "@/components/ui/field";
 
 import { toast } from "sonner";
 import { useState, useTransition } from "react";
@@ -25,9 +22,9 @@ import type { Site } from "@/lib/generated/prisma/client";
 import { Spinner } from "@/components/ui/spinner";
 import { GlobalLoader } from "@/components/global-loader";
 import DisplayError from "@/components/display-error";
+import type { JSX } from "react";
 
-
-export function DeleteSiteForm({ site }: { site: Site }) {
+export function DeleteSiteForm({ site }: { site: Site }): JSX.Element {
   const [isLoading, setIsLoading] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState("");
@@ -35,7 +32,7 @@ export function DeleteSiteForm({ site }: { site: Site }) {
 
   const router = useRouter();
 
-  async function onSubmit() {
+  async function onSubmit(): Promise<void> {
     try {
       setError("");
       setIsLoading(true);

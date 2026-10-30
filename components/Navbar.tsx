@@ -4,14 +4,13 @@ import AuthButtons from "./AuthButtons";
 import { APP_NAME } from "@/lib/constantes";
 import Link from "next/link";
 import { getCurrentTenant } from "@/server/tenants";
-import LanguageSelector from "./language-selector";
+import type { JSX } from "react";
 
 export default async function Navbar({
   showSidebarTrigger = true,
 }: {
   showSidebarTrigger?: boolean;
-}) {
-
+}): Promise<JSX.Element> {
   const currentTenant = await getCurrentTenant();
 
   return (

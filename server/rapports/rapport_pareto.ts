@@ -389,12 +389,6 @@ export async function getRapportPareto(
         const debutMois = new Date(Date.UTC(annee, mois - 1, 1));
         const finMois = new Date(Date.UTC(annee, mois, 1));
 
-        const joursDansMois = new Date(
-            Date.UTC(annee, mois, 0),
-        ).getUTCDate();
-
-        const heuresMois = joursDansMois * 24;
-
         const tousLesEngins = await prisma.engin.findMany({
             where: {
                 tenantId,

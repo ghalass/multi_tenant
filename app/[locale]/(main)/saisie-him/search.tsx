@@ -1,7 +1,7 @@
 "use client";
 
 import {
-    useEffect,
+    JSX,
     useState,
     useTransition,
     type FormEvent,
@@ -63,7 +63,7 @@ export default function Search({
     engins,
     sites,
     pannes,
-}: Props) {
+}: Props): JSX.Element {
     const searchParams = useSearchParams();
     const pathname = usePathname();
     const router = useRouter();
@@ -99,16 +99,6 @@ export default function Search({
     );
 
     const [error, setError] = useState("");
-
-    useEffect(() => {
-        setSiteId(searchParams.get("siteId") ?? "all");
-        setTypeparcId(searchParams.get("typeparcId") ?? "all");
-        setParcId(searchParams.get("parcId") ?? "all");
-        setEnginId(searchParams.get("enginId") ?? "all");
-        setPanneId(searchParams.get("panneId") ?? "all");
-        setDateDu(searchParams.get("dateDu") ?? "");
-        setDateAu(searchParams.get("dateAu") ?? "");
-    }, [searchParams]);
 
     // Filtrer les parcs par type et par site.
     const filteredParcs = parcs.filter((parc) => {
@@ -158,7 +148,7 @@ export default function Search({
                 )
             );
 
-    function applySearch(event: FormEvent<HTMLFormElement>) {
+    function applySearch(event: FormEvent<HTMLFormElement>): void {
         event.preventDefault();
         setError("");
 
@@ -205,7 +195,7 @@ export default function Search({
         });
     }
 
-    function clearFilters() {
+    function clearFilters(): void {
         setSiteId("all");
         setTypeparcId("all");
         setParcId("all");

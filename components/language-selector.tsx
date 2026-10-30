@@ -4,8 +4,9 @@ import { Button } from "./ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { LANGUAGES } from "@/lib/constantes";
 import { useChangeLocale, useCurrentLocale } from "@/locales/client";
+import type { JSX } from "react";
 
-export default function LanguageSelector() {
+export default function LanguageSelector(): JSX.Element {
   const changeLocale = useChangeLocale()
   const locale = useCurrentLocale()
 

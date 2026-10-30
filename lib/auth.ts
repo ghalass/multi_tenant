@@ -3,17 +3,20 @@
 
 import bcrypt from "bcryptjs";
 import { cookies } from "next/headers";
-import { getIronSession } from "iron-session";
 import { redirect } from "next/navigation";
 
 import { prisma } from "@/lib/prisma";
 import { sleep } from "@/lib/utils";
+import { getIronSession, type IronSession } from "iron-session";
 
-export async function hashPassword(password: string) {
+export async function hashPassword(password: string): Promise<string> {
   return await bcrypt.hash(password, 10);
 }
 
-export async function verifyPassword(password: string, hashedPassword: string) {
+export async function verifyPassword(
+  password: string,
+  hashedPassword: string,
+): Promise<boolean> {
   const passwordMatches = await bcrypt.compare(password, hashedPassword);
   return passwordMatches;
 }
@@ -36,7 +39,7 @@ const sessionOptions = {
   },
 };
 
-export async function getSession() {
+export async function getSession(): Promise<IronSession<SessionData>> {
   await sleep()
   const cookieStore = await cookies();
   const session = await getIronSession<SessionData>(
@@ -51,7 +54,13 @@ export async function getSession() {
   return session;
 }
 
-export async function saveSession({ userId, currentTenantId }: { userId?: string, currentTenantId?: string }) {
+export async function saveSession({
+  userId,
+  currentTenantId,
+}: {
+  userId?: string;
+  currentTenantId?: string;
+}): Promise<void> {
   const session = await getSession();
   session.userId = userId;
   session.currentTenantId = currentTenantId;
@@ -62,7 +71,7 @@ export async function switchCurrentTenant({
   currentTenantId,
 }: {
   currentTenantId?: string;
-}) {
+}): Promise<void> {
   const session = await getSession();
 
   if (!session.userId) {
@@ -118,7 +127,10 @@ export async function switchCurrentTenant({
   await session.save();
 }
 
-export async function login(email: string, password: string) {
+export async function login(
+  email: string,
+  password: string,
+): Promise<{ success: boolean; message: string }> {
   try {
     await sleep();
 
@@ -191,7 +203,7 @@ export async function login(email: string, password: string) {
   }
 }
 
-export async function logout() {
+export async function logout(): Promise<never> {
   const session = await getSession();
 
   session.destroy();

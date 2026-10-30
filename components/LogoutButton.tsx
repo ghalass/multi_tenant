@@ -2,8 +2,9 @@
 
 import { logout } from "@/lib/auth";
 import { LogOut } from "lucide-react";
+import { JSX } from "react/jsx-runtime";
 
-export default function LogoutButton() {
+export default function LogoutButton(): JSX.Element {
   return (
     <button
       onClick={async () => {
