@@ -1,3 +1,4 @@
+
 "use server";
 
 import { prisma } from "@/lib/prisma";
@@ -60,10 +61,6 @@ function parseSaisieHrmDate(value: string): Date | null {
   return date;
 }
 
-/**
- * Refuse toute date HRM postérieure à la date du jour.
- * La comparaison se fait sur YYYY-MM-DD en UTC.
- */
 function validateDateHrmNotFuture(date: Date): string | null {
   if (Number.isNaN(date.getTime())) {
     return "La date de saisie est invalide.";
@@ -107,15 +104,7 @@ function parseNumber(value: unknown): number | null {
 }
 
 /**
- * Vérifie que le nouveau relevé respecte la progression
- * chronologique des compteurs de l'engin.
- *
- * Règles :
- * - Le nouveau compteur ne peut pas être inférieur
- *   au dernier relevé précédent.
- * - Il ne peut pas dépasser le premier relevé suivant.
- * - Les saisies sans compteur sont ignorées.
- * - Lors d'une modification, la saisie actuelle est exclue.
+ * Vérifie la progression chronologique des compteurs de l'engin.
  */
 async function validateCompteurChronologique(
   tx: Prisma.TransactionClient,
@@ -202,8 +191,7 @@ async function validateCompteurChronologique(
 }
 
 /**
- * Vérifie qu'une modification de HRM/NHO ne rend pas incohérent
- * le cumul des HIM déjà enregistrées pour cette journée.
+ * Vérifie que HRM + HIM reste inférieur ou égal à NHO.
  */
 async function validateExistingHimCapacity(
   tx: Prisma.TransactionClient,
@@ -491,6 +479,7 @@ async function validateSaisieHrmInput(
   values: SaisieHrmInput,
   tenantId: string,
   allowInactiveEnginId?: string,
+  allowInactiveSiteId?: string,
 ): Promise<
   | { error: string }
   | {
@@ -574,9 +563,11 @@ async function validateSaisieHrmInput(
       where: {
         id: values.siteId,
         tenantId,
+      },
+      select: {
+        id: true,
         active: true,
       },
-      select: { id: true },
     }),
   ]);
 
@@ -595,7 +586,14 @@ async function validateSaisieHrmInput(
 
   if (!site) {
     return {
-      error: "Le site sélectionné est invalide ou inactif.",
+      error: "Le site sélectionné est introuvable.",
+    };
+  }
+
+  if (!site.active && site.id !== allowInactiveSiteId) {
+    return {
+      error:
+        "Ce site est inactif. Une nouvelle saisie HRM n'est pas autorisée.",
     };
   }
 
@@ -624,7 +622,6 @@ export async function createSaisieHrm(
   }
 
   try {
-    // Sans identifiant de saisie existante, un engin inactif est refusé.
     const validated = await validateSaisieHrmInput(values, tenantId);
 
     if ("error" in validated) {
@@ -633,6 +630,46 @@ export async function createSaisieHrm(
 
     await prisma.$transaction(
       async (tx) => {
+        const currentEngin = await tx.engin.findFirst({
+          where: {
+            id: values.enginId,
+            tenantId,
+          },
+          select: {
+            active: true,
+            siteId: true,
+          },
+        });
+
+        if (!currentEngin || !currentEngin.active) {
+          throw new Error(
+            "Cet engin est introuvable ou inactif. Une nouvelle saisie HRM n'est pas autorisée.",
+          );
+        }
+
+        if (currentEngin.siteId !== values.siteId) {
+          throw new Error(
+            "Le site sélectionné ne correspond plus au site actuel de l'engin.",
+          );
+        }
+
+        const currentSite = await tx.site.findFirst({
+          where: {
+            id: values.siteId,
+            tenantId,
+            active: true,
+          },
+          select: {
+            id: true,
+          },
+        });
+
+        if (!currentSite) {
+          throw new Error(
+            "Le site sélectionné est inactif ou introuvable. Aucune nouvelle saisie HRM n'est autorisée.",
+          );
+        }
+
         const duplicate = await tx.saisiehrm.findFirst({
           where: {
             du: validated.du,
@@ -710,8 +747,6 @@ export async function updateSaisieHrm(
   }
 
   try {
-    // Récupérer l'engin de la saisie existante.
-    // Seul cet engin inactif peut être conservé lors de la correction.
     const existingSaisie = await prisma.saisiehrm.findFirst({
       where: {
         id: values.id,
@@ -720,6 +755,7 @@ export async function updateSaisieHrm(
       select: {
         id: true,
         enginId: true,
+        siteId: true,
       },
     });
 
@@ -734,6 +770,7 @@ export async function updateSaisieHrm(
       values,
       tenantId,
       existingSaisie.enginId,
+      existingSaisie.siteId,
     );
 
     if ("error" in validated) {
@@ -750,6 +787,7 @@ export async function updateSaisieHrm(
           select: {
             id: true,
             enginId: true,
+            siteId: true,
           },
         });
 
@@ -757,7 +795,6 @@ export async function updateSaisieHrm(
           throw new Error("Saisie HRM introuvable.");
         }
 
-        // Vérifier à nouveau le statut dans la transaction.
         const selectedEngin = await tx.engin.findFirst({
           where: {
             id: values.enginId,
@@ -765,6 +802,7 @@ export async function updateSaisieHrm(
           },
           select: {
             active: true,
+            siteId: true,
           },
         });
 
@@ -775,6 +813,39 @@ export async function updateSaisieHrm(
         if (!selectedEngin.active && values.enginId !== existing.enginId) {
           throw new Error(
             "Cet engin est inactif. Une saisie ne peut pas être déplacée vers un engin inactif.",
+          );
+        }
+
+        if (selectedEngin.siteId !== values.siteId) {
+          throw new Error(
+            "Le site sélectionné doit correspondre au site de l'engin.",
+          );
+        }
+
+        const selectedSite = await tx.site.findFirst({
+          where: {
+            id: values.siteId,
+            tenantId,
+          },
+          select: {
+            id: true,
+            active: true,
+          },
+        });
+
+        if (!selectedSite) {
+          throw new Error("Le site sélectionné est introuvable.");
+        }
+
+        if (
+          !selectedSite.active &&
+          (
+            values.siteId !== existing.siteId ||
+            values.enginId !== existing.enginId
+          )
+        ) {
+          throw new Error(
+            "Ce site est inactif. Une correction historique doit conserver le site et l'engin d'origine.",
           );
         }
 
@@ -1092,6 +1163,15 @@ export async function importSaisieHrm(
       }];
     }
 
+    if (engin.siteId !== site.id) {
+      return [{
+        success: false,
+        data,
+        message:
+          `Le site "${site.name}" ne correspond pas au site actuel de l'engin "${enginName}".`,
+      }];
+    }
+
     const compteurData =
       hasCompteur && compteur !== null ? { compteur } : {};
 
@@ -1104,11 +1184,33 @@ export async function importSaisieHrm(
           },
           select: {
             active: true,
+            siteId: true,
           },
         });
 
         if (!currentEngin) {
           throw new Error(`Engin "${enginName}" introuvable.`);
+        }
+
+        if (currentEngin.siteId !== site.id) {
+          throw new Error(
+            `Le site "${site.name}" ne correspond plus au site actuel de l'engin "${enginName}".`,
+          );
+        }
+
+        const currentSite = await tx.site.findFirst({
+          where: {
+            id: site.id,
+            tenantId: currentTenantId,
+          },
+          select: {
+            id: true,
+            active: true,
+          },
+        });
+
+        if (!currentSite) {
+          throw new Error(`Site "${siteName}" introuvable.`);
         }
 
         const existing = await tx.saisiehrm.findUnique({
@@ -1122,6 +1224,7 @@ export async function importSaisieHrm(
           select: {
             id: true,
             compteur: true,
+            siteId: true,
           },
         });
 
@@ -1130,6 +1233,15 @@ export async function importSaisieHrm(
         if (!currentEngin.active && !existing) {
           throw new Error(
             `Import refusé : l'engin "${enginName}" est inactif. Aucune nouvelle saisie HRM n'est autorisée.`,
+          );
+        }
+
+        if (
+          !currentSite.active &&
+          (!existing || existing.siteId !== currentSite.id)
+        ) {
+          throw new Error(
+            `Import refusé : le site "${site.name}" est inactif. Seule la correction d'une saisie HRM déjà rattachée à ce site est autorisée.`,
           );
         }
 

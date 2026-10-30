@@ -13,13 +13,13 @@ type EnginOption = NamedOption & {
   siteId: string;
   active: boolean;
 };
+type SiteOption = NamedOption & { active: boolean };
 
 export type SaisieHrmPageOptions = {
-  // Noms distincts pour éviter de confondre les types de parc et les sites.
   typeParcs: NamedOption[];
   parcs: ParcOption[];
   engins: EnginOption[];
-  sites: NamedOption[];
+  sites: SiteOption[];
 };
 
 const EMPTY_OPTIONS: SaisieHrmPageOptions = {
@@ -40,8 +40,6 @@ export async function getSaisieHrmPageOptions(): Promise<{
     guard(ACTION.UPDATE, RESOURCE.SAISIE_HRM),
   ]);
 
-  // La liste d'options sert à lire, ajouter ou modifier une saisie.
-  // Il suffit qu'au moins un de ces droits soit accordé pour afficher les options.
   const permission = permissions.find((item) => item.success);
   const deniedPermission = permissions.find(
     (item): item is { success: false; message: string } => !item.success,
@@ -78,21 +76,19 @@ export async function getSaisieHrmPageOptions(): Promise<{
     };
   }
 
-  // Chaque liste est obtenue depuis son propre modèle Prisma.
-  // Les sites ne sont jamais utilisés pour construire typeParcs.
   const [typeParcsRows, parcsRows, enginsRows, sitesRows] = await Promise.all([
     prisma.typeparc.findMany({
       where: { tenantId: tenant.id },
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),
+
     prisma.parc.findMany({
       where: { tenantId: tenant.id },
       select: { id: true, name: true, typeparcId: true },
       orderBy: { name: "asc" },
     }),
-    // Les engins inactifs restent disponibles pour filtrer l'historique et
-    // modifier une saisie existante ; le formulaire d'ajout les exclut.
+
     prisma.engin.findMany({
       where: { tenantId: tenant.id },
       select: {
@@ -104,9 +100,11 @@ export async function getSaisieHrmPageOptions(): Promise<{
       },
       orderBy: { name: "asc" },
     }),
+
+    // Les sites inactifs sont nécessaires pour corriger les anciennes saisies.
     prisma.site.findMany({
-      where: { tenantId: tenant.id, active: true },
-      select: { id: true, name: true },
+      where: { tenantId: tenant.id },
+      select: { id: true, name: true, active: true },
       orderBy: { name: "asc" },
     }),
   ]);
@@ -128,7 +126,11 @@ export async function getSaisieHrmPageOptions(): Promise<{
         siteId,
         active,
       })),
-      sites: sitesRows.map(({ id, name }) => ({ id, name })),
+      sites: sitesRows.map(({ id, name, active }) => ({
+        id,
+        name,
+        active,
+      })),
     },
   };
 }

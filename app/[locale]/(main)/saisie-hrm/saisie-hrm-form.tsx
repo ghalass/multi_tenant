@@ -47,6 +47,10 @@ type Option = {
   name: string;
 };
 
+type SiteOption = Option & {
+  active: boolean;
+};
+
 type ParcOption = Option & {
   typeparcId: string;
 };
@@ -81,8 +85,7 @@ const schema = yup.object({
     .typeError("Saisissez une valeur numérique.")
     .min(0, "La HRM ne peut pas être négative.")
     .max(24, "La HRM ne peut pas dépasser 24 heures.")
-    .required("La HRM est obligatoire.")
-  ,
+    .required("La HRM est obligatoire."),
   compteur: yup
     .number()
     .transform((value, originalValue) =>
@@ -106,7 +109,7 @@ export function SaisieHrmForm({
   saisie?: SaisieHrm;
   parcs: ParcOption[];
   engins: EnginOption[];
-  sites: Option[];
+  sites: SiteOption[];
 }): JSX.Element {
   const editing = Boolean(saisie);
   const router = useRouter();
@@ -128,6 +131,18 @@ export function SaisieHrmForm({
     initialEngin?.parcId ?? "",
   );
 
+  // Un site inactif n'est proposé que pour corriger
+  // une saisie déjà rattachée à ce même site.
+  const selectableSites = useMemo(
+    () =>
+      sites.filter(
+        (site) =>
+          site.active ||
+          (editing && site.id === saisie?.siteId),
+      ),
+    [sites, editing, saisie?.siteId],
+  );
+
   // Pour une saisie existante, garder l'engin même s'il est inactif.
   // Pour une nouvelle saisie, proposer uniquement les engins actifs.
   const selectableEngins = useMemo(
@@ -138,8 +153,6 @@ export function SaisieHrmForm({
     [engins, saisie?.enginId],
   );
 
-  // Ne proposer que les parcs qui possèdent au moins un engin
-  // dans le site sélectionné.
   const filteredParcs = useMemo(() => {
     if (!selectedSiteId) return [];
 
@@ -152,7 +165,6 @@ export function SaisieHrmForm({
     );
   }, [parcs, selectableEngins, selectedSiteId]);
 
-  // L'engin doit appartenir au site ET au parc sélectionnés.
   const filteredEngins = useMemo(
     () =>
       selectableEngins.filter(
@@ -239,10 +251,7 @@ export function SaisieHrmForm({
       const payload = {
         du: values.du,
         enginId: selectedEngin.id,
-
-        // Le site enregistré est toujours celui de l'engin.
         siteId: selectedEngin.siteId,
-
         hrm: Number(values.hrm),
         nho: values.nho,
         compteur:
@@ -280,7 +289,7 @@ export function SaisieHrmForm({
 
   const disabled =
     loading ||
-    sites.length === 0 ||
+    selectableSites.length === 0 ||
     selectableEngins.length === 0;
 
   return (
@@ -382,8 +391,6 @@ export function SaisieHrmForm({
                                 form.getValues("enginId"),
                             );
 
-                          // Un changement de site invalide l'engin
-                          // s'il n'appartient pas au nouveau site.
                           if (
                             !currentEngin ||
                             currentEngin.siteId !== nextSiteId
@@ -421,12 +428,14 @@ export function SaisieHrmForm({
                             Sélectionner un site
                           </SelectItem>
 
-                          {sites.map((site) => (
+                          {selectableSites.map((site) => (
                             <SelectItem
                               key={site.id}
                               value={site.id}
                             >
-                              {site.name}
+                              {site.active
+                                ? site.name
+                                : `${site.name} (inactif – historique)`}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -525,7 +534,6 @@ export function SaisieHrmForm({
 
                           field.onChange(nextEngin.id);
 
-                          // Synchroniser le site et le parc sur l'engin choisi.
                           setSelectedSiteId(nextEngin.siteId);
                           setSelectedParcId(nextEngin.parcId);
 
