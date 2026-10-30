@@ -596,30 +596,111 @@ export async function deleteEngin(
   }
 
   try {
-    const engin = await prisma.engin.findFirst({
-      where: {
-        id,
-        tenantId,
-      },
-      select: {
-        id: true,
-      },
-    });
+    const result = await prisma.$transaction(
+      async (tx) => {
+        const engin = await tx.engin.findFirst({
+          where: { id, tenantId },
+          select: { id: true },
+        });
 
-    if (!engin) {
-      return {
-        success: false,
-        message: "Engin introuvable.",
-      };
-    }
+        if (!engin) {
+          return {
+            deleted: false as const,
+            message: "Engin introuvable.",
+          };
+        }
 
-    await prisma.engin.delete({
-      where: { id },
-    });
+        const [
+          saisiesHrm,
+          saisiesHim,
+          backlogs,
+          affectationsMaintenance,
+          suivisMaintenance,
+          historiquesMaintenance,
+        ] = await Promise.all([
+          tx.saisiehrm.count({
+            where: { enginId: id, tenantId },
+          }),
+          tx.saisiehim.count({
+            where: {
+              tenantId,
+              saisiehrm: {
+                is: { enginId: id, tenantId },
+              },
+            },
+          }),
+          tx.backlog.count({
+            where: { enginId: id, tenantId },
+          }),
+          tx.affectationPlanMaintenance.count({
+            where: { enginId: id, tenantId },
+          }),
+          tx.suiviPlanMaintenanceEngin.count({
+            where: { enginId: id, tenantId },
+          }),
+          tx.historiqueMaintenancePreventive.count({
+            where: { enginId: id, tenantId },
+          }),
+        ]);
+
+        const dependencies: string[] = [];
+
+        if (saisiesHrm > 0) {
+          dependencies.push(`${saisiesHrm} saisie(s) HRM`);
+        }
+
+        if (saisiesHim > 0) {
+          dependencies.push(`${saisiesHim} saisie(s) HIM`);
+        }
+
+        if (backlogs > 0) {
+          dependencies.push(`${backlogs} backlog(s)`);
+        }
+
+        if (affectationsMaintenance > 0) {
+          dependencies.push(
+            `${affectationsMaintenance} affectation(s) de maintenance`,
+          );
+        }
+
+        if (suivisMaintenance > 0) {
+          dependencies.push(
+            `${suivisMaintenance} suivi(s) de maintenance`,
+          );
+        }
+
+        if (historiquesMaintenance > 0) {
+          dependencies.push(
+            `${historiquesMaintenance} historique(s) de maintenance`,
+          );
+        }
+
+        if (dependencies.length > 0) {
+          return {
+            deleted: false as const,
+            message:
+              `Suppression impossible : cet engin est lié à ${dependencies.join(", ")}. ` +
+              "Désactivez l'engin pour conserver son historique.",
+          };
+        }
+
+        await tx.engin.delete({
+          where: { id },
+        });
+
+        return {
+          deleted: true as const,
+          message: "Engin supprimé avec succès.",
+        };
+      },
+      {
+        isolationLevel: "Serializable",
+      },
+    );
 
     return {
-      success: true,
-      message: "Engin supprimé avec succès.",
+      success: result.deleted,
+      message: result.message,
     };
   } catch (error) {
     console.error("deleteEngin error:", error);
@@ -627,7 +708,7 @@ export async function deleteEngin(
     return {
       success: false,
       message:
-        "Suppression impossible : cet engin est peut-être lié à des saisies HRM.",
+        "Suppression impossible : des données sont encore liées à cet engin. Aucune donnée historique n'a été supprimée.",
     };
   }
 }

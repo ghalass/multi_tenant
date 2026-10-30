@@ -1,4 +1,3 @@
-
 "use server";
 
 import { prisma } from "@/lib/prisma";
@@ -105,7 +104,11 @@ export async function getAllParcs(
   };
 }
 
-export async function getParcTypeOptions(): Promise<{ success: boolean; message: string; data: { id: string; name: string; }[]; }> {
+export async function getParcTypeOptions(): Promise<{
+  success: boolean;
+  message: string;
+  data: { id: string; name: string }[];
+}> {
   const permission = await guard(ACTION.READ, RESOURCE.PARC);
 
   if (!permission.success) {
@@ -279,7 +282,9 @@ export async function updateParc(values: {
   }
 }
 
-export async function deleteParc(id: string): Promise<ActionResponse> {
+export async function deleteParc(
+  id: string,
+): Promise<ActionResponse> {
   const permission = await guard(ACTION.DELETE, RESOURCE.PARC);
 
   if (!permission.success) {
@@ -293,30 +298,116 @@ export async function deleteParc(id: string): Promise<ActionResponse> {
   }
 
   try {
-    const parc = await prisma.parc.findFirst({
-      where: { id, tenantId },
-      select: { id: true },
-    });
+    const result = await prisma.$transaction(
+      async (tx) => {
+        const parc = await tx.parc.findFirst({
+          where: { id, tenantId },
+          select: { id: true },
+        });
 
-    if (!parc) {
-      return { success: false, message: "Parc introuvable." };
-    }
+        if (!parc) {
+          return {
+            deleted: false as const,
+            message: "Parc introuvable.",
+          };
+        }
 
-    await prisma.parc.delete({ where: { id } });
+        const [
+          engins,
+          associationsPannes,
+          objectifs,
+          affectationsMaintenance,
+        ] = await Promise.all([
+          tx.engin.count({
+            where: { parcId: id, tenantId },
+          }),
+          tx.panneParc.count({
+            where: { parcId: id },
+          }),
+          tx.objectif.count({
+            where: { parcId: id, tenantId },
+          }),
+          tx.affectationPlanMaintenance.count({
+            where: { parcId: id, tenantId },
+          }),
+        ]);
 
-    return { success: true, message: "Parc supprimé avec succès." };
+        const dependencies: string[] = [];
+
+        if (engins > 0) {
+          dependencies.push(`${engins} engin(s)`);
+        }
+
+        if (associationsPannes > 0) {
+          dependencies.push(
+            `${associationsPannes} association(s) avec des pannes`,
+          );
+        }
+
+        if (objectifs > 0) {
+          dependencies.push(`${objectifs} objectif(s)`);
+        }
+
+        if (affectationsMaintenance > 0) {
+          dependencies.push(
+            `${affectationsMaintenance} affectation(s) de maintenance`,
+          );
+        }
+
+        if (dependencies.length > 0) {
+          return {
+            deleted: false as const,
+            message:
+              `Suppression impossible : ce parc est encore utilisé par ${dependencies.join(", ")}. ` +
+              "Supprimez ou réaffectez d'abord ces dépendances. Les données liées sont conservées.",
+          };
+        }
+
+        await tx.parc.delete({
+          where: { id },
+        });
+
+        return {
+          deleted: true as const,
+          message: "Parc supprimé avec succès.",
+        };
+      },
+      {
+        isolationLevel: "Serializable",
+      },
+    );
+
+    return {
+      success: result.deleted,
+      message: result.message,
+    };
   } catch (error) {
     console.error("deleteParc error:", error);
 
     return {
       success: false,
       message:
-        "Suppression impossible : ce parc est peut-être utilisé par des engins, des pannes ou des objectifs.",
+        "Suppression impossible : des données sont encore liées à ce parc. Aucune donnée liée n'a été supprimée.",
     };
   }
 }
 
-export async function importParcs(data: Record<string, unknown>): Promise<{ success: boolean; data: null; message: string; }[] | { success: boolean; data: Record<string, unknown>; message: string; }[] | { success: boolean; data: { id: string; name: string; tenantId: string; typeparcId: string; }; message: string; }[]> {
+export async function importParcs(
+  data: Record<string, unknown>,
+): Promise<
+  | { success: boolean; data: null; message: string }[]
+  | { success: boolean; data: Record<string, unknown>; message: string }[]
+  | {
+    success: boolean;
+    data: {
+      id: string;
+      name: string;
+      tenantId: string;
+      typeparcId: string;
+    };
+    message: string;
+  }[]
+> {
   try {
     const permission = await guard(ACTION.IMPORT, RESOURCE.PARC);
 
