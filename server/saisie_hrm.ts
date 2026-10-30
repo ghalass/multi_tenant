@@ -61,6 +61,25 @@ function parseSaisieHrmDate(value: string): Date | null {
   return date;
 }
 
+/**
+ * Refuse toute date HRM postérieure à la date du jour.
+ * La comparaison se fait sur YYYY-MM-DD en UTC.
+ */
+function validateDateHrmNotFuture(date: Date): string | null {
+  if (Number.isNaN(date.getTime())) {
+    return "La date de saisie est invalide.";
+  }
+
+  const dateSaisie = date.toISOString().slice(0, 10);
+  const dateAujourdhui = new Date().toISOString().slice(0, 10);
+
+  if (dateSaisie > dateAujourdhui) {
+    return "La date de saisie HRM ne peut pas être dans le futur.";
+  }
+
+  return null;
+}
+
 function hasValue(value: unknown): boolean {
   return (
     value !== null &&
@@ -460,6 +479,12 @@ async function validateSaisieHrmInput(
     return { error: "La date de saisie est invalide." };
   }
 
+  const dateError = validateDateHrmNotFuture(du);
+
+  if (dateError) {
+    return { error: dateError };
+  }
+
   if (!values.enginId || !values.siteId) {
     return { error: "L'engin et le site sont obligatoires." };
   }
@@ -842,6 +867,16 @@ export async function importSaisieHrm(
         success: false,
         data,
         message: "Le champ 'du' est obligatoire ou invalide.",
+      }];
+    }
+
+    const dateError = validateDateHrmNotFuture(du);
+
+    if (dateError) {
+      return [{
+        success: false,
+        data,
+        message: dateError,
       }];
     }
 

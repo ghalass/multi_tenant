@@ -506,8 +506,8 @@ export function ExcelImporter({
 
   // Virtualizer pour les lignes
   // TanStack Virtual exposes a mutable virtualizer API that React Compiler skips.
-  // eslint-disable-next-line react-hooks/incompatible-library
   const rowHeight = 80;
+  // eslint-disable-next-line react-hooks/incompatible-library
   const rowVirtualizer = useVirtualizer({
     count:
       previewMode === "full"
