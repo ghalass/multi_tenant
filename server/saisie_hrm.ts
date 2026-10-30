@@ -1,3 +1,4 @@
+
 "use server";
 
 import { prisma } from "@/lib/prisma";
@@ -87,7 +88,136 @@ function parseNumber(value: unknown): number | null {
   return Number.isFinite(result) ? result : null;
 }
 
-export async function getSaisieHrmOptions(): Promise<{ success: boolean; message: string; data: { typeparcs: { id: string; name: string; }[]; parcs: { id: string; name: string; typeparcId: string; }[]; engins: { id: string; name: string; siteId: string; parcId: string; }[]; sites: { id: string; name: string; }[]; }; }> {
+/**
+ * Vérifie que le nouveau relevé respecte la progression
+ * chronologique des compteurs de l'engin.
+ *
+ * Règles :
+ * - Le nouveau compteur ne peut pas être inférieur
+ *   au dernier relevé précédent.
+ * - Il ne peut pas dépasser le premier relevé suivant.
+ * - Les saisies sans compteur sont ignorées.
+ * - Lors d'une modification, la saisie actuelle est exclue.
+ */
+async function validateCompteurChronologique(
+  tx: Prisma.TransactionClient,
+  params: {
+    enginId: string;
+    tenantId: string;
+    du: Date;
+    compteur: number | null;
+    excludeId?: string;
+  },
+): Promise<string | null> {
+  const { enginId, tenantId, du, compteur, excludeId } = params;
+
+  if (compteur === null) {
+    return null;
+  }
+
+  const baseWhere: Prisma.SaisiehrmWhereInput = {
+    enginId,
+    tenantId,
+    compteur: { not: null },
+    ...(excludeId ? { id: { not: excludeId } } : {}),
+  };
+
+  const [previousReading, nextReading] = await Promise.all([
+    tx.saisiehrm.findFirst({
+      where: {
+        ...baseWhere,
+        du: { lt: du },
+      },
+      select: {
+        du: true,
+        compteur: true,
+      },
+      orderBy: { du: "desc" },
+    }),
+
+    tx.saisiehrm.findFirst({
+      where: {
+        ...baseWhere,
+        du: { gt: du },
+      },
+      select: {
+        du: true,
+        compteur: true,
+      },
+      orderBy: { du: "asc" },
+    }),
+  ]);
+
+  if (
+    previousReading?.compteur !== null &&
+    previousReading?.compteur !== undefined &&
+    compteur < previousReading.compteur
+  ) {
+    const previousDate = previousReading.du
+      .toISOString()
+      .slice(0, 10);
+
+    return (
+      `Le compteur saisi (${compteur} h) est inférieur au dernier ` +
+      `relevé précédent (${previousReading.compteur} h, du ${previousDate}). ` +
+      "Vérifiez la date ou la valeur du compteur."
+    );
+  }
+
+  if (
+    nextReading?.compteur !== null &&
+    nextReading?.compteur !== undefined &&
+    compteur > nextReading.compteur
+  ) {
+    const nextDate = nextReading.du
+      .toISOString()
+      .slice(0, 10);
+
+    return (
+      `Le compteur saisi (${compteur} h) dépasse le relevé suivant ` +
+      `(${nextReading.compteur} h, du ${nextDate}). ` +
+      "Vérifiez la date ou la valeur du compteur."
+    );
+  }
+
+  return null;
+}
+
+function isSerializationConflict(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === "P2034"
+  );
+}
+
+function getTransactionErrorMessage(error: unknown): string {
+  if (isSerializationConflict(error)) {
+    return (
+      "Une autre opération a modifié les relevés de cet engin " +
+      "simultanément. Veuillez relancer l'opération."
+    );
+  }
+
+  return "Une erreur est survenue lors de l'enregistrement de la saisie HRM.";
+}
+
+export async function getSaisieHrmOptions(): Promise<{
+  success: boolean;
+  message: string;
+  data: {
+    typeparcs: { id: string; name: string }[];
+    parcs: { id: string; name: string; typeparcId: string }[];
+    engins: {
+      id: string;
+      name: string;
+      siteId: string;
+      parcId: string;
+    }[];
+    sites: { id: string; name: string }[];
+  };
+}> {
   const permission = await guard(ACTION.READ, RESOURCE.SAISIE_HRM);
 
   const emptyData = {
@@ -159,7 +289,38 @@ export async function getSaisieHrmOptions(): Promise<{ success: boolean; message
 
 export async function getAllSaisieHrm(
   filters: SaisieHrmSearchParams = {},
-): Promise<{ success: boolean; message: string; data: never[]; meta?: undefined; } | { success: boolean; message: string; data: ({ engin: { id: string; name: string; }; site: { id: string; name: string; }; tenant: { name: string; }; } & { id: string; hrm: number; enginId: string; siteId: string; tenantId: string; du: Date; nho: number; compteur: number | null; })[]; meta: { totalItems: number; totalPages: number; currentPage: number; itemsPerPage: number; }; }> {
+): Promise<
+  | {
+    success: boolean;
+    message: string;
+    data: never[];
+    meta?: undefined;
+  }
+  | {
+    success: boolean;
+    message: string;
+    data: ({
+      engin: { id: string; name: string };
+      site: { id: string; name: string };
+      tenant: { name: string };
+    } & {
+      id: string;
+      hrm: number;
+      enginId: string;
+      siteId: string;
+      tenantId: string;
+      du: Date;
+      nho: number;
+      compteur: number | null;
+    })[];
+    meta: {
+      totalItems: number;
+      totalPages: number;
+      currentPage: number;
+      itemsPerPage: number;
+    };
+  }
+> {
   const permission = await guard(ACTION.READ, RESOURCE.SAISIE_HRM);
 
   if (!permission.success) {
@@ -277,7 +438,15 @@ export async function getAllSaisieHrm(
 async function validateSaisieHrmInput(
   values: SaisieHrmInput,
   tenantId: string,
-): Promise<{ error: string; du?: undefined; hrm?: undefined; nho?: undefined; compteur?: undefined; } | { du: Date; hrm: number; nho: number; compteur: number | null; readonly error?: undefined; }> {
+): Promise<
+  | { error: string }
+  | {
+    du: Date;
+    hrm: number;
+    nho: number;
+    compteur: number | null;
+  }
+> {
   const du = parseSaisieHrmDate(values.du);
   const hrm = parseNumber(values.hrm);
   const nho = parseNumber(values.nho);
@@ -370,7 +539,9 @@ async function validateSaisieHrmInput(
   return { du, hrm, nho, compteur };
 }
 
-export async function createSaisieHrm(values: SaisieHrmInput): Promise<{ success: boolean; message: string | undefined; }> {
+export async function createSaisieHrm(
+  values: SaisieHrmInput,
+): Promise<{ success: boolean; message: string | undefined }> {
   const permission = await guard(ACTION.CREATE, RESOURCE.SAISIE_HRM);
 
   if (!permission.success) {
@@ -390,33 +561,50 @@ export async function createSaisieHrm(values: SaisieHrmInput): Promise<{ success
       return { success: false, message: validated.error };
     }
 
-    const duplicate = await prisma.saisiehrm.findFirst({
-      where: {
-        du: validated.du,
-        enginId: values.enginId,
-        tenantId,
-      },
-      select: { id: true },
-    });
+    await prisma.$transaction(
+      async (tx) => {
+        const duplicate = await tx.saisiehrm.findFirst({
+          where: {
+            du: validated.du,
+            enginId: values.enginId,
+            tenantId,
+          },
+          select: { id: true },
+        });
 
-    if (duplicate) {
-      return {
-        success: false,
-        message: "Une saisie HRM existe déjà pour cet engin à cette date.",
-      };
-    }
+        if (duplicate) {
+          throw new Error(
+            "Une saisie HRM existe déjà pour cet engin à cette date.",
+          );
+        }
 
-    await prisma.saisiehrm.create({
-      data: {
-        du: validated.du,
-        enginId: values.enginId,
-        siteId: values.siteId,
-        hrm: validated.hrm,
-        nho: validated.nho,
-        compteur: validated.compteur,
-        tenantId,
+        const compteurError = await validateCompteurChronologique(tx, {
+          enginId: values.enginId,
+          tenantId,
+          du: validated.du,
+          compteur: validated.compteur,
+        });
+
+        if (compteurError) {
+          throw new Error(compteurError);
+        }
+
+        await tx.saisiehrm.create({
+          data: {
+            du: validated.du,
+            enginId: values.enginId,
+            siteId: values.siteId,
+            hrm: validated.hrm,
+            nho: validated.nho,
+            compteur: validated.compteur,
+            tenantId,
+          },
+        });
       },
-    });
+      {
+        isolationLevel: "Serializable",
+      },
+    );
 
     return {
       success: true,
@@ -427,14 +615,18 @@ export async function createSaisieHrm(values: SaisieHrmInput): Promise<{ success
 
     return {
       success: false,
-      message: "Erreur lors de la création de la saisie HRM.",
+      message: isSerializationConflict(error)
+        ? getTransactionErrorMessage(error)
+        : error instanceof Error
+          ? error.message
+          : "Erreur lors de la création de la saisie HRM.",
     };
   }
 }
 
 export async function updateSaisieHrm(
   values: SaisieHrmInput & { id: string },
-): Promise<{ success: boolean; message: string | undefined; }> {
+): Promise<{ success: boolean; message: string | undefined }> {
   const permission = await guard(ACTION.UPDATE, RESOURCE.SAISIE_HRM);
 
   if (!permission.success) {
@@ -448,49 +640,70 @@ export async function updateSaisieHrm(
   }
 
   try {
-    const existing = await prisma.saisiehrm.findFirst({
-      where: { id: values.id, tenantId },
-      select: { id: true },
-    });
-
-    if (!existing) {
-      return { success: false, message: "Saisie HRM introuvable." };
-    }
-
     const validated = await validateSaisieHrmInput(values, tenantId);
 
     if ("error" in validated) {
       return { success: false, message: validated.error };
     }
 
-    const duplicate = await prisma.saisiehrm.findFirst({
-      where: {
-        du: validated.du,
-        enginId: values.enginId,
-        tenantId,
-        NOT: { id: values.id },
-      },
-      select: { id: true },
-    });
+    await prisma.$transaction(
+      async (tx) => {
+        const existing = await tx.saisiehrm.findFirst({
+          where: {
+            id: values.id,
+            tenantId,
+          },
+          select: { id: true },
+        });
 
-    if (duplicate) {
-      return {
-        success: false,
-        message: "Une autre saisie HRM existe pour cet engin à cette date.",
-      };
-    }
+        if (!existing) {
+          throw new Error("Saisie HRM introuvable.");
+        }
 
-    await prisma.saisiehrm.update({
-      where: { id: values.id },
-      data: {
-        du: validated.du,
-        enginId: values.enginId,
-        siteId: values.siteId,
-        hrm: validated.hrm,
-        nho: validated.nho,
-        compteur: validated.compteur,
+        const duplicate = await tx.saisiehrm.findFirst({
+          where: {
+            du: validated.du,
+            enginId: values.enginId,
+            tenantId,
+            NOT: { id: values.id },
+          },
+          select: { id: true },
+        });
+
+        if (duplicate) {
+          throw new Error(
+            "Une autre saisie HRM existe pour cet engin à cette date.",
+          );
+        }
+
+        const compteurError = await validateCompteurChronologique(tx, {
+          enginId: values.enginId,
+          tenantId,
+          du: validated.du,
+          compteur: validated.compteur,
+          excludeId: values.id,
+        });
+
+        if (compteurError) {
+          throw new Error(compteurError);
+        }
+
+        await tx.saisiehrm.update({
+          where: { id: values.id },
+          data: {
+            du: validated.du,
+            enginId: values.enginId,
+            siteId: values.siteId,
+            hrm: validated.hrm,
+            nho: validated.nho,
+            compteur: validated.compteur,
+          },
+        });
       },
-    });
+      {
+        isolationLevel: "Serializable",
+      },
+    );
 
     return {
       success: true,
@@ -501,12 +714,18 @@ export async function updateSaisieHrm(
 
     return {
       success: false,
-      message: "Erreur lors de la modification de la saisie HRM.",
+      message: isSerializationConflict(error)
+        ? getTransactionErrorMessage(error)
+        : error instanceof Error
+          ? error.message
+          : "Erreur lors de la modification de la saisie HRM.",
     };
   }
 }
 
-export async function deleteSaisieHrm(id: string): Promise<{ success: boolean; message: string; }> {
+export async function deleteSaisieHrm(
+  id: string,
+): Promise<{ success: boolean; message: string }> {
   const permission = await guard(ACTION.DELETE, RESOURCE.SAISIE_HRM);
 
   if (!permission.success) {
@@ -557,7 +776,26 @@ export async function deleteSaisieHrm(id: string): Promise<{ success: boolean; m
   }
 }
 
-export async function importSaisieHrm(data: Record<string, unknown>): Promise<{ success: boolean; data: null; message: string; }[] | { success: boolean; data: Record<string, unknown>; message: string; }[] | { success: boolean; data: { id: string; siteId: string; tenantId: string; du: Date; enginId: string; hrm: number; nho: number; compteur: number | null; }; message: string; }[]> {
+export async function importSaisieHrm(
+  data: Record<string, unknown>,
+): Promise<
+  | { success: boolean; data: null; message: string }[]
+  | { success: boolean; data: Record<string, unknown>; message: string }[]
+  | {
+    success: boolean;
+    data: {
+      id: string;
+      siteId: string;
+      tenantId: string;
+      du: Date;
+      enginId: string;
+      hrm: number;
+      nho: number;
+      compteur: number | null;
+    };
+    message: string;
+  }[]
+> {
   try {
     const permission = await guard(
       ACTION.IMPORT,
@@ -599,7 +837,7 @@ export async function importSaisieHrm(data: Record<string, unknown>): Promise<{ 
     const enginName = convertField(data?.enginName, "string");
     const siteName = convertField(data?.siteName, "string");
 
-    if (!du) {
+    if (!du || Number.isNaN(du.getTime())) {
       return [{
         success: false,
         data,
@@ -715,44 +953,73 @@ export async function importSaisieHrm(data: Record<string, unknown>): Promise<{ 
       }];
     }
 
-    // if (engin.siteId !== site.id) {
-    //   return [{
-    //     success: false,
-    //     data,
-    //     message: "Le site importé ne correspond pas au site de l'engin.",
-    //   }];
-    // }
-
     // L'absence du compteur ne remplace pas sa valeur existante.
     const compteurData =
       hasCompteur && compteur !== null ? { compteur } : {};
 
-    const saisie = await prisma.saisiehrm.upsert({
-      where: {
-        du_enginId_tenantId: {
-          du,
+    const saisie = await prisma.$transaction(
+      async (tx) => {
+        const existing = await tx.saisiehrm.findUnique({
+          where: {
+            du_enginId_tenantId: {
+              du,
+              enginId: engin.id,
+              tenantId: currentTenantId,
+            },
+          },
+          select: {
+            id: true,
+            compteur: true,
+          },
+        });
+
+        const compteurFinal = hasCompteur
+          ? compteur
+          : existing?.compteur ?? null;
+
+        const compteurError = await validateCompteurChronologique(tx, {
           enginId: engin.id,
           tenantId: currentTenantId,
-        },
-      },
+          du,
+          compteur: compteurFinal,
+          excludeId: existing?.id,
+        });
 
-      update: {
-        siteId: site.id,
-        hrm,
-        nho,
-        ...compteurData,
-      },
+        if (compteurError) {
+          throw new Error(compteurError);
+        }
 
-      create: {
-        du,
-        enginId: engin.id,
-        siteId: site.id,
-        hrm,
-        nho,
-        tenantId: currentTenantId,
-        ...compteurData,
+        return tx.saisiehrm.upsert({
+          where: {
+            du_enginId_tenantId: {
+              du,
+              enginId: engin.id,
+              tenantId: currentTenantId,
+            },
+          },
+
+          update: {
+            siteId: site.id,
+            hrm,
+            nho,
+            ...compteurData,
+          },
+
+          create: {
+            du,
+            enginId: engin.id,
+            siteId: site.id,
+            hrm,
+            nho,
+            tenantId: currentTenantId,
+            ...compteurData,
+          },
+        });
       },
-    });
+      {
+        isolationLevel: "Serializable",
+      },
+    );
 
     return [{
       success: true,
@@ -765,8 +1032,9 @@ export async function importSaisieHrm(data: Record<string, unknown>): Promise<{ 
     return [{
       success: false,
       data,
-      message:
-        "Échec de l'import HRM. Vérifiez les données et les journaux serveur.",
+      message: error instanceof Error
+        ? error.message
+        : "Échec de l'import HRM. Vérifiez les données et les journaux serveur.",
     }];
   }
 }

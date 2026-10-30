@@ -60,3 +60,4 @@ ne modifie jamais jamais jamais jamais jamais jamais mon repo, mais plutôt me d
 faire:
 -page rapports/etat-general : vérifie le calcul des heures chassis 
 -utilisation du compteur 
+-rajoute filter dialog créer/modifier engin
