@@ -186,7 +186,6 @@ export async function getAllPannes(
   const parcId = filters.parcId?.trim();
   const typepanneId = filters.typepanneId?.trim();
 
-  // Filtres appliqués à la panne.
   const panneWhere: Prisma.PanneWhereInput = { tenantId };
 
   if (name) {
@@ -200,7 +199,6 @@ export async function getAllPannes(
     panneWhere.typepanneId = typepanneId;
   }
 
-  // Filtres appliqués au parc de chaque association.
   const parcWhere: Prisma.ParcWhereInput = { tenantId };
 
   if (typeparcId) {
@@ -226,7 +224,6 @@ export async function getAllPannes(
     };
   }
 
-  // La pagination compte les associations, pas les pannes distinctes.
   const totalItems = await prisma.panneParc.count({ where });
 
   const totalPages =
@@ -234,7 +231,6 @@ export async function getAllPannes(
       ? 1
       : Math.max(1, Math.ceil(totalItems / itemsPerPage));
 
-  // Évite une page vide si les filtres ou le nombre de lignes changent.
   const currentPage = Math.min(requestedPage, totalPages);
 
   const data = await prisma.panneParc.findMany({
@@ -270,7 +266,6 @@ export async function getAllPannes(
             },
           },
 
-          // Conserve tous les parcs de la panne pour le formulaire d'édition.
           parcs: {
             include: {
               parc: {
@@ -516,7 +511,6 @@ export async function updatePanne(
 
     const updateResult = await prisma.$transaction(
       async (tx) => {
-        // Relecture dans la transaction pour vérifier le type actuel.
         const currentPanne = await tx.panne.findFirst({
           where: {
             id: input.id,
@@ -535,23 +529,70 @@ export async function updatePanne(
           };
         }
 
-        // Une panne déjà utilisée dans HIM ne peut pas changer de catégorie.
-        if (currentPanne.typepanneId !== validated.typepanneId) {
-          const usedCount = await tx.saisiehim.count({
-            where: {
-              panneId: input.id,
-              tenantId,
-            },
-          });
+        // Une panne utilisée dans HIM ne peut pas changer de catégorie.
+        const usedCount = await tx.saisiehim.count({
+          where: {
+            panneId: input.id,
+            tenantId,
+          },
+        });
 
-          if (usedCount > 0) {
-            return {
-              success: false as const,
-              message:
-                `Modification du type impossible : cette panne est utilisée dans ${usedCount} saisie(s) HIM. ` +
-                "Pour préserver l'historique, conservez son type actuel.",
-            };
-          }
+        if (
+          usedCount > 0 &&
+          currentPanne.typepanneId !== validated.typepanneId
+        ) {
+          return {
+            success: false as const,
+            message:
+              `Modification du type impossible : cette panne est utilisée dans ${usedCount} saisie(s) HIM. ` +
+              "Pour préserver l'historique, conservez son type actuel.",
+          };
+        }
+
+        // Conserver les associations panne/parc nécessaires aux HIM historiques.
+        // Sans cette protection, une ancienne HIM pourrait devenir impossible à corriger :
+        // la validation exige que la panne reste associée au parc de l'engin.
+        const historicalHims = await tx.saisiehim.findMany({
+          where: {
+            panneId: input.id,
+            tenantId,
+          },
+          select: {
+            saisiehrm: {
+              select: {
+                engin: {
+                  select: {
+                    parcId: true,
+                  },
+                },
+              },
+            },
+          },
+        });
+
+        const historicalParcIds = [
+          ...new Set(
+            historicalHims.map(
+              (item) => item.saisiehrm.engin.parcId,
+            ),
+          ),
+        ];
+
+        const selectedParcIds = new Set(
+          validated.parcs.map((item) => item.parcId),
+        );
+
+        const removedHistoricalParcIds = historicalParcIds.filter(
+          (parcId) => !selectedParcIds.has(parcId),
+        );
+
+        if (removedHistoricalParcIds.length > 0) {
+          return {
+            success: false as const,
+            message:
+              `Modification impossible : cette panne est utilisée dans ${usedCount} saisie(s) HIM liées à ${removedHistoricalParcIds.length} parc(s). ` +
+              "Conservez les associations avec ces parcs pour préserver et corriger l'historique.",
+          };
         }
 
         await tx.panne.update({
