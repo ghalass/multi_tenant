@@ -1,3 +1,4 @@
+
 "use server";
 
 import { prisma } from "@/lib/prisma";
@@ -177,7 +178,15 @@ export async function getAllEngins(
   };
 }
 
-export async function getEnginOptions(): Promise<{ success: boolean; message: string; data: { sites: { id: string; name: string; }[]; typeparcs: { id: string; name: string; }[]; parcs: { id: string; name: string; typeparcId: string; }[]; }; }> {
+export async function getEnginOptions(): Promise<{
+  success: boolean;
+  message: string;
+  data: {
+    sites: { id: string; name: string }[];
+    typeparcs: { id: string; name: string }[];
+    parcs: { id: string; name: string; typeparcId: string }[];
+  };
+}> {
   const permission = await guard(ACTION.READ, RESOURCE.ENGIN);
 
   if (!permission.success) {
@@ -592,7 +601,24 @@ export async function deleteEngin(
   }
 }
 
-export async function importEngins(data: Record<string, unknown>): Promise<{ success: boolean; data: null; message: string; }[] | { success: boolean; data: Record<string, unknown>; message: string; }[] | { success: boolean; data: { id: string; name: string; active: boolean; parcId: string; siteId: string; tenantId: string; }; message: string; }[]> {
+export async function importEngins(
+  data: Record<string, unknown>,
+): Promise<
+  | { success: boolean; data: null; message: string }[]
+  | { success: boolean; data: Record<string, unknown>; message: string }[]
+  | {
+    success: boolean;
+    data: {
+      id: string;
+      name: string;
+      active: boolean;
+      parcId: string;
+      siteId: string;
+      tenantId: string;
+    };
+    message: string;
+  }[]
+> {
   try {
     const permission = await guard(ACTION.IMPORT, RESOURCE.ENGIN);
 
@@ -609,7 +635,7 @@ export async function importEngins(data: Record<string, unknown>): Promise<{ suc
     const parcName = convertField(data.parcName, "string");
     const siteName = convertField(data.siteName, "string");
 
-    if (!name || name.trim() === "") {
+    if (!name) {
       return [{
         success: false,
         data,
@@ -633,9 +659,10 @@ export async function importEngins(data: Record<string, unknown>): Promise<{ suc
       }];
     }
 
-    const { currentTenantId } = await getSession();
+    // Vérification du tenant courant et de son statut actif.
+    const tenantId = await getEnginTenantId();
 
-    if (!currentTenantId) {
+    if (!tenantId) {
       return [{
         success: false,
         data,
@@ -643,84 +670,168 @@ export async function importEngins(data: Record<string, unknown>): Promise<{ suc
       }];
     }
 
-    const [parc, site] = await Promise.all([
-      prisma.parc.findUnique({
+    // Recherche des parcs et sites dans le tenant courant,
+    // sans distinction de majuscules et minuscules.
+    const [parcs, sites] = await Promise.all([
+      prisma.parc.findMany({
         where: {
-          name_tenantId: {
-            name: parcName,
-            tenantId: currentTenantId,
+          tenantId,
+          name: {
+            equals: parcName,
+            mode: "insensitive",
           },
         },
+        select: {
+          id: true,
+          name: true,
+        },
+        take: 2,
       }),
 
-      prisma.site.findUnique({
+      prisma.site.findMany({
         where: {
-          name_tenantId: {
-            name: siteName,
-            tenantId: currentTenantId,
+          tenantId,
+          name: {
+            equals: siteName,
+            mode: "insensitive",
           },
         },
+        select: {
+          id: true,
+          name: true,
+          active: true,
+        },
+        take: 2,
       }),
     ]);
 
-    if (!parc) {
+    if (parcs.length === 0) {
       return [{
         success: false,
         data,
-        message: `Parc "${parcName}" non trouvé.`,
+        message: `Parc "${parcName}" non trouvé dans le tenant courant.`,
       }];
     }
 
-    if (!site) {
+    if (parcs.length > 1) {
       return [{
         success: false,
         data,
-        message: `Site "${siteName}" non trouvé.`,
+        message:
+          `Plusieurs parcs correspondent au nom "${parcName}". Vérifiez les doublons dans les données.`,
       }];
     }
 
-    const engin = await prisma.$transaction(
+    if (sites.length === 0) {
+      return [{
+        success: false,
+        data,
+        message: `Site "${siteName}" non trouvé dans le tenant courant.`,
+      }];
+    }
+
+    if (sites.length > 1) {
+      return [{
+        success: false,
+        data,
+        message:
+          `Plusieurs sites correspondent au nom "${siteName}". Vérifiez les doublons dans les données.`,
+      }];
+    }
+
+    const parc = parcs[0];
+    const site = sites[0];
+
+    // Même règle que pour la création et la modification manuelles.
+    if (!site.active) {
+      return [{
+        success: false,
+        data,
+        message:
+          `Le site "${site.name}" est inactif. Un engin ne peut pas être affecté à un site inactif.`,
+      }];
+    }
+
+    // Recherche et enregistrement dans une transaction.
+    // Une correspondance de nom existante est mise à jour,
+    // même si la casse du nom diffère.
+    const importResult = await prisma.$transaction(
       async (tx) => {
-        const result = await tx.engin.upsert({
+        const existingEngins = await tx.engin.findMany({
           where: {
-            name_tenantId: {
-              name,
-              tenantId: currentTenantId,
+            tenantId,
+            name: {
+              equals: name,
+              mode: "insensitive",
             },
           },
-
-          update: {
-            name,
-            active,
-            parcId: parc.id,
-            siteId: site.id,
+          select: {
+            id: true,
           },
-
-          create: {
-            name,
-            active,
-            parcId: parc.id,
-            siteId: site.id,
-            tenantId: currentTenantId,
-          },
+          take: 2,
         });
+
+        // Ne pas choisir arbitrairement un engin si des doublons
+        // historiques existent avec des différences de casse.
+        if (existingEngins.length > 1) {
+          return {
+            ambiguous: true as const,
+            engin: null,
+          };
+        }
+
+        const existingEngin = existingEngins[0];
+
+        const engin = existingEngin
+          ? await tx.engin.update({
+            where: {
+              id: existingEngin.id,
+            },
+            data: {
+              name,
+              active,
+              parcId: parc.id,
+              siteId: site.id,
+            },
+          })
+          : await tx.engin.create({
+            data: {
+              name,
+              active,
+              parcId: parc.id,
+              siteId: site.id,
+              tenantId,
+            },
+          });
 
         await synchroniserSuivisMaintenancePourEngin(
           tx,
-          currentTenantId,
-          result.id,
+          tenantId,
+          engin.id,
         );
 
-        return result;
+        return {
+          ambiguous: false as const,
+          engin,
+        };
       },
       {
         isolationLevel: "Serializable",
       },
     );
 
+    if (importResult.ambiguous) {
+      return [{
+        success: false,
+        data,
+        message:
+          `Plusieurs engins correspondent au nom "${name}". Vérifiez les doublons avant de relancer l'import.`,
+      }];
+    }
+
     return [{
       success: true,
-      data: engin,
+      data: importResult.engin,
       message: `Engin ${name} importé avec succès.`,
     }];
   } catch (error: unknown) {
