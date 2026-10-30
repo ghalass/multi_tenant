@@ -55,6 +55,10 @@ type Option = {
     name: string;
 };
 
+type SiteOption = Option & {
+    active: boolean;
+};
+
 type ParcOption = Option & {
     typeparcId: string;
 };
@@ -133,7 +137,7 @@ export function SaisieHimForm({
     typePannes: Option[];
     parcs: ParcOption[];
     engins: EnginOption[];
-    sites: Option[];
+    sites: SiteOption[];
     pannes: PanneOption[];
 }): JSX.Element {
     const editing = Boolean(saisie);
@@ -144,13 +148,33 @@ export function SaisieHimForm({
     const [pending, startTransition] = useTransition();
     const [error, setError] = useState("");
 
-    // Pour modifier une ancienne saisie, conserver son engin même s'il est inactif.
+    // En modification, conserver le site d'origine même s'il est inactif.
+    // Les sites inactifs ne sont jamais proposés pour une nouvelle saisie.
+    const selectableSites = useMemo(
+        () =>
+            sites.filter(
+                (site) => site.active || site.id === saisie?.siteId,
+            ),
+        [sites, saisie?.siteId],
+    );
+
+    // Garder l'ancien engin pour corriger l'historique.
+    // Les autres engins doivent être actifs et associés à un site actif.
     const selectableEngins = useMemo(
         () =>
             engins.filter(
-                (engin) => engin.active || engin.id === saisie?.enginId,
+                (engin) =>
+                    engin.id === saisie?.enginId ||
+                    (
+                        engin.active &&
+                        sites.some(
+                            (site) =>
+                                site.id === engin.siteId &&
+                                site.active,
+                        )
+                    ),
             ),
-        [engins, saisie?.enginId],
+        [engins, sites, saisie?.enginId],
     );
 
     const form = useForm<FormValues>({
@@ -370,8 +394,8 @@ export function SaisieHimForm({
                             loading ||
                             typeParcs.length === 0 ||
                             parcs.length === 0 ||
-                            engins.length === 0 ||
-                            sites.length === 0 ||
+                            selectableEngins.length === 0 ||
+                            selectableSites.length === 0 ||
                             pannes.length === 0
                         }
                     >
@@ -449,9 +473,10 @@ export function SaisieHimForm({
                                                 </SelectTrigger>
                                                 <SelectContent>
                                                     <SelectItem value="none">Sélectionner un site</SelectItem>
-                                                    {sites.map((site) => (
+                                                    {selectableSites.map((site) => (
                                                         <SelectItem key={site.id} value={site.id}>
                                                             {site.name}
+                                                            {!site.active && " (inactif – historique)"}
                                                         </SelectItem>
                                                     ))}
                                                 </SelectContent>

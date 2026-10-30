@@ -32,6 +32,10 @@ type Option = {
     name: string;
 };
 
+type SiteOption = Option & {
+    active: boolean;
+};
+
 type ParcOption = Option & {
     typeparcId: string;
 };
@@ -55,7 +59,7 @@ type Options = {
     typePannes: Option[];
     parcs: ParcOption[];
     engins: EnginOption[];
-    sites: Option[];
+    sites: SiteOption[];
     pannes: PanneOption[];
 };
 

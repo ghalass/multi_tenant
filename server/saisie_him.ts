@@ -84,7 +84,11 @@ export async function getSaisieHimOptions(): Promise<{
             active: boolean;
             parcId: string;
         }[];
-        sites: { id: string; name: string }[];
+        sites: {
+            id: string;
+            name: string;
+            active: boolean;
+        }[];
         pannes: {
             id: string;
             name: string;
@@ -166,9 +170,15 @@ export async function getSaisieHimOptions(): Promise<{
                 orderBy: { name: "asc" },
             }),
 
+            // Charger les sites actifs et inactifs pour pouvoir
+            // afficher les anciennes saisies HIM.
             prisma.site.findMany({
-                where: { tenantId, active: true },
-                select: { id: true, name: true },
+                where: { tenantId },
+                select: {
+                    id: true,
+                    name: true,
+                    active: true,
+                },
                 orderBy: { name: "asc" },
             }),
 
@@ -515,6 +525,7 @@ async function validateSaisieHimInput(
     values: SaisieHimInput,
     tenantId: string,
     allowInactiveEnginId?: string,
+    allowInactiveSiteId?: string,
 ): Promise<
     | {
         error: string;
@@ -592,9 +603,11 @@ async function validateSaisieHimInput(
             where: {
                 id: values.siteId,
                 tenantId,
+            },
+            select: {
+                id: true,
                 active: true,
             },
-            select: { id: true },
         }),
     ]);
 
@@ -611,7 +624,22 @@ async function validateSaisieHimInput(
 
     if (!site) {
         return {
-            error: "Le site sélectionné est invalide ou inactif.",
+            error: "Le site sélectionné est invalide.",
+        };
+    }
+
+    // Un site inactif est accepté uniquement pour corriger
+    // une saisie HIM existante sur ce même site et ce même engin.
+    if (
+        !site.active &&
+        (
+            site.id !== allowInactiveSiteId ||
+            engin.id !== allowInactiveEnginId
+        )
+    ) {
+        return {
+            error:
+                "Ce site est inactif. Seule la correction d'une saisie HIM historique en conservant le même site et le même engin est autorisée.",
         };
     }
 
@@ -708,7 +736,7 @@ export async function createSaisieHim(
     }
 
     try {
-        // Sans saisie HIM préexistante, un engin inactif est refusé.
+        // Sans saisie HIM préexistante, un engin ou un site inactif est refusé.
         const validated = await validateSaisieHimInput(
             values,
             tenantId,
@@ -815,6 +843,7 @@ export async function updateSaisieHim(
                 saisiehrm: {
                     select: {
                         enginId: true,
+                        siteId: true,
                     },
                 },
             },
@@ -831,6 +860,7 @@ export async function updateSaisieHim(
             values,
             tenantId,
             existing.saisiehrm.enginId,
+            existing.saisiehrm.siteId,
         );
 
         if ("error" in validated) {
@@ -852,6 +882,7 @@ export async function updateSaisieHim(
                         saisiehrm: {
                             select: {
                                 enginId: true,
+                                siteId: true,
                             },
                         },
                     },
@@ -859,6 +890,35 @@ export async function updateSaisieHim(
 
                 if (!currentExisting) {
                     throw new Error("Saisie HIM introuvable.");
+                }
+
+                const selectedSite = await tx.site.findFirst({
+                    where: {
+                        id: values.siteId,
+                        tenantId,
+                    },
+                    select: {
+                        id: true,
+                        active: true,
+                    },
+                });
+
+                if (!selectedSite) {
+                    throw new Error("Le site sélectionné est introuvable.");
+                }
+
+                // Recontrôle dans la transaction pour empêcher
+                // le déplacement d'une ancienne HIM vers un site inactif.
+                if (
+                    !selectedSite.active &&
+                    (
+                        values.siteId !== currentExisting.saisiehrm.siteId ||
+                        values.enginId !== currentExisting.saisiehrm.enginId
+                    )
+                ) {
+                    throw new Error(
+                        "Ce site est inactif. La correction doit conserver le même site et le même engin que la saisie HIM d'origine.",
+                    );
                 }
 
                 const selectedEngin = await tx.engin.findFirst({
@@ -1222,6 +1282,23 @@ export async function importSaisieHim(
                     throw new Error(`Engin "${enginName}" introuvable.`);
                 }
 
+                const currentSite = await tx.site.findFirst({
+                    where: {
+                        id: saisiehrm.siteId,
+                        tenantId: currentTenantId,
+                    },
+                    select: {
+                        id: true,
+                        active: true,
+                    },
+                });
+
+                if (!currentSite) {
+                    throw new Error(
+                        `Le site associé à la saisie HRM de l'engin "${enginName}" est introuvable.`,
+                    );
+                }
+
                 const existingSaisie = await tx.saisiehim.findUnique({
                     where: {
                         panneId_saisiehrmId_tenantId: {
@@ -1232,6 +1309,14 @@ export async function importSaisieHim(
                     },
                     select: { id: true, ni: true },
                 });
+
+                // Un site inactif ne permet pas de créer une nouvelle HIM.
+                // La mise à jour d'une HIM déjà existante reste autorisée.
+                if (!currentSite.active && !existingSaisie) {
+                    throw new Error(
+                        `Import refusé : le site associé à l'engin "${enginName}" est inactif. La création d'une nouvelle saisie HIM n'est pas autorisée.`,
+                    );
+                }
 
                 // Un engin inactif ne peut être importé que pour mettre
                 // à jour une saisie HIM qui existe déjà.
