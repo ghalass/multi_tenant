@@ -202,6 +202,40 @@ async function validateCompteurChronologique(
   return null;
 }
 
+/**
+ * Vérifie qu'une modification de HRM/NHO ne rend pas incohérent
+ * le cumul des HIM déjà enregistrées pour cette journée.
+ */
+async function validateExistingHimCapacity(
+  tx: Prisma.TransactionClient,
+  params: {
+    saisiehrmId: string;
+    tenantId: string;
+    hrm: number;
+    nho: number;
+  },
+): Promise<string | null> {
+  const { saisiehrmId, tenantId, hrm, nho } = params;
+
+  const aggregate = await tx.saisiehim.aggregate({
+    where: { saisiehrmId, tenantId },
+    _sum: { him: true },
+  });
+
+  const totalHim = aggregate._sum.him ?? 0;
+  const totalIndisponibilite = hrm + totalHim;
+
+  if (totalIndisponibilite > nho) {
+    return (
+      `Modification refusée : HRM + total des HIM (${totalIndisponibilite.toFixed(2)} h) ` +
+      `dépasse la nouvelle NHO (${nho} h). ` +
+      `Les HIM déjà enregistrées totalisent ${totalHim.toFixed(2)} h.`
+    );
+  }
+
+  return null;
+}
+
 function isSerializationConflict(error: unknown): boolean {
   return (
     typeof error === "object" &&
@@ -713,6 +747,17 @@ export async function updateSaisieHrm(
           throw new Error(compteurError);
         }
 
+        const himCapacityError = await validateExistingHimCapacity(tx, {
+          saisiehrmId: values.id,
+          tenantId,
+          hrm: validated.hrm,
+          nho: validated.nho,
+        });
+
+        if (himCapacityError) {
+          throw new Error(himCapacityError);
+        }
+
         await tx.saisiehrm.update({
           where: { id: values.id },
           data: {
@@ -1022,6 +1067,19 @@ export async function importSaisieHrm(
 
         if (compteurError) {
           throw new Error(compteurError);
+        }
+
+        if (existing) {
+          const himCapacityError = await validateExistingHimCapacity(tx, {
+            saisiehrmId: existing.id,
+            tenantId: currentTenantId,
+            hrm,
+            nho,
+          });
+
+          if (himCapacityError) {
+            throw new Error(himCapacityError);
+          }
         }
 
         return tx.saisiehrm.upsert({

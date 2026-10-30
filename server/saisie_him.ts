@@ -1,3 +1,4 @@
+
 "use server";
 
 import { prisma } from "@/lib/prisma";
@@ -370,6 +371,62 @@ export async function getAllSaisieHim(
 }
 
 /* =========================================================
+   COHERENCE HIM / HRM / NHO
+========================================================= */
+
+/**
+ * Vérifie que le cumul des HIM de la saisie HRM, HRM comprise,
+ * ne dépasse pas la NHO de la journée.
+ */
+async function validateHimCapacity(
+    tx: Prisma.TransactionClient,
+    params: {
+        saisiehrmId: string;
+        tenantId: string;
+        him: number;
+        excludeId?: string;
+    },
+): Promise<string | null> {
+    const { saisiehrmId, tenantId, him, excludeId } = params;
+
+    const saisieHrm = await tx.saisiehrm.findFirst({
+        where: { id: saisiehrmId, tenantId },
+        select: { hrm: true, nho: true },
+    });
+
+    if (!saisieHrm) {
+        return "La saisie HRM associée est introuvable.";
+    }
+
+    const aggregate = await tx.saisiehim.aggregate({
+        where: {
+            saisiehrmId,
+            tenantId,
+            ...(excludeId ? { id: { not: excludeId } } : {}),
+        },
+        _sum: { him: true },
+    });
+
+    const totalHim = (aggregate._sum.him ?? 0) + him;
+    const totalIndisponibilite = saisieHrm.hrm + totalHim;
+
+    if (totalIndisponibilite > saisieHrm.nho) {
+        const himMax = Math.max(
+            0,
+            saisieHrm.nho - saisieHrm.hrm - (totalHim - him),
+        );
+
+        return (
+            `Le cumul HRM + HIM (${totalIndisponibilite.toFixed(2)} h) ` +
+            `dépasse la NHO de la journée (${saisieHrm.nho} h). ` +
+            `La HIM saisie ne peut pas dépasser ${himMax.toFixed(2)} h.`
+        );
+    }
+
+    return null;
+}
+
+/* =========================================================
    VALIDATION COMMUNE AUX CREATIONS ET MODIFICATIONS
 ========================================================= */
 
@@ -554,33 +611,44 @@ export async function createSaisieHim(
             };
         }
 
-        const duplicate = await prisma.saisiehim.findFirst({
-            where: {
-                panneId: validated.panneId,
-                saisiehrmId: validated.saisiehrmId,
-                tenantId,
-            },
-            select: { id: true },
-        });
+        await prisma.$transaction(
+            async (tx) => {
+                const duplicate = await tx.saisiehim.findFirst({
+                    where: {
+                        panneId: validated.panneId,
+                        saisiehrmId: validated.saisiehrmId,
+                        tenantId,
+                    },
+                    select: { id: true },
+                });
 
-        if (duplicate) {
-            return {
-                success: false,
-                message:
-                    "Cette panne possède déjà une saisie HIM pour cet engin à cette date.",
-            };
-        }
+                if (duplicate) {
+                    throw new Error(
+                        "Cette panne possède déjà une saisie HIM pour cet engin à cette date.",
+                    );
+                }
 
-        await prisma.saisiehim.create({
-            data: {
-                panneId: validated.panneId,
-                saisiehrmId: validated.saisiehrmId,
-                him: validated.him,
-                ni: validated.ni,
-                obs: validated.obs,
-                tenantId,
+                const capacityError = await validateHimCapacity(tx, {
+                    saisiehrmId: validated.saisiehrmId,
+                    tenantId,
+                    him: validated.him,
+                });
+
+                if (capacityError) throw new Error(capacityError);
+
+                await tx.saisiehim.create({
+                    data: {
+                        panneId: validated.panneId,
+                        saisiehrmId: validated.saisiehrmId,
+                        him: validated.him,
+                        ni: validated.ni,
+                        obs: validated.obs,
+                        tenantId,
+                    },
+                });
             },
-        });
+            { isolationLevel: "Serializable" },
+        );
 
         return {
             success: true,
@@ -591,7 +659,9 @@ export async function createSaisieHim(
 
         return {
             success: false,
-            message: "Erreur lors de la création de la saisie HIM.",
+            message: error instanceof Error
+                ? error.message
+                : "Erreur lors de la création de la saisie HIM.",
         };
     }
 }
@@ -652,34 +722,46 @@ export async function updateSaisieHim(
             };
         }
 
-        const duplicate = await prisma.saisiehim.findFirst({
-            where: {
-                panneId: validated.panneId,
-                saisiehrmId: validated.saisiehrmId,
-                tenantId,
-                NOT: { id: values.id },
-            },
-            select: { id: true },
-        });
+        await prisma.$transaction(
+            async (tx) => {
+                const duplicate = await tx.saisiehim.findFirst({
+                    where: {
+                        panneId: validated.panneId,
+                        saisiehrmId: validated.saisiehrmId,
+                        tenantId,
+                        NOT: { id: values.id },
+                    },
+                    select: { id: true },
+                });
 
-        if (duplicate) {
-            return {
-                success: false,
-                message:
-                    "Une autre saisie HIM existe déjà pour cette panne et cette saisie HRM.",
-            };
-        }
+                if (duplicate) {
+                    throw new Error(
+                        "Une autre saisie HIM existe déjà pour cette panne et cette saisie HRM.",
+                    );
+                }
 
-        await prisma.saisiehim.update({
-            where: { id: values.id },
-            data: {
-                panneId: validated.panneId,
-                saisiehrmId: validated.saisiehrmId,
-                him: validated.him,
-                ni: validated.ni,
-                obs: validated.obs,
+                const capacityError = await validateHimCapacity(tx, {
+                    saisiehrmId: validated.saisiehrmId,
+                    tenantId,
+                    him: validated.him,
+                    excludeId: values.id,
+                });
+
+                if (capacityError) throw new Error(capacityError);
+
+                await tx.saisiehim.update({
+                    where: { id: values.id },
+                    data: {
+                        panneId: validated.panneId,
+                        saisiehrmId: validated.saisiehrmId,
+                        him: validated.him,
+                        ni: validated.ni,
+                        obs: validated.obs,
+                    },
+                });
             },
-        });
+            { isolationLevel: "Serializable" },
+        );
 
         return {
             success: true,
@@ -690,7 +772,9 @@ export async function updateSaisieHim(
 
         return {
             success: false,
-            message: "Erreur lors de la modification de la saisie HIM.",
+            message: error instanceof Error
+                ? error.message
+                : "Erreur lors de la modification de la saisie HIM.",
         };
     }
 }
@@ -942,49 +1026,52 @@ export async function importSaisieHim(data: Record<string, unknown>): Promise<{ 
             }];
         }
 
-        const existingSaisie = await prisma.saisiehim.findUnique({
-            where: {
-                panneId_saisiehrmId_tenantId: {
-                    panneId: panne.id,
+        // Validation et upsert dans la même transaction.
+        const saisie = await prisma.$transaction(
+            async (tx) => {
+                const existingSaisie = await tx.saisiehim.findUnique({
+                    where: {
+                        panneId_saisiehrmId_tenantId: {
+                            panneId: panne.id,
+                            saisiehrmId: saisiehrm.id,
+                            tenantId: currentTenantId,
+                        },
+                    },
+                    select: { id: true, ni: true },
+                });
+
+                const niValue = ni ?? existingSaisie?.ni ?? null;
+
+                const capacityError = await validateHimCapacity(tx, {
                     saisiehrmId: saisiehrm.id,
                     tenantId: currentTenantId,
-                },
-            },
-            select: { ni: true },
-        });
+                    him,
+                    excludeId: existingSaisie?.id,
+                });
 
-        const niValue = ni ?? existingSaisie?.ni ?? null;
+                if (capacityError) throw new Error(capacityError);
 
-        // Saisiehim est reliée à la panne et à la saisie HRM,
-        // mais ne possède pas de relation directe avec Engin.
-        const saisie = await prisma.saisiehim.upsert({
-            where: {
-                panneId_saisiehrmId_tenantId: {
-                    panneId: panne.id,
-                    saisiehrmId: saisiehrm.id,
-                    tenantId: currentTenantId,
-                },
+                return tx.saisiehim.upsert({
+                    where: {
+                        panneId_saisiehrmId_tenantId: {
+                            panneId: panne.id,
+                            saisiehrmId: saisiehrm.id,
+                            tenantId: currentTenantId,
+                        },
+                    },
+                    update: { him, ni: niValue, obs },
+                    create: {
+                        him,
+                        ni: niValue,
+                        obs,
+                        tenant: { connect: { id: currentTenantId } },
+                        panne: { connect: { id: panne.id } },
+                        saisiehrm: { connect: { id: saisiehrm.id } },
+                    },
+                });
             },
-            update: {
-                him,
-                ni: niValue,
-                obs,
-            },
-            create: {
-                him,
-                ni: niValue,
-                obs,
-                tenant: {
-                    connect: { id: currentTenantId },
-                },
-                panne: {
-                    connect: { id: panne.id },
-                },
-                saisiehrm: {
-                    connect: { id: saisiehrm.id },
-                },
-            },
-        });
+            { isolationLevel: "Serializable" },
+        );
 
         return [{
             success: true,
@@ -997,7 +1084,9 @@ export async function importSaisieHim(data: Record<string, unknown>): Promise<{ 
         return [{
             success: false,
             data,
-            message: "Échec de l'import HIM. Vérifiez les données et les journaux serveur.",
+            message: error instanceof Error
+                ? error.message
+                : "Échec de l'import HIM. Vérifiez les données et les journaux serveur.",
         }];
     }
 }
