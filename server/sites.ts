@@ -1,9 +1,10 @@
+
 "use server";
 
 import { prisma } from "@/lib/prisma";
 import { guard } from "@/lib/rbac/middleware";
 import { ACTION } from "@/lib/enums";
-import { ActionResponse } from "@/lib/types/types";
+import type { ActionResponse } from "@/lib/types/types";
 import { getSession } from "@/lib/auth";
 import { ACTIVE, PAGINATION_SETTINGS, RESOURCE } from "@/lib/constantes";
 import { convertField } from "@/lib/convertField";
@@ -17,23 +18,34 @@ export interface searchParams {
 }
 
 type SiteListItem = Prisma.SiteGetPayload<{
-  include: { tenant: { select: { id: true; name: true } } };
+  include: {
+    tenant: {
+      select: {
+        id: true;
+        name: true;
+      };
+    };
+  };
 }>;
 
-export async function getAllSites(
-  filters: searchParams = { itemsPerPage: 0 }
-): Promise<ActionResponse<SiteListItem>> {
-  const g = await guard(ACTION.READ, RESOURCE.SITE);
-  if (!g.success) return { data: [], success: false, message: g.message };
+function getPrismaErrorCode(error: unknown): string | undefined {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error
+  ) {
+    const code = (error as { code?: unknown }).code;
+    return typeof code === "string" ? code : undefined;
+  }
 
+  return undefined;
+}
+
+async function getActiveTenantId(): Promise<string | null> {
   const { currentTenantId } = await getSession();
 
   if (!currentTenantId) {
-    return {
-      data: [],
-      success: false,
-      message: "Sélectionnez un tenant avant de consulter les sites.",
-    };
+    return null;
   }
 
   const tenant = await prisma.tenant.findFirst({
@@ -46,57 +58,109 @@ export async function getAllSites(
     },
   });
 
-  if (!tenant) {
+  return tenant?.id ?? null;
+}
+
+export async function getAllSites(
+  filters: searchParams = { itemsPerPage: 0 },
+): Promise<ActionResponse<SiteListItem>> {
+  const permission = await guard(ACTION.READ, RESOURCE.SITE);
+
+  if (!permission.success) {
     return {
       data: [],
       success: false,
-      message: "Le tenant sélectionné est introuvable ou désactivé.",
+      message: permission.message,
     };
   }
 
-  // Pagination
-  const currentPage = Math.max(filters?.currentPage ?? 1, 1);
-  const isUnpaged = filters?.itemsPerPage === 0;
-  const itemsPerPage = isUnpaged
-    ? 0
-    : Math.max(filters?.itemsPerPage ?? PAGINATION_SETTINGS.itemsPerPage, 1);
+  const tenantId = await getActiveTenantId();
 
-  const { name, active } = filters;
-
-  const where: Prisma.SiteWhereInput = { tenantId: currentTenantId };
-
-  if (name) {
-    where.name = { contains: name, mode: "insensitive" };
+  if (!tenantId) {
+    return {
+      data: [],
+      success: false,
+      message: "Sélectionnez un tenant actif avant de consulter les sites.",
+    };
   }
 
-  if (active === ACTIVE.YES) where.active = true;
-  if (active === ACTIVE.NO) where.active = false;
-  else where.active = true;
+  const currentPage = Math.max(
+    Number(filters.currentPage) || 1,
+    1,
+  );
 
-  const skip = isUnpaged ? 0 : (currentPage - 1) * itemsPerPage;
-  const take = isUnpaged ? undefined : itemsPerPage;
+  const requestedItems = Number(
+    filters.itemsPerPage ?? PAGINATION_SETTINGS.itemsPerPage,
+  );
+
+  const isUnpaged = requestedItems === 0;
+
+  const itemsPerPage = isUnpaged
+    ? 0
+    : Math.max(
+      requestedItems || PAGINATION_SETTINGS.itemsPerPage,
+      1,
+    );
+
+  const name = filters.name?.trim();
+  const active = filters.active;
+
+  const where: Prisma.SiteWhereInput = {
+    tenantId,
+  };
+
+  if (name) {
+    where.name = {
+      contains: name,
+      mode: "insensitive",
+    };
+  }
+
+  // Correction du filtre : les sites inactifs doivent être accessibles
+  // lorsque l'utilisateur sélectionne explicitement le statut inactif.
+  if (active === ACTIVE.YES) {
+    where.active = true;
+  } else if (active === ACTIVE.NO) {
+    where.active = false;
+  } else {
+    where.active = true;
+  }
 
   const [sites, totalItems] = await Promise.all([
     prisma.site.findMany({
       where,
-      orderBy: { name: "asc" },
-      skip,
-      take,
-      // On ne renvoie que les champs utiles du tenant
+      orderBy: {
+        name: "asc",
+      },
+      skip: isUnpaged
+        ? 0
+        : (currentPage - 1) * itemsPerPage,
+      take: isUnpaged ? undefined : itemsPerPage,
       include: {
-        tenant: { select: { id: true, name: true } },
+        tenant: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
       },
     }),
+
     prisma.site.count({ where }),
   ]);
-
-  const totalPages = isUnpaged ? 1 : Math.ceil(totalItems / itemsPerPage);
 
   return {
     data: sites,
     success: true,
-    message: "Données récupérées avec succès!",
-    meta: { totalItems, totalPages, currentPage, itemsPerPage },
+    message: "Données récupérées avec succès.",
+    meta: {
+      totalItems,
+      totalPages: isUnpaged
+        ? 1
+        : Math.max(1, Math.ceil(totalItems / itemsPerPage)),
+      currentPage,
+      itemsPerPage,
+    },
   };
 }
 
@@ -107,25 +171,25 @@ export async function createSite({
   name: string;
   active: boolean;
 }): Promise<ActionResponse> {
-  const guardResult = await guard(ACTION.CREATE, RESOURCE.SITE);
+  const permission = await guard(ACTION.CREATE, RESOURCE.SITE);
 
-  if (!guardResult.success) {
+  if (!permission.success) {
     return {
       success: false,
-      message: guardResult.message,
+      message: permission.message,
     };
   }
 
-  const { currentTenantId } = await getSession();
+  const tenantId = await getActiveTenantId();
 
-  if (!currentTenantId) {
+  if (!tenantId) {
     return {
       success: false,
-      message: "L'utilisateur n'est associé à aucun tenant.",
+      message: "Aucun tenant actif.",
     };
   }
 
-  const trimmedName = name.trim();
+  const trimmedName = name?.trim();
 
   if (!trimmedName) {
     return {
@@ -137,11 +201,14 @@ export async function createSite({
   try {
     const existing = await prisma.site.findFirst({
       where: {
-        tenantId: currentTenantId,
+        tenantId,
         name: {
           equals: trimmedName,
           mode: "insensitive",
         },
+      },
+      select: {
+        id: true,
       },
     });
 
@@ -156,7 +223,7 @@ export async function createSite({
       data: {
         name: trimmedName,
         active,
-        tenantId: currentTenantId,
+        tenantId,
       },
     });
 
@@ -166,6 +233,13 @@ export async function createSite({
     };
   } catch (error) {
     console.error("createSite error:", error);
+
+    if (getPrismaErrorCode(error) === "P2002") {
+      return {
+        success: false,
+        message: "Ce site existe déjà.",
+      };
+    }
 
     return {
       success: false,
@@ -183,19 +257,17 @@ export async function updateSite({
   name: string;
   active: boolean;
 }): Promise<ActionResponse> {
-  const guardResult = await guard(
-    ACTION.UPDATE,
-    RESOURCE.SITE,
-  );
+  const permission = await guard(ACTION.UPDATE, RESOURCE.SITE);
 
-  if (!guardResult.success) {
+  if (!permission.success) {
     return {
       success: false,
-      message: guardResult.message,
+      message: permission.message,
     };
   }
 
-  const { userId, currentTenantId } = await getSession();
+  const { userId } = await getSession();
+  const tenantId = await getActiveTenantId();
 
   if (!userId) {
     return {
@@ -204,64 +276,133 @@ export async function updateSite({
     };
   }
 
-  if (!currentTenantId) {
+  if (!tenantId) {
     return {
       success: false,
-      message: "L'utilisateur n'est associé à aucun tenant.",
+      message: "Aucun tenant actif.",
     };
   }
 
-  if (!name) {
+  const trimmedName = name?.trim();
+
+  if (!trimmedName) {
     return {
       success: false,
       message: "Le nom du site est obligatoire.",
     };
   }
 
-  try {
-    const site = await prisma.site.findFirst({
-      where: {
-        id,
-        tenantId: currentTenantId,
-      },
-    });
+  if (!id) {
+    return {
+      success: false,
+      message: "Identifiant du site manquant.",
+    };
+  }
 
-    if (!site) {
+  try {
+    const result = await prisma.$transaction(
+      async (tx) => {
+        const site = await tx.site.findFirst({
+          where: {
+            id,
+            tenantId,
+          },
+          select: {
+            id: true,
+            active: true,
+          },
+        });
+
+        if (!site) {
+          return {
+            status: "not-found" as const,
+          };
+        }
+
+        const duplicate = await tx.site.findFirst({
+          where: {
+            tenantId,
+            name: {
+              equals: trimmedName,
+              mode: "insensitive",
+            },
+            NOT: {
+              id,
+            },
+          },
+          select: {
+            id: true,
+          },
+        });
+
+        if (duplicate) {
+          return {
+            status: "duplicate" as const,
+          };
+        }
+
+        // Une désactivation n'est autorisée que si aucun engin actif
+        // ne reste affecté au site.
+        if (site.active && !active) {
+          const activeEngins = await tx.engin.count({
+            where: {
+              siteId: id,
+              tenantId,
+              active: true,
+            },
+          });
+
+          if (activeEngins > 0) {
+            return {
+              status: "active-engins" as const,
+              activeEngins,
+            };
+          }
+        }
+
+        await tx.site.update({
+          where: {
+            id,
+          },
+          data: {
+            name: trimmedName,
+            active,
+          },
+        });
+
+        return {
+          status: "updated" as const,
+        };
+      },
+      {
+        isolationLevel: "Serializable",
+      },
+    );
+
+    if (result.status === "not-found") {
       return {
         success: false,
         message: "Site introuvable.",
       };
     }
 
-    const duplicate = await prisma.site.findFirst({
-      where: {
-        tenantId: currentTenantId,
-        name: {
-          equals: name,
-          mode: "insensitive",
-        },
-        NOT: {
-          id,
-        },
-      },
-    });
-
-    if (duplicate) {
+    if (result.status === "duplicate") {
       return {
         success: false,
         message: "Un autre site porte déjà ce nom.",
       };
     }
 
-    await prisma.site.update({
-      where: {
-        id,
-      },
-      data: {
-        name,
-        active,
-      },
-    });
+    if (result.status === "active-engins") {
+      return {
+        success: false,
+        message:
+          `Désactivation impossible : ${result.activeEngins} engin(s) actif(s) ` +
+          "sont encore affectés à ce site. " +
+          "Désactivez ou réaffectez ces engins avant de désactiver le site. " +
+          "Aucune donnée historique n'a été modifiée.",
+      };
+    }
 
     return {
       success: true,
@@ -269,6 +410,23 @@ export async function updateSite({
     };
   } catch (error) {
     console.error("updateSite error:", error);
+
+    const code = getPrismaErrorCode(error);
+
+    if (code === "P2034") {
+      return {
+        success: false,
+        message:
+          "Les données ont été modifiées simultanément. Veuillez réessayer.",
+      };
+    }
+
+    if (code === "P2002") {
+      return {
+        success: false,
+        message: "Un autre site porte déjà ce nom.",
+      };
+    }
 
     return {
       success: false,
@@ -280,19 +438,17 @@ export async function updateSite({
 export async function deleteSite(
   id: string,
 ): Promise<ActionResponse> {
-  const guardResult = await guard(
-    ACTION.DELETE,
-    RESOURCE.SITE,
-  );
+  const permission = await guard(ACTION.DELETE, RESOURCE.SITE);
 
-  if (!guardResult.success) {
+  if (!permission.success) {
     return {
       success: false,
-      message: guardResult.message,
+      message: permission.message,
     };
   }
 
-  const { userId, currentTenantId } = await getSession();
+  const { userId } = await getSession();
+  const tenantId = await getActiveTenantId();
 
   if (!userId) {
     return {
@@ -301,10 +457,10 @@ export async function deleteSite(
     };
   }
 
-  if (!currentTenantId) {
+  if (!tenantId) {
     return {
       success: false,
-      message: "L'utilisateur n'est associé à aucun tenant.",
+      message: "Aucun tenant actif.",
     };
   }
 
@@ -314,9 +470,11 @@ export async function deleteSite(
         const site = await tx.site.findFirst({
           where: {
             id,
-            tenantId: currentTenantId,
+            tenantId,
           },
-          select: { id: true },
+          select: {
+            id: true,
+          },
         });
 
         if (!site) {
@@ -335,30 +493,50 @@ export async function deleteSite(
           affectationsMaintenance,
         ] = await Promise.all([
           tx.engin.count({
-            where: { siteId: id, tenantId: currentTenantId },
+            where: {
+              siteId: id,
+              tenantId,
+            },
           }),
+
           tx.saisiehrm.count({
-            where: { siteId: id, tenantId: currentTenantId },
+            where: {
+              siteId: id,
+              tenantId,
+            },
           }),
+
           tx.saisiehim.count({
             where: {
-              tenantId: currentTenantId,
+              tenantId,
               saisiehrm: {
                 is: {
                   siteId: id,
-                  tenantId: currentTenantId,
+                  tenantId,
                 },
               },
             },
           }),
+
           tx.objectif.count({
-            where: { siteId: id, tenantId: currentTenantId },
+            where: {
+              siteId: id,
+              tenantId,
+            },
           }),
+
           tx.backlog.count({
-            where: { siteId: id, tenantId: currentTenantId },
+            where: {
+              siteId: id,
+              tenantId,
+            },
           }),
+
           tx.affectationPlanMaintenance.count({
-            where: { siteId: id, tenantId: currentTenantId },
+            where: {
+              siteId: id,
+              tenantId,
+            },
           }),
         ]);
 
@@ -400,7 +578,9 @@ export async function deleteSite(
         }
 
         await tx.site.delete({
-          where: { id },
+          where: {
+            id,
+          },
         });
 
         return {
@@ -420,6 +600,16 @@ export async function deleteSite(
   } catch (error) {
     console.error("deleteSite error:", error);
 
+    const code = getPrismaErrorCode(error);
+
+    if (code === "P2034") {
+      return {
+        success: false,
+        message:
+          "Les données ont été modifiées simultanément. Veuillez réessayer.",
+      };
+    }
+
     return {
       success: false,
       message:
@@ -431,8 +621,16 @@ export async function deleteSite(
 export async function importSites(
   data: Record<string, unknown>,
 ): Promise<
-  | { success: boolean; data: null; message: string }[]
-  | { success: boolean; data: Record<string, unknown>; message: string }[]
+  | {
+    success: boolean;
+    data: null;
+    message: string;
+  }[]
+  | {
+    success: boolean;
+    data: Record<string, unknown>;
+    message: string;
+  }[]
   | {
     success: boolean;
     data: {
@@ -462,55 +660,119 @@ export async function importSites(
         {
           success: false,
           data,
-          message: "Erreur: Le champ 'name' est requis",
+          message: "Erreur : le champ 'name' est requis.",
         },
       ];
     }
 
-    const { currentTenantId } = await getSession();
+    const tenantId = await getActiveTenantId();
 
-    if (!currentTenantId) {
+    if (!tenantId) {
       return [
         {
           success: false,
           data,
-          message: "Erreur: Aucun tenant actif pour l'import du site",
+          message: "Aucun tenant actif pour l'import du site.",
         },
       ];
     }
 
-    const site = await prisma.site.upsert({
-      where: {
-        name_tenantId: {
-          tenantId: currentTenantId,
-          name,
+    const trimmedName = name.trim();
+
+    // L'import ne modifie jamais le statut actif/inactif d'un site existant.
+    // Il ne fait que créer un site ou mettre à jour son nom.
+    const result = await prisma.$transaction(
+      async (tx) => {
+        const matches = await tx.site.findMany({
+          where: {
+            tenantId,
+            name: {
+              equals: trimmedName,
+              mode: "insensitive",
+            },
+          },
+          select: {
+            id: true,
+            name: true,
+            active: true,
+            tenantId: true,
+          },
+          take: 2,
+        });
+
+        if (matches.length > 1) {
+          return {
+            status: "ambiguous" as const,
+          };
+        }
+
+        if (matches.length === 1) {
+          const site = await tx.site.update({
+            where: {
+              id: matches[0].id,
+            },
+            data: {
+              name: trimmedName,
+            },
+          });
+
+          return {
+            status: "saved" as const,
+            site,
+          };
+        }
+
+        const site = await tx.site.create({
+          data: {
+            name: trimmedName,
+            tenantId,
+          },
+        });
+
+        return {
+          status: "saved" as const,
+          site,
+        };
+      },
+      {
+        isolationLevel: "Serializable",
+      },
+    );
+
+    if (result.status === "ambiguous") {
+      return [
+        {
+          success: false,
+          data,
+          message:
+            `Import refusé : plusieurs sites correspondent au nom "${trimmedName}". ` +
+            "Corrigez les doublons avant de relancer l'import.",
         },
-      },
-      update: {
-        name,
-      },
-      create: {
-        name,
-        tenantId: currentTenantId,
-      },
-    });
+      ];
+    }
 
     return [
       {
         success: true,
-        data: site,
-        message: `Site ${name} importé avec succès`,
+        data: result.site,
+        message: `Site "${result.site.name}" importé avec succès.`,
       },
     ];
   } catch (error: unknown) {
     console.error("Erreur lors de l'import des sites :", error);
+
+    const code = getPrismaErrorCode(error);
 
     return [
       {
         success: false,
         data,
         message:
-          "Une erreur interne est survenue lors de l'import des sites. Vérifiez les données et consultez les journaux serveur si le problème persiste.",
+          code === "P2034"
+            ? "Import interrompu : les données ont été modifiées simultanément. Veuillez relancer l'import."
+            : code === "P2002"
+              ? "Import impossible : un site portant déjà ce nom existe."
+              : "Une erreur interne est survenue lors de l'import des sites. Vérifiez les données et consultez les journaux serveur si le problème persiste.",
       },
     ];
   }
