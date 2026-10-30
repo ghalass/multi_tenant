@@ -1,3 +1,4 @@
+
 "use server";
 
 import { prisma } from "@/lib/prisma";
@@ -35,6 +36,13 @@ export type EnginListItem = Prisma.EnginGetPayload<{
   };
 }>;
 
+type EnginParcHistoryCounts = {
+  saisiesHrm: number;
+  saisiesHim: number;
+  backlogs: number;
+  historiquesMaintenance: number;
+};
+
 async function getEnginTenantId(): Promise<string | null> {
   const { currentTenantId } = await getSession();
 
@@ -51,6 +59,111 @@ async function getEnginTenantId(): Promise<string | null> {
   });
 
   return tenant?.id ?? null;
+}
+
+function getPrismaErrorCode(error: unknown): string | undefined {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error
+  ) {
+    const code = (error as { code?: unknown }).code;
+    return typeof code === "string" ? code : undefined;
+  }
+
+  return undefined;
+}
+
+/**
+ * Vérifie les données historiques qui seraient reclassées
+ * si un engin changeait de parc.
+ */
+async function getEnginParcHistoryCounts(
+  tx: Prisma.TransactionClient,
+  tenantId: string,
+  enginId: string,
+): Promise<EnginParcHistoryCounts> {
+  const [
+    saisiesHrm,
+    saisiesHim,
+    backlogs,
+    historiquesMaintenance,
+  ] = await Promise.all([
+    tx.saisiehrm.count({
+      where: {
+        enginId,
+        tenantId,
+      },
+    }),
+
+    tx.saisiehim.count({
+      where: {
+        tenantId,
+        saisiehrm: {
+          is: {
+            enginId,
+            tenantId,
+          },
+        },
+      },
+    }),
+
+    tx.backlog.count({
+      where: {
+        enginId,
+        tenantId,
+      },
+    }),
+
+    tx.historiqueMaintenancePreventive.count({
+      where: {
+        enginId,
+        tenantId,
+      },
+    }),
+  ]);
+
+  return {
+    saisiesHrm,
+    saisiesHim,
+    backlogs,
+    historiquesMaintenance,
+  };
+}
+
+function getEnginParcChangeBlockMessage(
+  counts: EnginParcHistoryCounts,
+): string | null {
+  const dependencies: string[] = [];
+
+  if (counts.saisiesHrm > 0) {
+    dependencies.push(`${counts.saisiesHrm} saisie(s) HRM`);
+  }
+
+  if (counts.saisiesHim > 0) {
+    dependencies.push(`${counts.saisiesHim} saisie(s) HIM`);
+  }
+
+  if (counts.backlogs > 0) {
+    dependencies.push(`${counts.backlogs} backlog(s)`);
+  }
+
+  if (counts.historiquesMaintenance > 0) {
+    dependencies.push(
+      `${counts.historiquesMaintenance} historique(s) de maintenance préventive`,
+    );
+  }
+
+  if (dependencies.length === 0) {
+    return null;
+  }
+
+  return (
+    "Changement de parc impossible : cet engin possède un historique lié à " +
+    `${dependencies.join(", ")}. ` +
+    "Le déplacement modifierait le classement de ces anciennes données dans les rapports. " +
+    "Conservez le parc actuel pour préserver l'historique."
+  );
 }
 
 export async function getAllEngins(
@@ -325,11 +438,7 @@ export async function createEngin(
 
   const name = values.name?.trim();
 
-  if (
-    !name ||
-    !values.parcId ||
-    !values.siteId
-  ) {
+  if (!name || !values.parcId || !values.siteId) {
     return {
       success: false,
       message: "Vérifiez les champs obligatoires.",
@@ -511,23 +620,50 @@ export async function updateEngin(
       };
     }
 
-    await prisma.$transaction(
+    const updateResult = await prisma.$transaction(
       async (tx) => {
-        // Nouvelle vérification dans la transaction pour éviter
-        // une modification si l'engin vient d'être désactivé.
         const currentEngin = await tx.engin.findFirst({
           where: {
             id: values.id,
             tenantId,
-            active: true,
           },
           select: {
             id: true,
+            active: true,
+            parcId: true,
           },
         });
 
         if (!currentEngin) {
-          throw new Error("ENGIN_INACTIF");
+          return {
+            status: "not-found" as const,
+          };
+        }
+
+        if (!currentEngin.active) {
+          return {
+            status: "inactive" as const,
+          };
+        }
+
+        // Le déplacement vers un autre parc est interdit
+        // dès que l'engin possède des données historiques.
+        if (currentEngin.parcId !== values.parcId) {
+          const counts = await getEnginParcHistoryCounts(
+            tx,
+            tenantId,
+            values.id,
+          );
+
+          const blockMessage =
+            getEnginParcChangeBlockMessage(counts);
+
+          if (blockMessage) {
+            return {
+              status: "history-blocked" as const,
+              message: blockMessage,
+            };
+          }
         }
 
         const engin = await tx.engin.update({
@@ -542,26 +678,61 @@ export async function updateEngin(
           },
         });
 
+        // Synchronisation des affectations de maintenance
+        // après toute modification de l'engin.
         await synchroniserSuivisMaintenancePourEngin(
           tx,
           tenantId,
           engin.id,
         );
+
+        return {
+          status: "updated" as const,
+        };
       },
       {
         isolationLevel: "Serializable",
       },
     );
 
+    if (updateResult.status === "not-found") {
+      return {
+        success: false,
+        message: "Engin introuvable.",
+      };
+    }
+
+    if (updateResult.status === "inactive") {
+      return {
+        success: false,
+        message: "Modification impossible : cet engin est inactif.",
+      };
+    }
+
+    if (updateResult.status === "history-blocked") {
+      return {
+        success: false,
+        message: updateResult.message,
+      };
+    }
+
     return {
       success: true,
       message: "Engin modifié avec succès.",
     };
   } catch (error) {
-    if (error instanceof Error && error.message === "ENGIN_INACTIF") {
+    if (error instanceof MaintenanceSyncError) {
       return {
         success: false,
-        message: "Modification impossible : cet engin est inactif.",
+        message: error.message,
+      };
+    }
+
+    if (getPrismaErrorCode(error) === "P2034") {
+      return {
+        success: false,
+        message:
+          "Les données ont été modifiées simultanément. Veuillez réessayer.",
       };
     }
 
@@ -873,15 +1044,14 @@ export async function importEngins(
           select: {
             id: true,
             active: true,
+            parcId: true,
           },
           take: 2,
         });
 
         if (existingEngins.length > 1) {
           return {
-            ambiguous: true as const,
-            inactive: false as const,
-            engin: null,
+            status: "ambiguous" as const,
           };
         }
 
@@ -891,10 +1061,31 @@ export async function importEngins(
         // ni réactivé par un import Excel.
         if (existingEngin && !existingEngin.active) {
           return {
-            ambiguous: false as const,
-            inactive: true as const,
-            engin: null,
+            status: "inactive" as const,
           };
+        }
+
+        // Un import ne doit pas déplacer un engin qui possède
+        // déjà des données historiques.
+        if (
+          existingEngin &&
+          existingEngin.parcId !== parc.id
+        ) {
+          const counts = await getEnginParcHistoryCounts(
+            tx,
+            tenantId,
+            existingEngin.id,
+          );
+
+          const blockMessage =
+            getEnginParcChangeBlockMessage(counts);
+
+          if (blockMessage) {
+            return {
+              status: "history-blocked" as const,
+              message: blockMessage,
+            };
+          }
         }
 
         const engin = existingEngin
@@ -926,8 +1117,7 @@ export async function importEngins(
         );
 
         return {
-          ambiguous: false as const,
-          inactive: false as const,
+          status: "saved" as const,
           engin,
         };
       },
@@ -936,7 +1126,7 @@ export async function importEngins(
       },
     );
 
-    if (importResult.ambiguous) {
+    if (importResult.status === "ambiguous") {
       return [{
         success: false,
         data,
@@ -945,12 +1135,20 @@ export async function importEngins(
       }];
     }
 
-    if (importResult.inactive) {
+    if (importResult.status === "inactive") {
       return [{
         success: false,
         data,
         message:
           `Import refusé : l'engin "${name}" est déjà inactif et ne peut plus être modifié.`,
+      }];
+    }
+
+    if (importResult.status === "history-blocked") {
+      return [{
+        success: false,
+        data,
+        message: importResult.message,
       }];
     }
 
@@ -965,6 +1163,15 @@ export async function importEngins(
         success: false,
         data,
         message: error.message,
+      }];
+    }
+
+    if (getPrismaErrorCode(error) === "P2034") {
+      return [{
+        success: false,
+        data,
+        message:
+          "Import interrompu : les données ont été modifiées simultanément. Veuillez relancer l'import.",
       }];
     }
 
