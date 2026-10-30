@@ -196,16 +196,18 @@ export default async function EnginsPage({
                                         </TableCell>
 
                                         <TableCell className="flex justify-end gap-4">
-                                            <CanAccess
-                                                resource={RESOURCE.ENGIN}
-                                                action={ACTION.UPDATE}
-                                            >
-                                                <UpdateEnginForm
-                                                    engin={engin}
-                                                    sites={options.sites}
-                                                    parcs={options.parcs}
-                                                />
-                                            </CanAccess>
+                                            {engin.active && (
+                                                <CanAccess
+                                                    resource={RESOURCE.ENGIN}
+                                                    action={ACTION.UPDATE}
+                                                >
+                                                    <UpdateEnginForm
+                                                        engin={engin}
+                                                        sites={options.sites}
+                                                        parcs={options.parcs}
+                                                    />
+                                                </CanAccess>
+                                            )}
 
                                             <CanAccess
                                                 resource={RESOURCE.ENGIN}

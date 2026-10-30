@@ -1,4 +1,3 @@
-
 "use server";
 
 import { prisma } from "@/lib/prisma";
@@ -458,6 +457,7 @@ export async function updateEngin(
       },
       select: {
         id: true,
+        active: true,
       },
     });
 
@@ -465,6 +465,13 @@ export async function updateEngin(
       return {
         success: false,
         message: "Engin introuvable.",
+      };
+    }
+
+    if (!existing.active) {
+      return {
+        success: false,
+        message: "Modification impossible : cet engin est inactif.",
       };
     }
 
@@ -506,6 +513,23 @@ export async function updateEngin(
 
     await prisma.$transaction(
       async (tx) => {
+        // Nouvelle vérification dans la transaction pour éviter
+        // une modification si l'engin vient d'être désactivé.
+        const currentEngin = await tx.engin.findFirst({
+          where: {
+            id: values.id,
+            tenantId,
+            active: true,
+          },
+          select: {
+            id: true,
+          },
+        });
+
+        if (!currentEngin) {
+          throw new Error("ENGIN_INACTIF");
+        }
+
         const engin = await tx.engin.update({
           where: {
             id: values.id,
@@ -534,6 +558,13 @@ export async function updateEngin(
       message: "Engin modifié avec succès.",
     };
   } catch (error) {
+    if (error instanceof Error && error.message === "ENGIN_INACTIF") {
+      return {
+        success: false,
+        message: "Modification impossible : cet engin est inactif.",
+      };
+    }
+
     console.error("updateEngin error:", error);
 
     return {
@@ -659,7 +690,6 @@ export async function importEngins(
       }];
     }
 
-    // Vérification du tenant courant et de son statut actif.
     const tenantId = await getEnginTenantId();
 
     if (!tenantId) {
@@ -670,8 +700,6 @@ export async function importEngins(
       }];
     }
 
-    // Recherche des parcs et sites dans le tenant courant,
-    // sans distinction de majuscules et minuscules.
     const [parcs, sites] = await Promise.all([
       prisma.parc.findMany({
         where: {
@@ -742,7 +770,6 @@ export async function importEngins(
     const parc = parcs[0];
     const site = sites[0];
 
-    // Même règle que pour la création et la modification manuelles.
     if (!site.active) {
       return [{
         success: false,
@@ -752,9 +779,6 @@ export async function importEngins(
       }];
     }
 
-    // Recherche et enregistrement dans une transaction.
-    // Une correspondance de nom existante est mise à jour,
-    // même si la casse du nom diffère.
     const importResult = await prisma.$transaction(
       async (tx) => {
         const existingEngins = await tx.engin.findMany({
@@ -767,20 +791,30 @@ export async function importEngins(
           },
           select: {
             id: true,
+            active: true,
           },
           take: 2,
         });
 
-        // Ne pas choisir arbitrairement un engin si des doublons
-        // historiques existent avec des différences de casse.
         if (existingEngins.length > 1) {
           return {
             ambiguous: true as const,
+            inactive: false as const,
             engin: null,
           };
         }
 
         const existingEngin = existingEngins[0];
+
+        // Un engin déjà inactif ne peut plus être modifié
+        // ni réactivé par un import Excel.
+        if (existingEngin && !existingEngin.active) {
+          return {
+            ambiguous: false as const,
+            inactive: true as const,
+            engin: null,
+          };
+        }
 
         const engin = existingEngin
           ? await tx.engin.update({
@@ -812,6 +846,7 @@ export async function importEngins(
 
         return {
           ambiguous: false as const,
+          inactive: false as const,
           engin,
         };
       },
@@ -826,6 +861,15 @@ export async function importEngins(
         data,
         message:
           `Plusieurs engins correspondent au nom "${name}". Vérifiez les doublons avant de relancer l'import.`,
+      }];
+    }
+
+    if (importResult.inactive) {
+      return [{
+        success: false,
+        data,
+        message:
+          `Import refusé : l'engin "${name}" est déjà inactif et ne peut plus être modifié.`,
       }];
     }
 

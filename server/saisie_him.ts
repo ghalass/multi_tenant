@@ -1,4 +1,3 @@
-
 "use server";
 
 import { prisma } from "@/lib/prisma";
@@ -71,7 +70,32 @@ function parseDate(value?: string): Date | null {
    OPTIONS DES LISTES
 ========================================================= */
 
-export async function getSaisieHimOptions(): Promise<{ success: boolean; message: string; data: { typeParcs: { id: string; name: string; }[]; typePannes: { id: string; name: string; }[]; parcs: { id: string; name: string; typeparcId: string; }[]; engins: { id: string; name: string; siteId: string; active: boolean; parcId: string; }[]; sites: { id: string; name: string; }[]; pannes: { id: string; name: string; parcs: { description: string | null; parc: { id: string; name: string; }; }[]; typepanneId: string; }[]; }; }> {
+export async function getSaisieHimOptions(): Promise<{
+    success: boolean;
+    message: string;
+    data: {
+        typeParcs: { id: string; name: string }[];
+        typePannes: { id: string; name: string }[];
+        parcs: { id: string; name: string; typeparcId: string }[];
+        engins: {
+            id: string;
+            name: string;
+            siteId: string;
+            active: boolean;
+            parcId: string;
+        }[];
+        sites: { id: string; name: string }[];
+        pannes: {
+            id: string;
+            name: string;
+            parcs: {
+                description: string | null;
+                parc: { id: string; name: string };
+            }[];
+            typepanneId: string;
+        }[];
+    };
+}> {
     const permission = await guard(
         ACTION.READ,
         RESOURCE.SAISIE_HIM,
@@ -129,7 +153,7 @@ export async function getSaisieHimOptions(): Promise<{ success: boolean; message
             }),
 
             // Garder aussi les engins inactifs dans les options :
-            // une saisie HIM historique doit rester modifiable.
+            // ils sont nécessaires pour retrouver et corriger l'historique.
             prisma.engin.findMany({
                 where: { tenantId },
                 select: {
@@ -190,7 +214,64 @@ export async function getSaisieHimOptions(): Promise<{ success: boolean; message
 
 export async function getAllSaisieHim(
     filters: SaisieHimSearchParams = {},
-): Promise<{ success: boolean; message: string; data: never[]; meta?: undefined; } | { success: boolean; message: string; data: ({ panne: { id: string; name: string; }; saisiehrm: { engin: { parc: { typeparc: { id: string; name: string; }; } & { id: string; name: string; tenantId: string; typeparcId: string; }; } & { id: string; name: string; siteId: string; tenantId: string; active: boolean; parcId: string; }; site: { id: string; name: string; }; } & { id: string; hrm: number; enginId: string; siteId: string; tenantId: string; du: Date; nho: number; compteur: number | null; }; } & { id: string; him: number; tenantId: string; panneId: string; ni: number | null; saisiehrmId: string; obs: string | null; })[]; meta: { totalItems: number; totalPages: number; currentPage: number; itemsPerPage: number; }; }> {
+): Promise<
+    | {
+        success: boolean;
+        message: string;
+        data: never[];
+        meta?: undefined;
+    }
+    | {
+        success: boolean;
+        message: string;
+        data: ({
+            panne: { id: string; name: string };
+            saisiehrm: {
+                engin: {
+                    parc: {
+                        typeparc: { id: string; name: string };
+                    } & {
+                        id: string;
+                        name: string;
+                        tenantId: string;
+                        typeparcId: string;
+                    };
+                } & {
+                    id: string;
+                    name: string;
+                    siteId: string;
+                    tenantId: string;
+                    active: boolean;
+                    parcId: string;
+                };
+                site: { id: string; name: string };
+            } & {
+                id: string;
+                hrm: number;
+                enginId: string;
+                siteId: string;
+                tenantId: string;
+                du: Date;
+                nho: number;
+                compteur: number | null;
+            };
+        } & {
+            id: string;
+            him: number;
+            tenantId: string;
+            panneId: string;
+            ni: number | null;
+            saisiehrmId: string;
+            obs: string | null;
+        })[];
+        meta: {
+            totalItems: number;
+            totalPages: number;
+            currentPage: number;
+            itemsPerPage: number;
+        };
+    }
+> {
     const permission = await guard(
         ACTION.READ,
         RESOURCE.SAISIE_HIM,
@@ -433,7 +514,27 @@ async function validateHimCapacity(
 async function validateSaisieHimInput(
     values: SaisieHimInput,
     tenantId: string,
-): Promise<{ error: string; du?: undefined; saisiehrmId?: undefined; panneId?: undefined; him?: undefined; ni?: undefined; obs?: undefined; } | { du: Date; saisiehrmId: string; panneId: string; him: number; ni: number | null; obs: string | null; readonly error?: undefined; }> {
+    allowInactiveEnginId?: string,
+): Promise<
+    | {
+        error: string;
+        du?: undefined;
+        saisiehrmId?: undefined;
+        panneId?: undefined;
+        him?: undefined;
+        ni?: undefined;
+        obs?: undefined;
+    }
+    | {
+        du: Date;
+        saisiehrmId: string;
+        panneId: string;
+        him: number;
+        ni: number | null;
+        obs: string | null;
+        readonly error?: undefined;
+    }
+> {
     const du = parseDate(values.du);
     const him = Number(values.him);
     const ni = values.ni == null ? null : Number(values.ni);
@@ -483,6 +584,7 @@ async function validateSaisieHimInput(
                 id: true,
                 siteId: true,
                 parcId: true,
+                active: true,
             },
         }),
 
@@ -498,6 +600,13 @@ async function validateSaisieHimInput(
 
     if (!engin) {
         return { error: "L'engin sélectionné est introuvable." };
+    }
+
+    if (!engin.active && engin.id !== allowInactiveEnginId) {
+        return {
+            error:
+                "Cet engin est inactif. Une nouvelle saisie HIM n'est pas autorisée.",
+        };
     }
 
     if (!site) {
@@ -576,7 +685,7 @@ async function validateSaisieHimInput(
 
 export async function createSaisieHim(
     values: SaisieHimInput,
-): Promise<{ success: boolean; message: string | undefined; }> {
+): Promise<{ success: boolean; message: string | undefined }> {
     const permission = await guard(
         ACTION.CREATE,
         RESOURCE.SAISIE_HIM,
@@ -599,6 +708,7 @@ export async function createSaisieHim(
     }
 
     try {
+        // Sans saisie HIM préexistante, un engin inactif est refusé.
         const validated = await validateSaisieHimInput(
             values,
             tenantId,
@@ -672,7 +782,7 @@ export async function createSaisieHim(
 
 export async function updateSaisieHim(
     values: SaisieHimInput & { id: string },
-): Promise<{ success: boolean; message: string | undefined; }> {
+): Promise<{ success: boolean; message: string | undefined }> {
     const permission = await guard(
         ACTION.UPDATE,
         RESOURCE.SAISIE_HIM,
@@ -700,7 +810,14 @@ export async function updateSaisieHim(
                 id: values.id,
                 tenantId,
             },
-            select: { id: true },
+            select: {
+                id: true,
+                saisiehrm: {
+                    select: {
+                        enginId: true,
+                    },
+                },
+            },
         });
 
         if (!existing) {
@@ -713,6 +830,7 @@ export async function updateSaisieHim(
         const validated = await validateSaisieHimInput(
             values,
             tenantId,
+            existing.saisiehrm.enginId,
         );
 
         if ("error" in validated) {
@@ -724,6 +842,48 @@ export async function updateSaisieHim(
 
         await prisma.$transaction(
             async (tx) => {
+                const currentExisting = await tx.saisiehim.findFirst({
+                    where: {
+                        id: values.id,
+                        tenantId,
+                    },
+                    select: {
+                        id: true,
+                        saisiehrm: {
+                            select: {
+                                enginId: true,
+                            },
+                        },
+                    },
+                });
+
+                if (!currentExisting) {
+                    throw new Error("Saisie HIM introuvable.");
+                }
+
+                const selectedEngin = await tx.engin.findFirst({
+                    where: {
+                        id: values.enginId,
+                        tenantId,
+                    },
+                    select: {
+                        active: true,
+                    },
+                });
+
+                if (!selectedEngin) {
+                    throw new Error("L'engin sélectionné est introuvable.");
+                }
+
+                if (
+                    !selectedEngin.active &&
+                    values.enginId !== currentExisting.saisiehrm.enginId
+                ) {
+                    throw new Error(
+                        "Cet engin est inactif. Une saisie HIM ne peut pas être déplacée vers un engin inactif.",
+                    );
+                }
+
                 const duplicate = await tx.saisiehim.findFirst({
                     where: {
                         panneId: validated.panneId,
@@ -783,7 +943,9 @@ export async function updateSaisieHim(
    SUPPRESSION
 ========================================================= */
 
-export async function deleteSaisieHim(id: string): Promise<{ success: boolean; message: string; }> {
+export async function deleteSaisieHim(
+    id: string,
+): Promise<{ success: boolean; message: string }> {
     const permission = await guard(
         ACTION.DELETE,
         RESOURCE.SAISIE_HIM,
@@ -867,11 +1029,29 @@ function parseNumber(value: unknown): number | null {
     return Number.isFinite(result) ? result : null;
 }
 
-export async function importSaisieHim(data: Record<string, unknown>): Promise<{ success: boolean; data: null; message: string; }[] | { success: boolean; data: Record<string, unknown>; message: string; }[] | { success: boolean; data: { id: string; tenantId: string; panneId: string; him: number; ni: number | null; saisiehrmId: string; obs: string | null; }; message: string; }[]> {
+export async function importSaisieHim(
+    data: Record<string, unknown>,
+): Promise<
+    | { success: boolean; data: null; message: string }[]
+    | { success: boolean; data: Record<string, unknown>; message: string }[]
+    | {
+        success: boolean;
+        data: {
+            id: string;
+            tenantId: string;
+            panneId: string;
+            him: number;
+            ni: number | null;
+            saisiehrmId: string;
+            obs: string | null;
+        };
+        message: string;
+    }[]
+> {
     try {
         const permission = await guard(
             ACTION.IMPORT,
-            RESOURCE.SAISIE_HIM
+            RESOURCE.SAISIE_HIM,
         );
 
         if (!permission.success) {
@@ -1026,9 +1206,22 @@ export async function importSaisieHim(data: Record<string, unknown>): Promise<{ 
             }];
         }
 
-        // Validation et upsert dans la même transaction.
         const saisie = await prisma.$transaction(
             async (tx) => {
+                const currentEngin = await tx.engin.findFirst({
+                    where: {
+                        id: engin.id,
+                        tenantId: currentTenantId,
+                    },
+                    select: {
+                        active: true,
+                    },
+                });
+
+                if (!currentEngin) {
+                    throw new Error(`Engin "${enginName}" introuvable.`);
+                }
+
                 const existingSaisie = await tx.saisiehim.findUnique({
                     where: {
                         panneId_saisiehrmId_tenantId: {
@@ -1039,6 +1232,14 @@ export async function importSaisieHim(data: Record<string, unknown>): Promise<{ 
                     },
                     select: { id: true, ni: true },
                 });
+
+                // Un engin inactif ne peut être importé que pour mettre
+                // à jour une saisie HIM qui existe déjà.
+                if (!currentEngin.active && !existingSaisie) {
+                    throw new Error(
+                        `Import refusé : l'engin "${enginName}" est inactif. Aucune nouvelle saisie HIM n'est autorisée.`,
+                    );
+                }
 
                 const niValue = ni ?? existingSaisie?.ni ?? null;
 

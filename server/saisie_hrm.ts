@@ -1,4 +1,3 @@
-
 "use server";
 
 import { prisma } from "@/lib/prisma";
@@ -491,6 +490,7 @@ export async function getAllSaisieHrm(
 async function validateSaisieHrmInput(
   values: SaisieHrmInput,
   tenantId: string,
+  allowInactiveEnginId?: string,
 ): Promise<
   | { error: string }
   | {
@@ -562,9 +562,12 @@ async function validateSaisieHrmInput(
       where: {
         id: values.enginId,
         tenantId,
+      },
+      select: {
+        id: true,
+        siteId: true,
         active: true,
       },
-      select: { id: true, siteId: true },
     }),
 
     prisma.site.findFirst({
@@ -579,7 +582,14 @@ async function validateSaisieHrmInput(
 
   if (!engin) {
     return {
-      error: "L'engin sélectionné est invalide ou inactif.",
+      error: "L'engin sélectionné est introuvable.",
+    };
+  }
+
+  if (!engin.active && engin.id !== allowInactiveEnginId) {
+    return {
+      error:
+        "Cet engin est inactif. Une nouvelle saisie HRM n'est pas autorisée.",
     };
   }
 
@@ -614,6 +624,7 @@ export async function createSaisieHrm(
   }
 
   try {
+    // Sans identifiant de saisie existante, un engin inactif est refusé.
     const validated = await validateSaisieHrmInput(values, tenantId);
 
     if ("error" in validated) {
@@ -699,7 +710,31 @@ export async function updateSaisieHrm(
   }
 
   try {
-    const validated = await validateSaisieHrmInput(values, tenantId);
+    // Récupérer l'engin de la saisie existante.
+    // Seul cet engin inactif peut être conservé lors de la correction.
+    const existingSaisie = await prisma.saisiehrm.findFirst({
+      where: {
+        id: values.id,
+        tenantId,
+      },
+      select: {
+        id: true,
+        enginId: true,
+      },
+    });
+
+    if (!existingSaisie) {
+      return {
+        success: false,
+        message: "Saisie HRM introuvable.",
+      };
+    }
+
+    const validated = await validateSaisieHrmInput(
+      values,
+      tenantId,
+      existingSaisie.enginId,
+    );
 
     if ("error" in validated) {
       return { success: false, message: validated.error };
@@ -712,11 +747,35 @@ export async function updateSaisieHrm(
             id: values.id,
             tenantId,
           },
-          select: { id: true },
+          select: {
+            id: true,
+            enginId: true,
+          },
         });
 
         if (!existing) {
           throw new Error("Saisie HRM introuvable.");
+        }
+
+        // Vérifier à nouveau le statut dans la transaction.
+        const selectedEngin = await tx.engin.findFirst({
+          where: {
+            id: values.enginId,
+            tenantId,
+          },
+          select: {
+            active: true,
+          },
+        });
+
+        if (!selectedEngin) {
+          throw new Error("L'engin sélectionné est introuvable.");
+        }
+
+        if (!selectedEngin.active && values.enginId !== existing.enginId) {
+          throw new Error(
+            "Cet engin est inactif. Une saisie ne peut pas être déplacée vers un engin inactif.",
+          );
         }
 
         const duplicate = await tx.saisiehrm.findFirst({
@@ -1033,12 +1092,25 @@ export async function importSaisieHrm(
       }];
     }
 
-    // L'absence du compteur ne remplace pas sa valeur existante.
     const compteurData =
       hasCompteur && compteur !== null ? { compteur } : {};
 
     const saisie = await prisma.$transaction(
       async (tx) => {
+        const currentEngin = await tx.engin.findFirst({
+          where: {
+            id: engin.id,
+            tenantId: currentTenantId,
+          },
+          select: {
+            active: true,
+          },
+        });
+
+        if (!currentEngin) {
+          throw new Error(`Engin "${enginName}" introuvable.`);
+        }
+
         const existing = await tx.saisiehrm.findUnique({
           where: {
             du_enginId_tenantId: {
@@ -1052,6 +1124,14 @@ export async function importSaisieHrm(
             compteur: true,
           },
         });
+
+        // Un engin inactif ne peut être importé que pour mettre
+        // à jour une saisie HRM qui existe déjà.
+        if (!currentEngin.active && !existing) {
+          throw new Error(
+            `Import refusé : l'engin "${enginName}" est inactif. Aucune nouvelle saisie HRM n'est autorisée.`,
+          );
+        }
 
         const compteurFinal = hasCompteur
           ? compteur
