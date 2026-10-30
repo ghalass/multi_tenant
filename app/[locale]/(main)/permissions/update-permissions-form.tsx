@@ -12,7 +12,7 @@ import {
 import { yupResolver } from "@hookform/resolvers/yup";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { PenIcon } from "lucide-react";
 
 import {
@@ -44,7 +44,7 @@ const formSchema = yup.object({
   description: yup.string().max(255, "La description ne peut pas dépasser 255 caractères"),
 });
 
-export function UpdatePermissionForm({ permission }: { permission: Permission }) {
+export function UpdatePermissionForm({ permission }: { permission: Permission }): import("react").JSX.Element {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -61,7 +61,7 @@ export function UpdatePermissionForm({ permission }: { permission: Permission })
 
   const router = useRouter();
 
-  async function onSubmit(values: yup.InferType<typeof formSchema>) {
+  async function onSubmit(values: yup.InferType<typeof formSchema>): Promise<void> {
     if (!permission?.id) {
       setError("Permission introuvable");
       return;
@@ -100,17 +100,18 @@ export function UpdatePermissionForm({ permission }: { permission: Permission })
     }
   }
 
-  useEffect(() => {
-    if (!open) {
+  function handleOpenChange(nextOpen: boolean): void {
+    setOpen(nextOpen);
+    if (!nextOpen) {
       setError("");
     }
-  }, [open]);
+  }
 
   return (
     <>
       <GlobalLoader show={isPending} />
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogTrigger className="text-primary hover:cursor-pointer">
           <PenIcon className="size-4" />
         </DialogTrigger>

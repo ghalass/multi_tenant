@@ -1,7 +1,6 @@
 "use client";
 
 import {
-    useEffect,
     useState,
     useTransition,
     type FormEvent,
@@ -64,18 +63,36 @@ function normalizeItemsPerPage(
         : "10";
 }
 
-export default function BacklogSearch({
-    filters,
-    options,
-    totalItems,
-}: {
+type BacklogSearchProps = {
     filters: BacklogFilters;
     options: BacklogOptions;
     totalItems?: number;
-}) {
+};
+
+export default function BacklogSearch(
+    props: BacklogSearchProps,
+): import("react").JSX.Element {
+    const searchParams = useSearchParams();
+
+    return (
+        <BacklogSearchForm
+            {...props}
+            key={searchParams.toString()}
+            searchParams={searchParams}
+        />
+    );
+}
+
+function BacklogSearchForm({
+    filters,
+    options,
+    totalItems,
+    searchParams,
+}: BacklogSearchProps & {
+    searchParams: ReturnType<typeof useSearchParams>;
+}): import("react").JSX.Element {
     const router = useRouter();
     const pathname = usePathname();
-    const searchParams = useSearchParams();
     const [pending, startTransition] = useTransition();
 
     const [values, setValues] = useState({
@@ -97,32 +114,10 @@ export default function BacklogSearch({
         ),
     });
 
-    // Synchroniser les sélections lorsque la pagination modifie l'URL.
-    useEffect(() => {
-        const pageSize = searchParams.get("itemsPerPage");
-
-        setValues({
-            search: searchParams.get("search") ?? "",
-            statut: searchParams.get("statut") || "all",
-            priorite: searchParams.get("priorite") || "all",
-            source: searchParams.get("source") || "all",
-            typeparcId: searchParams.get("typeparcId") || "all",
-            parcId: searchParams.get("parcId") || "all",
-            siteId: searchParams.get("siteId") || "all",
-            enginId: searchParams.get("enginId") || "all",
-            dateFrom: searchParams.get("dateFrom") ?? "",
-            dateTo: searchParams.get("dateTo") ?? "",
-            itemsPerPage: normalizeItemsPerPage(
-                pageSize,
-                totalItems,
-            ),
-        });
-    }, [searchParams, totalItems]);
-
     function update<K extends keyof typeof values>(
         key: K,
         value: (typeof values)[K],
-    ) {
+    ): void {
         setValues((current) => ({
             ...current,
             [key]: value,
@@ -157,7 +152,7 @@ export default function BacklogSearch({
         return matchesTypeparc && matchesParc && matchesSite;
     });
 
-    function applyFilters(event: FormEvent<HTMLFormElement>) {
+    function applyFilters(event: FormEvent<HTMLFormElement>): void {
         event.preventDefault();
 
         const params = new URLSearchParams(searchParams.toString());
@@ -220,7 +215,7 @@ export default function BacklogSearch({
         });
     }
 
-    function resetFilters() {
+    function resetFilters(): void {
         setValues({
             search: "",
             statut: "all",
@@ -486,7 +481,7 @@ export default function BacklogSearch({
 
                 <div className="min-w-40 flex-[1_1_160px] space-y-1">
                     <label htmlFor="backlog-date-to" className="text-sm font-medium">
-                        Détection jusqu'au
+                        Détection jusqu&apos;au
                     </label>
 
                     <Input

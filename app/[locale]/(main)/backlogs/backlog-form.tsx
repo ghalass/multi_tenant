@@ -1,7 +1,6 @@
 "use client";
 
 import {
-    useEffect,
     useMemo,
     useState,
     useTransition,
@@ -114,7 +113,7 @@ function TextField({
     required?: boolean;
     min?: number;
     disabled?: boolean;
-}) {
+}): import("react").JSX.Element {
     return (
         <label className="block min-w-0 space-y-1">
             <span className="text-xs font-medium">
@@ -144,7 +143,7 @@ function TextAreaField({
     value: string;
     onChange: (value: string) => void;
     required?: boolean;
-}) {
+}): import("react").JSX.Element {
     return (
         <label className="block space-y-1">
             <span className="text-xs font-medium">
@@ -179,7 +178,7 @@ function SelectField({
     }[];
     placeholder: string;
     disabled?: boolean;
-}) {
+}): import("react").JSX.Element {
     return (
         <label className="block min-w-0 space-y-1">
             <span className="text-xs font-medium">
@@ -228,7 +227,7 @@ export function BacklogForm({
     parcs: BacklogParcOption[];
     sites: BacklogSiteOption[];
     engins: BacklogEnginOption[];
-}) {
+}): import("react").JSX.Element {
     const router = useRouter();
     const editing = Boolean(backlog);
 
@@ -315,9 +314,9 @@ export function BacklogForm({
         [selectableEngins, selectedParcId, values.siteId],
     );
 
-    useEffect(() => {
-        if (!open) return;
-
+    function handleOpenChange(nextOpen: boolean): void {
+        setOpen(nextOpen);
+        if (!nextOpen) return;
         const currentEngin = engins.find(
             (engin) => engin.id === backlog?.enginId,
         );
@@ -331,19 +330,19 @@ export function BacklogForm({
 
         setValues(backlog ? recordToValues(backlog) : emptyValues());
         setError("");
-    }, [open, backlog, engins, parcs]);
+    }
 
     function setField<K extends keyof BacklogFormValues>(
         key: K,
         value: BacklogFormValues[K],
-    ) {
+    ): void {
         setValues((current) => ({
             ...current,
             [key]: value,
         }));
     }
 
-    async function onSubmit(event: FormEvent<HTMLFormElement>) {
+    async function onSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
         event.preventDefault();
         setError("");
 
@@ -417,7 +416,7 @@ export function BacklogForm({
         <>
             <GlobalLoader show={pending} />
 
-            <Dialog open={open} onOpenChange={setOpen}>
+            <Dialog open={open} onOpenChange={handleOpenChange}>
                 <DialogTrigger asChild>
                     <Button
                         type="button"
@@ -452,7 +451,7 @@ export function BacklogForm({
                         <DialogDescription>
                             Renseignez les informations du backlog,
                             sélectionnez le type de parc, le parc,
-                            le site et l'engin, puis précisez son statut.
+                            le site et l&apos;engin, puis précisez son statut.
                         </DialogDescription>
                     </DialogHeader>
 

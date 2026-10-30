@@ -156,7 +156,7 @@ function PeriodRow({
     metrics: Metrics;
     objectifDispo: number | null;
     objectifUtil: number | null;
-}) {
+}): import("react").JSX.Element {
     return (
         <TableRow>
             <TableCell className="whitespace-nowrap font-medium">
@@ -197,7 +197,7 @@ function PeriodRows({
     nbreEngins: number;
     objectifDispo: number | null;
     objectifUtil: number | null;
-}) {
+}): import("react").JSX.Element {
     return (
         <>
             <PeriodRow
@@ -226,7 +226,7 @@ export default function EtatMensuelTable({
 }: {
     data: TypeParcData[];
     periode?: string
-}) {
+}): import("react").JSX.Element {
     if (!data || data.length === 0) {
         return (
             <p className="py-8 text-center text-sm text-muted-foreground">

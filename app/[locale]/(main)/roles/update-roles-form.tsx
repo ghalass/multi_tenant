@@ -51,7 +51,7 @@ export function UpdateRoleForm({
 }: {
     role: RoleWithPermissions;
     permissions: Permission[];
-}) {
+}): import("react").JSX.Element {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState("");
     const [isPending, startTransition] = useTransition();

@@ -27,13 +27,13 @@ export function DeleteBacklogForm({
 }: {
     id: string;
     numeroBacklog: string;
-}) {
+}): import("react").JSX.Element {
     const router = useRouter();
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [pending, startTransition] = useTransition();
 
-    async function handleDelete() {
+    async function handleDelete(): Promise<void> {
         setLoading(true);
 
         try {

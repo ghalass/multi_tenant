@@ -6,6 +6,8 @@ import { convertField } from "@/lib/convertField";
 import { guard } from "@/lib/rbac/middleware";
 import { ACTION } from "@/lib/enums";
 import { PAGINATION_SETTINGS, RESOURCE } from "@/lib/constantes";
+import type { Prisma } from "@/lib/generated/prisma/client";
+import type { ActionResponse } from "@/lib/types/types";
 
 export interface PannesSearchParams {
   name?: string;
@@ -27,7 +29,23 @@ export type PanneInput = {
   parcs: PanneParcInput[];
 };
 
-async function getPanneTenantId() {
+export type PanneParcListItem = Prisma.PanneParcGetPayload<{
+  include: {
+    parc: { select: { id: true; name: true; typeparcId: true } };
+    panne: {
+      include: {
+        typepanne: { select: { id: true; name: true } };
+        parcs: {
+          include: {
+            parc: { select: { id: true; name: true; typeparcId: true } };
+          };
+        };
+      };
+    };
+  };
+}>;
+
+async function getPanneTenantId(): Promise<string | null> {
   const { currentTenantId } = await getSession();
 
   if (!currentTenantId) return null;
@@ -40,7 +58,7 @@ async function getPanneTenantId() {
   return tenant?.id ?? null;
 }
 
-export async function getPanneOptions() {
+export async function getPanneOptions(): Promise<{ success: boolean; message: string; data: { typepannes: { id: string; name: string; }[]; typeparcs: { id: string; name: string; }[]; parcs: { id: string; name: string; typeparcId: string; }[]; }; }> {
   const permission = await guard(ACTION.READ, RESOURCE.PANNE);
 
   const emptyData = {
@@ -105,7 +123,7 @@ export async function getPanneOptions() {
 
 export async function getAllPannes(
   filters: PannesSearchParams = {},
-) {
+): Promise<ActionResponse<PanneParcListItem>> {
   const permission = await guard(ACTION.READ, RESOURCE.PANNE);
 
   if (!permission.success) {
@@ -149,7 +167,7 @@ export async function getAllPannes(
   const typepanneId = filters.typepanneId?.trim();
 
   // Filtres appliqués à la panne.
-  const panneWhere: any = { tenantId };
+  const panneWhere: Prisma.PanneWhereInput = { tenantId };
 
   if (name) {
     panneWhere.name = {
@@ -163,7 +181,7 @@ export async function getAllPannes(
   }
 
   // Filtres appliqués au parc de chaque association.
-  const parcWhere: any = { tenantId };
+  const parcWhere: Prisma.ParcWhereInput = { tenantId };
 
   if (typeparcId) {
     parcWhere.typeparcId = typeparcId;
@@ -173,7 +191,7 @@ export async function getAllPannes(
     parcWhere.id = parcId;
   }
 
-  const where: any = {
+  const where: Prisma.PanneParcWhereInput = {
     panne: {
       is: panneWhere,
     },
@@ -266,7 +284,7 @@ export async function getAllPannes(
 async function validatePanneInput(
   input: PanneInput,
   tenantId: string,
-) {
+): Promise<{ error: string; name?: undefined; typepanneId?: undefined; parcs?: undefined; } | { name: string; typepanneId: string; parcs: { parcId: string; description: string | null; }[]; readonly error?: undefined; }> {
   const name = input.name?.trim();
   const typepanneId = input.typepanneId;
 
@@ -327,7 +345,7 @@ async function validatePanneInput(
   return { name, typepanneId, parcs };
 }
 
-export async function createPanne(input: PanneInput) {
+export async function createPanne(input: PanneInput): Promise<{ success: boolean; message: string | undefined; }> {
   const permission = await guard(ACTION.CREATE, RESOURCE.PANNE);
 
   if (!permission.success) {
@@ -397,7 +415,7 @@ export async function createPanne(input: PanneInput) {
 
 export async function updatePanne(
   input: PanneInput & { id: string },
-) {
+): Promise<{ success: boolean; message: string | undefined; }> {
   const permission = await guard(ACTION.UPDATE, RESOURCE.PANNE);
 
   if (!permission.success) {
@@ -495,7 +513,7 @@ export async function updatePanne(
   }
 }
 
-export async function deletePanne(id: string) {
+export async function deletePanne(id: string): Promise<{ success: boolean; message: string; }> {
   const permission = await guard(ACTION.DELETE, RESOURCE.PANNE);
 
   if (!permission.success) {
@@ -557,7 +575,7 @@ export async function deletePanne(id: string) {
   }
 }
 
-export async function importPannes(data: any) {
+export async function importPannes(data: Record<string, unknown>): Promise<{ success: boolean; data: null; message: string; }[] | { success: boolean; data: Record<string, unknown>; message: string; }[]> {
   let importStage = "préparation des données";
   try {
     const permission = await guard(ACTION.IMPORT, RESOURCE.PANNE);

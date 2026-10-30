@@ -97,7 +97,7 @@ function getBackupPath(fileName: string): string {
     return path.join(getBackupDirectory(), fileName);
 }
 
-function getDatabaseConfig() {
+function getDatabaseConfig(): { host: string; port: string; database: string; username: string; password: string; sslmode: string | null; } {
     const connectionString = process.env.DATABASE_URL;
 
     if (!connectionString) {
@@ -425,7 +425,7 @@ export async function deleteDatabaseBackup(
 }
 
 
-export async function importDatabaseBackup(file: File) {
+export async function importDatabaseBackup(file: File): Promise<{ fileName: string; sizeBytes: number; createdAt: Date; }> {
     const directory = await assertBackupDirectory();
 
     if (!file.name.toLowerCase().endsWith(".dump")) {

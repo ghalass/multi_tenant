@@ -23,7 +23,7 @@ type PageProps = {
 
 export default async function RapportAnalyseIndispoParc({
     searchParams,
-}: PageProps) {
+}: PageProps): Promise<import("react").JSX.Element> {
     const params = await searchParams;
 
     const mois =
@@ -77,7 +77,7 @@ export default async function RapportAnalyseIndispoParc({
         }[])
         : [];
 
-    const rapport = (reportResponse?.data ?? []) as any[];
+    const rapport = reportResponse?.data ?? [];
 
     const periode = hasValidPeriod
         ? `${String(mois).padStart(2, "0")}/${annee}`

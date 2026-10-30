@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Home, Navigation } from "lucide-react";
 
-export default function NotFound() {
+export default function NotFound(): import("react").JSX.Element {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <Card className="w-full max-w-md border-0 shadow-lg">
@@ -39,7 +39,7 @@ export default function NotFound() {
             <Button asChild className="gap-2">
               <Link href="/">
                 <Home className="h-4 w-4" />
-                Retour à l'accueil
+                Retour à l&apos;accueil
               </Link>
             </Button>
           </div>

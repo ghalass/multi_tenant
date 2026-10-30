@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, useWatch } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { Pencil, Plus, CheckSquare } from "lucide-react";
 import { toast } from "sonner";
@@ -82,7 +82,7 @@ export function PanneForm({
     panne?: PanneItem;
     typepannes: Option[];
     parcs: Option[];
-}) {
+}): import("react").JSX.Element {
     const isEdit = Boolean(panne);
     const [open, setOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -103,15 +103,16 @@ export function PanneForm({
         },
     });
 
-    const selectedParcIds = form.watch("parcIds") ?? [];
+    const selectedParcIds =
+        useWatch({ control: form.control, name: "parcIds" }) ?? [];
 
     const allParcsSelected =
         parcs.length > 0 &&
         parcs.every((parc) => selectedParcIds.includes(parc.id));
 
-    useEffect(() => {
-        if (!open) return;
-
+    function handleOpenChange(nextOpen: boolean): void {
+        setOpen(nextOpen);
+        if (!nextOpen) return;
         form.reset({
             name: panne?.name ?? "",
             typepanneId: panne?.typepanneId ?? "",
@@ -126,9 +127,9 @@ export function PanneForm({
 
         setDescriptions(initialDescriptions);
         setError("");
-    }, [open, panne, form]);
+    }
 
-    function toggleAllParcs(checked: boolean) {
+    function toggleAllParcs(checked: boolean): void {
         const nextParcIds = checked ? parcs.map((item) => item.id) : [];
 
         form.setValue("parcIds", nextParcIds, {
@@ -137,7 +138,7 @@ export function PanneForm({
         });
     }
 
-    function toggleParc(parcId: string, checked: boolean) {
+    function toggleParc(parcId: string, checked: boolean): void {
         const nextParcIds = checked
             ? [...new Set([...selectedParcIds, parcId])]
             : selectedParcIds.filter((id) => id !== parcId);
@@ -148,7 +149,7 @@ export function PanneForm({
         });
     }
 
-    async function onSubmit(values: FormValues) {
+    async function onSubmit(values: FormValues): Promise<void> {
         try {
             setIsLoading(true);
             setError("");
@@ -185,7 +186,7 @@ export function PanneForm({
         <>
             <GlobalLoader show={isPending} />
 
-            <Dialog open={open} onOpenChange={setOpen}>
+            <Dialog open={open} onOpenChange={handleOpenChange}>
                 <DialogTrigger asChild>
                     <Button
                         type="button"

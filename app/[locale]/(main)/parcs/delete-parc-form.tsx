@@ -26,14 +26,14 @@ export function DeleteParcForm({
     parc,
 }: {
     parc: { id: string; name: string };
-}) {
+}): import("react").JSX.Element {
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [isPending, startTransition] = useTransition();
     const [error, setError] = useState("");
     const router = useRouter();
 
-    async function onSubmit() {
+    async function onSubmit(): Promise<void> {
         try {
             setLoading(true);
             setError("");

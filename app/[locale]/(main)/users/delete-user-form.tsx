@@ -24,7 +24,11 @@ import { deleteUser } from "@/server/users";
 import DisplayError from "@/components/display-error";
 import type { JSX } from "react";
 
-export function DeleteUserForm({ user }: { user: User }): JSX.Element {
+export function DeleteUserForm({
+  user,
+}: {
+  user: Pick<User, "id" | "name" | "email">;
+}): JSX.Element {
   const [isLoading, setIsLoading] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState("");

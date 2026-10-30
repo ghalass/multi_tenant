@@ -24,7 +24,7 @@ type PageProps = {
 
 export default async function RapportPareto({
     searchParams,
-}: PageProps) {
+}: PageProps): Promise<import("react").JSX.Element> {
     const params = await searchParams;
 
     const moisParam =

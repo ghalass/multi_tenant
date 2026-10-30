@@ -24,10 +24,8 @@ import { ExportExcel } from "@/components/export-excel";
 import type { JSX } from "react";
 
 export default async function UsersPage({
-  params,
   searchParams,
 }: {
-  params: Promise<{ tenantId: string }>;
   searchParams: Promise<UsersSearchParams>;
 }): Promise<JSX.Element> {
   const filters = await searchParams;

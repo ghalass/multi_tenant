@@ -111,7 +111,7 @@ export default async function SaisieHrmPage({
         <p className="rounded-md border p-6 text-center text-muted-foreground">
           Choisissez éventuellement une période et des filtres,
           puis cliquez sur « Afficher les saisies ».
-          Aucune saisie HRM n'est chargée au premier affichage.
+          Aucune saisie HRM n&apos;est chargée au premier affichage.
         </p>
       )}
 

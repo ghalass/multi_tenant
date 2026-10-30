@@ -89,7 +89,7 @@ export function DeleteSaisieHrmForm({
 
                         <DialogDescription>
                             Confirmez-vous la suppression de la saisie du{" "}
-                            {saisie.du} pour l'engin {saisie.engin} ?
+                            {saisie.du} pour l&apos;engin {saisie.engin} ?
                             Si elle est liée à des saisies HIM, la suppression
                             sera refusée.
                         </DialogDescription>

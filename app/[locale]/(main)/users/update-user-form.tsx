@@ -45,7 +45,7 @@ const formSchema = yup.object({
   roleIds: yup.array().of(yup.string()).default([]),
 });
 
-type UserWithRoles = User & { roles?: Role[] };
+type UserWithRoles = Omit<User, "password"> & { roles?: Role[] };
 
 export function UpdateUserForm({
   user,
@@ -134,9 +134,9 @@ export function UpdateUserForm({
 
         <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Modifier l'utilisateur</DialogTitle>
+            <DialogTitle>Modifier l&apos;utilisateur</DialogTitle>
             <DialogDescription>
-              Modifier l'utilisateur et ses rôles
+              Modifier l&apos;utilisateur et ses rôles
             </DialogDescription>
 
             <DisplayError error={error} />

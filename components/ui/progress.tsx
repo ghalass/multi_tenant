@@ -9,7 +9,7 @@ function Progress({
   className,
   value,
   ...props
-}: React.ComponentProps<typeof ProgressPrimitive.Root>) {
+}: React.ComponentProps<typeof ProgressPrimitive.Root>): import("react").JSX.Element {
   return (
     <ProgressPrimitive.Root
       data-slot="progress"

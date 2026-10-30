@@ -18,7 +18,6 @@ import {
 import Link from "next/link";
 import { useState } from "react";
 
-import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
 import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
@@ -33,7 +32,7 @@ const formSchema = yup.object({
   password: yup.string().min(6).required().label("Mot de passe"),
 });
 
-export default function LoginForm() {
+export default function LoginForm(): import("react").JSX.Element {
   const [isSubmitting, setisSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
@@ -42,7 +41,7 @@ export default function LoginForm() {
     resolver: yupResolver(formSchema),
     defaultValues: { email: "", password: "" },
   });
-  async function onSubmit(values: yup.InferType<typeof formSchema>) {
+  async function onSubmit(values: yup.InferType<typeof formSchema>): Promise<void> {
     setisSubmitting(true);
     setError(null);
     try {
@@ -55,7 +54,8 @@ export default function LoginForm() {
         setError(message);
         // toast.error(message);
       }
-    } catch (error) {
+    } catch {
+      setError("Une erreur est survenue lors de la connexion.");
     } finally {
       setisSubmitting(false);
     }

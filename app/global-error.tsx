@@ -11,7 +11,7 @@ type GlobalErrorProps = {
 export default function GlobalError({
     error,
     retry,
-}: GlobalErrorProps) {
+}: GlobalErrorProps): import("react").JSX.Element {
     useEffect(() => {
         console.error("Erreur globale de l'application :", error);
     }, [error]);
@@ -89,7 +89,7 @@ export default function GlobalError({
                                 color: "#64748b",
                             }}
                         >
-                            L'application a rencontré un problème
+                            L&apos;application a rencontré un problème
                             inattendu. Essayez de nouveau ou actualisez
                             la page.
                         </p>

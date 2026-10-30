@@ -17,7 +17,7 @@ export default async function RapportUnitePhysique({
     searchParams,
 }: {
     searchParams: Promise<searchParamsRapportUnitePhysique>;
-}) {
+}): Promise<import("react").JSX.Element> {
     const filters = await searchParams;
     const { data: sites } = await getAllSites();
 
@@ -25,13 +25,12 @@ export default async function RapportUnitePhysique({
     if (filters?.mois && filters.annee) response = await getRapportUnitePhysique(filters);
 
     const rapport = response?.data || [];
-    const meta = response?.meta;
 
     // Helper : récupère les stats d'un site, avec fallback zéro
     const getSiteStats = (
         statsObj: Record<string, { hrm: number; him: number; nbre: number }> | undefined,
         siteName: string
-    ) => statsObj?.[siteName] ?? { hrm: 0, him: 0, nbre: 0 };
+    ): { hrm: number; him: number; nbre: number; } => statsObj?.[siteName] ?? { hrm: 0, him: 0, nbre: 0 };
 
     return (
         <>
@@ -87,7 +86,7 @@ export default async function RapportUnitePhysique({
                         </TableHeader>
 
                         <TableBody>
-                            {rapport.map((row: any, index: number) => (
+                            {rapport.map((row, index) => (
                                 <React.Fragment key={row.typeParcId ?? index}>
                                     {/* Ligne typeParc (totaux) */}
                                     <TableRow className="font-bold uppercase bg-muted/30">
@@ -112,7 +111,7 @@ export default async function RapportUnitePhysique({
                                     </TableRow>
 
                                     {/* Lignes parc */}
-                                    {row.parcs.map((parc: any) => (
+                                    {row.parcs.map((parc) => (
                                         <TableRow key={parc.parcId}>
                                             <TableCell className="pl-6">{parc.parcName}</TableCell>
                                             <TableCell>{parc.nbreEngins ?? 0}</TableCell>

@@ -15,7 +15,7 @@ import { importBacklogs } from "@/server/backlogs";
 import { importObjectifs } from "@/server/objectifs";
 
 export class ImportService {
-  async importData(sheetName: string, data: any) {
+  async importData(sheetName: string, data: Record<string, unknown>): Promise<{ success: boolean; data: unknown; message: string; }[]> {
     try {
 
 

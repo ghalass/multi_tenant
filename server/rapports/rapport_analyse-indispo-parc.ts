@@ -68,7 +68,7 @@ type ScopeResult = {
     total: TotauxScope;
 };
 
-type TypeParcResult = {
+export type TypeParcResult = {
     typeParcId: string;
     typeParcName: string;
     parc: ScopeResult;
@@ -323,7 +323,7 @@ export async function getOptionsRapportAnalyseIndispoParc(): Promise<ActionRespo
 
 export async function getRapportAnalyseIndispoParc(
     filters: SearchParamsAnalyseIndispoParc,
-): Promise<ActionResponse> {
+): Promise<ActionResponse<TypeParcResult>> {
     const permission = await guard(ACTION.READ, RESOURCE.RAPPORT);
 
     if (!permission.success) {

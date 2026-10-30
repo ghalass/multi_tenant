@@ -2,7 +2,6 @@
 
 import {
     JSX,
-    useEffect,
     useMemo,
     useState,
     useTransition,
@@ -239,9 +238,9 @@ export function SaisieHimForm({
         [pannes, selectedTypePanneId, selectedParcId],
     );
 
-    useEffect(() => {
-        if (!open) return;
-
+    function handleOpenChange(nextOpen: boolean): void {
+        setOpen(nextOpen);
+        if (!nextOpen) return;
         const currentSaisie = saisie;
 
         form.reset({
@@ -261,7 +260,7 @@ export function SaisieHimForm({
         });
 
         setError("");
-    }, [open, saisie, form, pannes]);
+    }
 
     async function onSubmit(values: FormValues): Promise<void> {
         setError("");
@@ -346,7 +345,10 @@ export function SaisieHimForm({
         }
     }
 
-    const selectedPanneId = form.watch("panneId");
+    const selectedPanneId = useWatch({
+        control: form.control,
+        name: "panneId",
+    });
 
     const selectedPanne = pannes.find(
         (panne) => panne.id === selectedPanneId,
@@ -356,7 +358,7 @@ export function SaisieHimForm({
         <>
             <GlobalLoader show={pending} />
 
-            <Dialog open={open} onOpenChange={setOpen}>
+            <Dialog open={open} onOpenChange={handleOpenChange}>
                 <DialogTrigger asChild>
                     <Button
                         type="button"
@@ -391,7 +393,7 @@ export function SaisieHimForm({
                         </DialogTitle>
 
                         <DialogDescription>
-                            La date et l'engin doivent correspondre à une saisie HRM existante.
+                            La date et l&apos;engin doivent correspondre à une saisie HRM existante.
                             La panne doit être associée au parc sélectionné.
                         </DialogDescription>
                     </DialogHeader>
@@ -739,7 +741,7 @@ export function SaisieHimForm({
                                     control={form.control}
                                     render={({ field, fieldState }) => (
                                         <Field data-invalid={fieldState.invalid}>
-                                            <FieldLabel htmlFor="him-ni">NI (nombre d'interventions, facultatif)</FieldLabel>
+                                            <FieldLabel htmlFor="him-ni">NI (nombre d&apos;interventions, facultatif)</FieldLabel>
                                             <Input
                                                 id="him-ni"
                                                 type="number"

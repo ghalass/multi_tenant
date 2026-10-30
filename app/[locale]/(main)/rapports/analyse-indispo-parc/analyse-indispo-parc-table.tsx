@@ -111,7 +111,7 @@ function TotalRow({
     nhoMois: number;
     nhoAnnee: number;
     nbreEngins: number;
-}) {
+}): import("react").JSX.Element {
     return (
         <TableRow className="bg-secondary/60 font-semibold">
             <TableCell className="min-w-64">{label}</TableCell>
@@ -143,7 +143,7 @@ function ScopeRows({
 }: {
     scope: ScopeResult;
     label: string;
-}) {
+}): import("react").JSX.Element {
     return (
         <>
             <TableRow
@@ -234,7 +234,7 @@ function ScopeRows({
 export default function AnalyseIndispoParcTable({
     data,
     periode,
-}: Props) {
+}: Props): import("react").JSX.Element {
     if (!data || data.length === 0) {
         return (
             <p className="py-8 text-center text-sm text-muted-foreground">

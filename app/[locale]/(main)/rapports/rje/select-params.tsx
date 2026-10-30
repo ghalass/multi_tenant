@@ -26,7 +26,7 @@ type SelectParamsProps = RapportRjeOptions;
 export default function SelectParams({
     typeParcs,
     sites,
-}: SelectParamsProps) {
+}: SelectParamsProps): import("react").JSX.Element {
     const [isPending, startTransition] = useTransition();
     const [isGenerating, startGenerateTransition] = useTransition();
 
@@ -60,7 +60,7 @@ export default function SelectParams({
      *
      * La valeur saisie dans les contrôles reste dans l'état local.
      */
-    function clearReportFromUrl(newDate?: string) {
+    function clearReportFromUrl(newDate?: string): void {
         const params = new URLSearchParams(searchParams.toString());
 
         params.delete("typeParcId");
@@ -87,12 +87,12 @@ export default function SelectParams({
         });
     }
 
-    function handleDateChange(value: string) {
+    function handleDateChange(value: string): void {
         setDate(value);
         clearReportFromUrl(value);
     }
 
-    function handleTypeParcChange(value: string) {
+    function handleTypeParcChange(value: string): void {
         setTypeParcId(value);
         setParcId("");
         setSiteId("");
@@ -100,20 +100,20 @@ export default function SelectParams({
         clearReportFromUrl();
     }
 
-    function handleParcChange(value: string) {
+    function handleParcChange(value: string): void {
         setParcId(value);
         setSiteId("");
 
         clearReportFromUrl();
     }
 
-    function handleSiteChange(value: string) {
+    function handleSiteChange(value: string): void {
         setSiteId(value === "all" ? "" : value);
 
         clearReportFromUrl();
     }
 
-    function generateReport() {
+    function generateReport(): void {
         if (!date || !typeParcId || !parcId) {
             return;
         }

@@ -8,11 +8,11 @@ import { useDebouncedCallback } from "use-debounce";
 import { useState, useTransition } from "react";
 import { GlobalLoader } from "@/components/global-loader";
 
-export default function Search() {
+export default function Search(): import("react").JSX.Element {
     const searchParams = useSearchParams();
     const pathname = usePathname();
     const { replace } = useRouter();
-    const [isPending, startTransition] = useTransition();
+    const [, startTransition] = useTransition();
     const [clearPending, startClearTransition] = useTransition();
 
     // ✅ Plus de useEffect : on initialise une seule fois
@@ -37,7 +37,7 @@ export default function Search() {
         300
     );
 
-    const clearSearch = () => {
+    const clearSearch = (): void => {
         setSearch("");
         const params = new URLSearchParams(searchParams);
         params.delete("name");

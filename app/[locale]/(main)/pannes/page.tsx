@@ -42,7 +42,7 @@ export default async function PannesPage({
     searchParams,
 }: {
     searchParams: Promise<PannesSearchParams>;
-}) {
+}): Promise<import("react").JSX.Element> {
     const filters = await searchParams;
 
     const [response, optionsResponse] = await Promise.all([
@@ -141,7 +141,7 @@ export default async function PannesPage({
                                     </TableCell>
                                 </TableRow>
                             ) : (
-                                lignes.map((ligne: any, index: number) => {
+                                lignes.map((ligne, index: number) => {
                                     const panne = ligne.panne;
 
                                     // Afficher les actions une seule fois par panne

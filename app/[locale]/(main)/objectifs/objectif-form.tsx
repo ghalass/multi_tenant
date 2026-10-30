@@ -2,7 +2,7 @@
 
 import { useState, useTransition, type JSX } from "react";
 import { useRouter } from "next/navigation";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { PenIcon, PlusIcon } from "lucide-react";
 import { toast } from "sonner";
@@ -90,7 +90,10 @@ function ObjectifForm({
             spe_graisse: objectif?.spe_graisse ?? null,
         },
     });
-    const selectedTypeparcId = form.watch("typeparcId");
+    const selectedTypeparcId = useWatch({
+        control: form.control,
+        name: "typeparcId",
+    });
     const filteredParcs = parcs.filter((parc) => parc.typeparcId === selectedTypeparcId);
 
     function handleOpenChange(nextOpen: boolean): void {

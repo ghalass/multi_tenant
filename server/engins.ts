@@ -11,6 +11,7 @@ import {
   RESOURCE,
 } from "@/lib/constantes";
 import { convertField } from "@/lib/convertField";
+import type { Prisma } from "@/lib/generated/prisma/client";
 import {
   MaintenanceSyncError,
   synchroniserSuivisMaintenancePourEngin,
@@ -26,7 +27,15 @@ export interface EnginsSearchParams {
   itemsPerPage?: number | string;
 }
 
-async function getEnginTenantId() {
+export type EnginListItem = Prisma.EnginGetPayload<{
+  include: {
+    parc: { select: { id: true; name: true } };
+    site: { select: { id: true; name: true } };
+    tenant: { select: { id: true; name: true } };
+  };
+}>;
+
+async function getEnginTenantId(): Promise<string | null> {
   const { currentTenantId } = await getSession();
 
   if (!currentTenantId) return null;
@@ -46,7 +55,7 @@ async function getEnginTenantId() {
 
 export async function getAllEngins(
   filters: EnginsSearchParams = {},
-): Promise<ActionResponse> {
+): Promise<ActionResponse<EnginListItem>> {
   const permission = await guard(ACTION.READ, RESOURCE.ENGIN);
 
   if (!permission.success) {
@@ -85,7 +94,7 @@ export async function getAllEngins(
       1,
     );
 
-  const where: any = { tenantId };
+  const where: Prisma.EnginWhereInput = { tenantId };
 
   const name = filters.name?.trim();
 
@@ -168,7 +177,7 @@ export async function getAllEngins(
   };
 }
 
-export async function getEnginOptions() {
+export async function getEnginOptions(): Promise<{ success: boolean; message: string; data: { sites: { id: string; name: string; }[]; typeparcs: { id: string; name: string; }[]; parcs: { id: string; name: string; typeparcId: string; }[]; }; }> {
   const permission = await guard(ACTION.READ, RESOURCE.ENGIN);
 
   if (!permission.success) {
@@ -258,7 +267,7 @@ async function validateEnginRelations(
   tenantId: string,
   parcId: string,
   siteId: string,
-) {
+): Promise<boolean> {
   const [parc, site] = await Promise.all([
     prisma.parc.findFirst({
       where: {
@@ -583,7 +592,7 @@ export async function deleteEngin(
   }
 }
 
-export async function importEngins(data: any) {
+export async function importEngins(data: Record<string, unknown>): Promise<{ success: boolean; data: null; message: string; }[] | { success: boolean; data: Record<string, unknown>; message: string; }[] | { success: boolean; data: { id: string; name: string; active: boolean; parcId: string; siteId: string; tenantId: string; }; message: string; }[]> {
   try {
     const permission = await guard(ACTION.IMPORT, RESOURCE.ENGIN);
 

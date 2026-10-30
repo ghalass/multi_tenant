@@ -18,7 +18,7 @@ type TypePanneInput = {
   description?: string | null;
 };
 
-async function getCurrentTypePanneTenant() {
+async function getCurrentTypePanneTenant(): Promise<{ id: string; } | null> {
   const { currentTenantId } = await getSession();
 
   if (!currentTenantId) return null;
@@ -31,7 +31,7 @@ async function getCurrentTypePanneTenant() {
 
 export async function getAllTypePannes(
   filters: TypePannesSearchParams = {},
-) {
+): Promise<{ data: never[]; success: boolean; message: string; meta?: undefined; } | { data: ({ tenant: { name: string; }; } & { id: string; name: string; description: string | null; tenantId: string; })[]; success: boolean; message: string; meta: { totalItems: number; totalPages: number; currentPage: number; itemsPerPage: number; }; }> {
   const permission = await guard(ACTION.READ, RESOURCE.TYPEPANNE);
 
   if (!permission.success) {
@@ -92,7 +92,7 @@ export async function getAllTypePannes(
   };
 }
 
-export async function createTypePanne(input: TypePanneInput) {
+export async function createTypePanne(input: TypePanneInput): Promise<{ success: boolean; message: string; }> {
   const permission = await guard(ACTION.CREATE, RESOURCE.TYPEPANNE);
   if (!permission.success) {
     return { success: false, message: permission.message };
@@ -138,7 +138,7 @@ export async function createTypePanne(input: TypePanneInput) {
 
 export async function updateTypePanne(
   input: TypePanneInput & { id: string },
-) {
+): Promise<{ success: boolean; message: string; }> {
   const permission = await guard(ACTION.UPDATE, RESOURCE.TYPEPANNE);
   if (!permission.success) {
     return { success: false, message: permission.message };
@@ -198,7 +198,7 @@ export async function updateTypePanne(
   }
 }
 
-export async function deleteTypePanne(id: string) {
+export async function deleteTypePanne(id: string): Promise<{ success: boolean; message: string; }> {
   const permission = await guard(ACTION.DELETE, RESOURCE.TYPEPANNE);
   if (!permission.success) {
     return { success: false, message: permission.message };
@@ -234,7 +234,7 @@ export async function deleteTypePanne(id: string) {
   }
 }
 
-export async function importTypePannes(data: any) {
+export async function importTypePannes(data: Record<string, unknown>): Promise<{ success: boolean; data: null; message: string; }[] | { success: boolean; data: Record<string, unknown>; message: string; }[] | { success: boolean; data: { id: string; name: string; tenantId: string; description: string | null; }; message: string; }[]> {
   try {
     const permission = await guard(ACTION.IMPORT, RESOURCE.TYPEPANNE);
 

@@ -4,8 +4,8 @@ export type SiteWithTenant = Site &
 { tenant: Tenant };
 
 
-export interface ActionResponse {
-    data?: any[];
+export interface ActionResponse<T = unknown> {
+    data?: T[];
     success: boolean;
     message: string;
     meta?: {
@@ -15,4 +15,3 @@ export interface ActionResponse {
         itemsPerPage: number
     }
 }
-

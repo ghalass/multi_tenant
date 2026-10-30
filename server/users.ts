@@ -18,6 +18,11 @@ export type UsersSearchParams = {
   itemsPerPage?: number;
 };
 
+type UserListItem = Prisma.UserGetPayload<{ omit: { password: true } }> & {
+  tenant: Prisma.TenantGetPayload<Prisma.TenantDefaultArgs> | null;
+  roles: Role[];
+};
+
 /**
  * Remplace uniquement les rôles de l'appartenance concernée.
  * Les rôles attribués dans les autres tenants restent inchangés.
@@ -27,7 +32,7 @@ async function syncMembershipRoles(
   userId: string,
   tenantId: string,
   roleIds: string[]
-) {
+): Promise<void> {
   await tx.userTenantRole.deleteMany({
     where: {
       userId,
@@ -118,7 +123,7 @@ async function validateRoleAssignments(
 
 export async function getAllUsers(
   filters: UsersSearchParams
-): Promise<ActionResponse> {
+): Promise<ActionResponse<UserListItem>> {
   const { userId, currentTenantId } = await getSession();
 
   if (!userId || !currentTenantId) {
@@ -264,7 +269,7 @@ export async function getAllUsers(
 // GET USER BY ID
 // ============================================================
 
-export async function getUserById(id: string) {
+export async function getUserById(id: string): Promise<{ data: null; success: boolean; message: string; } | { data: { tenant: { id: string; name: string; active: boolean; createdById: string | null; }; roles: { id: string; name: string; description: string | null; }[]; id: string; name: string; tenantId: string | null; active: boolean; email: string; isSuperAdmin: boolean; }; success: boolean; message: string; }> {
   const g = await guard(ACTION.READ, RESOURCE.USER);
 
   if (!g.success) {

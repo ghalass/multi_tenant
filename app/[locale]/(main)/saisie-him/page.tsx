@@ -127,8 +127,8 @@ export default async function SaisieHimPage({
             </div>
 
             <p className="mt-1 text-muted-foreground">
-                Consultez et gérez les heures d'immobilisation, le nombre
-                d'interventions et les observations des pannes.
+                Consultez et gérez les heures d&apos;immobilisation, le nombre
+                d&apos;interventions et les observations des pannes.
             </p>
 
             {!optionsResponse.success && (
@@ -150,7 +150,7 @@ export default async function SaisieHimPage({
             {!hasSearched && (
                 <p className="rounded-md border p-6 text-center text-muted-foreground">
                     Sélectionnez vos filtres, puis cliquez sur « Afficher les saisies HIM ».
-                    Aucune saisie n'est chargée au premier affichage.
+                    Aucune saisie n&apos;est chargée au premier affichage.
                 </p>
             )}
 

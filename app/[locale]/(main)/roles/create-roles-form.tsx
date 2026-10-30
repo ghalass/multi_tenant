@@ -9,11 +9,10 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 
-import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { useEffect, useState, useTransition } from "react";
-import { Loader2, PlusIcon } from "lucide-react";
+import { useState, useTransition } from "react";
+import { PlusIcon } from "lucide-react";
 
 import {
     Dialog,
@@ -42,7 +41,7 @@ const formSchema = yup.object({
     permissionIds: yup.array(yup.string().required()).required(),
 });
 
-export function CreateRoleForm({ permissions }: { permissions: Permission[] }) {
+export function CreateRoleForm({ permissions }: { permissions: Permission[] }): import("react").JSX.Element {
     const [isLoading, setIsLoading] = useState(false);
     const [isPending, startTransition] = useTransition();
 
@@ -57,7 +56,7 @@ export function CreateRoleForm({ permissions }: { permissions: Permission[] }) {
 
     const router = useRouter();
 
-    async function onSubmit(values: yup.InferType<typeof formSchema>) {
+    async function onSubmit(values: yup.InferType<typeof formSchema>): Promise<void> {
         try {
             setError("");
             setIsLoading(true);
@@ -88,17 +87,18 @@ export function CreateRoleForm({ permissions }: { permissions: Permission[] }) {
         }
     }
 
-    useEffect(() => {
-        if (!open) {
+    function handleOpenChange(nextOpen: boolean): void {
+        setOpen(nextOpen);
+        if (!nextOpen) {
             form.reset();
             setError("");
         }
-    }, [open, form]);
+    }
 
     return (
         <div>
             <GlobalLoader show={isPending} />
-            <Dialog open={open} onOpenChange={setOpen}>
+            <Dialog open={open} onOpenChange={handleOpenChange}>
                 <DialogTrigger className="mx-auto inline-flex items-center justify-center rounded-full bg-primary p-1 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 hover:cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50">
                     <PlusIcon className="size-4" />
                 </DialogTrigger>

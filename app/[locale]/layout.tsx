@@ -44,7 +44,7 @@ export const metadata: Metadata = {
 export default async function LocaleLayout({ params, children }: {
   params: Promise<{ locale: string }>;
   children: ReactNode;
-}) {
+}): Promise<import("react").JSX.Element> {
   const { locale } = await params;
   const direction = locale === "ar" ? "rtl" : "ltr";
 

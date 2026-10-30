@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -60,7 +60,7 @@ function ParcForm({
 }: {
     parc?: ParcData;
     typeparcs: TypeParcOption[];
-}) {
+}): import("react").JSX.Element {
     const isEditing = Boolean(parc);
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -76,17 +76,16 @@ function ParcForm({
         },
     });
 
-    useEffect(() => {
-        if (!open) {
-            form.reset({
-                name: parc?.name ?? "",
-                typeparcId: parc?.typeparcId ?? typeparcs[0]?.id ?? "",
-            });
-            setError("");
-        }
-    }, [open, form, parc, typeparcs]);
+    function handleOpenChange(nextOpen: boolean): void {
+        setOpen(nextOpen);
+        form.reset({
+            name: parc?.name ?? "",
+            typeparcId: parc?.typeparcId ?? typeparcs[0]?.id ?? "",
+        });
+        setError("");
+    }
 
-    async function onSubmit(values: FormValues) {
+    async function onSubmit(values: FormValues): Promise<void> {
         try {
             setLoading(true);
             setError("");
@@ -122,7 +121,7 @@ function ParcForm({
         <>
             <GlobalLoader show={isPending} />
 
-            <Dialog open={open} onOpenChange={setOpen}>
+            <Dialog open={open} onOpenChange={handleOpenChange}>
                 <DialogTrigger
                     disabled={typeparcs.length === 0}
                     aria-label={isEditing ? "Modifier le parc" : "Créer un parc"}
@@ -224,7 +223,7 @@ export function CreateParcForm({
     typeparcs,
 }: {
     typeparcs: TypeParcOption[];
-}) {
+}): import("react").JSX.Element {
     return <ParcForm typeparcs={typeparcs} />;
 }
 
@@ -234,6 +233,6 @@ export function UpdateParcForm({
 }: {
     parc: ParcData;
     typeparcs: TypeParcOption[];
-}) {
+}): import("react").JSX.Element {
     return <ParcForm parc={parc} typeparcs={typeparcs} />;
 }

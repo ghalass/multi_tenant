@@ -29,7 +29,7 @@ export default async function RolesPage({
 }: {
   params: Promise<{ tenantId: string }>;
   searchParams: Promise<RoleSearchParams>;
-}) {
+}): Promise<import("react").JSX.Element> {
   const filters = await searchParams;
   const { tenantId } = await params;
 

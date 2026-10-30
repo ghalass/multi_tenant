@@ -6,6 +6,7 @@ import { ACTION } from "@/lib/enums";
 import { ActionResponse } from "@/lib/types/types"; import { getSession } from "@/lib/auth";
 import { ACTIVE, PAGINATION_SETTINGS, RESOURCE } from "@/lib/constantes";
 import { convertField } from "@/lib/convertField";
+import type { Prisma } from "@/lib/generated/prisma/client";
 
 export interface searchParams {
   name?: string;
@@ -14,9 +15,13 @@ export interface searchParams {
   itemsPerPage?: number;
 }
 
+type SiteListItem = Prisma.SiteGetPayload<{
+  include: { tenant: { select: { id: true; name: true } } };
+}>;
+
 export async function getAllSites(
   filters: searchParams = { itemsPerPage: 0 }
-): Promise<ActionResponse> {
+): Promise<ActionResponse<SiteListItem>> {
   const g = await guard(ACTION.READ, RESOURCE.SITE);
   if (!g.success) return { data: [], success: false, message: g.message };
 
@@ -56,7 +61,7 @@ export async function getAllSites(
 
   const { name, active } = filters;
 
-  const where: any = { tenantId: currentTenantId };
+  const where: Prisma.SiteWhereInput = { tenantId: currentTenantId };
 
   if (name) {
     where.name = { contains: name, mode: "insensitive" };
@@ -370,7 +375,7 @@ export async function deleteSite(
   }
 }
 
-export async function importSites(data: any) {
+export async function importSites(data: Record<string, unknown>): Promise<{ success: boolean; data: null; message: string; }[] | { success: boolean; data: Record<string, unknown>; message: string; }[] | { success: boolean; data: { id: string; name: string; active: boolean; tenantId: string; }; message: string; }[]> {
   try {
     const permission = await guard(ACTION.IMPORT, RESOURCE.SITE);
 

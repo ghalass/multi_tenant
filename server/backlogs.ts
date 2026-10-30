@@ -5,6 +5,7 @@ import { getSession } from "@/lib/auth";
 import { guard } from "@/lib/rbac/middleware";
 import { ACTION } from "@/lib/enums";
 import { PAGINATION_SETTINGS, RESOURCE } from "@/lib/constantes";
+import type { Prisma } from "@/lib/generated/prisma/client";
 
 import {
     PrioriteBacklog,
@@ -181,7 +182,7 @@ export async function getBacklogOptions(): Promise<BacklogOptionsResponse> {
     };
 }
 
-export async function getBacklogs(filters: BacklogFilters = {}) {
+export async function getBacklogs(filters: BacklogFilters = {}): Promise<{ success: boolean; message: string; data: never[]; meta: undefined; } | { success: boolean; message: string; data: ({ engin: { id: string; name: string; siteId: string; active: boolean; }; site: { id: string; name: string; active: boolean; }; historiqueStatutBacklogs: { id: string; dateChangement: Date; backlogId: string; ancienStatut: StatutBacklog; nouveauStatut: StatutBacklog; commentaire: string | null; }[]; } & { id: string; source: SourceBacklog; numeroBacklog: string; dateDetection: Date; description: string; priorite: PrioriteBacklog; equipe: string | null; statut: StatutBacklog; dateExecution: Date | null; observations: string | null; enginId: string; siteId: string; tenantId: string; createdAt: Date; updatedAt: Date; })[]; meta: { totalItems: number; totalPages: number; currentPage: number; itemsPerPage: number; }; }> {
     const permission = await guard(ACTION.READ, RESOURCE.BACKLOG);
 
     if (!permission.success) {
@@ -288,22 +289,22 @@ export async function getBacklogs(filters: BacklogFilters = {}) {
         matchingEnginIds = matchingEngins.map((engin) => engin.id);
     }
 
-    const where: any = {
+    const where: Prisma.BacklogWhereInput = {
         tenantId,
 
         ...(filters.statut &&
             STATUS_VALUES.includes(filters.statut as StatutBacklog)
-            ? { statut: filters.statut }
+            ? { statut: filters.statut as StatutBacklog }
             : {}),
 
         ...(filters.priorite &&
             PRIORITY_VALUES.includes(filters.priorite as PrioriteBacklog)
-            ? { priorite: filters.priorite }
+            ? { priorite: filters.priorite as PrioriteBacklog }
             : {}),
 
         ...(filters.source &&
             SOURCE_VALUES.includes(filters.source as SourceBacklog)
-            ? { source: filters.source }
+            ? { source: filters.source as SourceBacklog }
             : {}),
 
         ...(filters.siteId ? { siteId: filters.siteId } : {}),
@@ -758,7 +759,7 @@ async function validateBacklogRelations(
     siteId: string,
     tenantId: string,
     allowInactive: boolean,
-) {
+): Promise<{ success: false; message: string; } | { success: true; message?: undefined; }> {
     const [engin, site] = await Promise.all([
         prisma.engin.findFirst({
             where: {
@@ -799,7 +800,7 @@ async function validateBacklogRelations(
     return { success: true as const };
 }
 
-export async function createBacklog(values: BacklogFormValues) {
+export async function createBacklog(values: BacklogFormValues): Promise<{ success: boolean; message: string; }> {
     const permission = await guard(ACTION.CREATE, RESOURCE.BACKLOG);
 
     if (!permission.success) {
@@ -865,7 +866,7 @@ export async function createBacklog(values: BacklogFormValues) {
 export async function updateBacklog(
     id: string,
     values: BacklogFormValues,
-) {
+): Promise<{ success: boolean; message: string; }> {
     const permission = await guard(ACTION.UPDATE, RESOURCE.BACKLOG);
 
     if (!permission.success) {
@@ -950,7 +951,7 @@ export async function updateBacklog(
     }
 }
 
-export async function deleteBacklog(id: string) {
+export async function deleteBacklog(id: string): Promise<{ success: boolean; message: string; }> {
     const permission = await guard(ACTION.DELETE, RESOURCE.BACKLOG);
 
     if (!permission.success) {
@@ -988,7 +989,7 @@ export async function deleteBacklog(id: string) {
 }
 
 
-export async function importBacklogs(data: Record<string, unknown>) {
+export async function importBacklogs(data: Record<string, unknown>): Promise<{ success: boolean; data: Record<string, unknown>; message: string; }[]> {
     const permission = await guard(ACTION.IMPORT, RESOURCE.BACKLOG);
 
     if (!permission.success) {

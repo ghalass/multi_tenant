@@ -35,7 +35,7 @@ type SelectParamsProps = {
     typeParcs: TypeParcOption[];
 };
 
-export default function SelectParams({ typeParcs }: SelectParamsProps) {
+export default function SelectParams({ typeParcs }: SelectParamsProps): import("react").JSX.Element {
     const [isPending, startTransition] = useTransition();
     const [isGenerating, startGenerateTransition] = useTransition();
 
@@ -69,7 +69,7 @@ export default function SelectParams({ typeParcs }: SelectParamsProps) {
      * Supprime les paramètres du rapport dès qu'un filtre change.
      * Le tableau disparaît immédiatement après la mise à jour de l'URL.
      */
-    function clearReportParams() {
+    function clearReportParams(): void {
         const params = new URLSearchParams(searchParams.toString());
 
         params.delete("mois");
@@ -86,23 +86,23 @@ export default function SelectParams({ typeParcs }: SelectParamsProps) {
         });
     }
 
-    function handleMonthChange(value: string) {
+    function handleMonthChange(value: string): void {
         setMonthValue(value);
         clearReportParams();
     }
 
-    function handleTypeParcChange(value: string) {
+    function handleTypeParcChange(value: string): void {
         setTypeParcId(value);
         setParcId("");
         clearReportParams();
     }
 
-    function handleParcChange(value: string) {
+    function handleParcChange(value: string): void {
         setParcId(value);
         clearReportParams();
     }
 
-    function generateReport() {
+    function generateReport(): void {
         if (!monthValue || !typeParcId || !parcId) return;
 
         const [annee, mois] = monthValue.split("-");

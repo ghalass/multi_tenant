@@ -31,7 +31,7 @@ type SelectParamsProps = {
 
 export default function SelectParams({
     typeParcs,
-}: SelectParamsProps) {
+}: SelectParamsProps): import("react").JSX.Element {
     const [isPending, startTransition] = useTransition();
     const [isGenerating, startGenerateTransition] = useTransition();
 
@@ -110,7 +110,7 @@ export default function SelectParams({
         (engin) => engin.id === enginId,
     );
 
-    function clearReportParams() {
+    function clearReportParams(): void {
         const params = new URLSearchParams(
             searchParams.toString(),
         );
@@ -132,12 +132,12 @@ export default function SelectParams({
         });
     }
 
-    function handleMonthChange(value: string) {
+    function handleMonthChange(value: string): void {
         setMonthValue(value);
         clearReportParams();
     }
 
-    function handleTypeParcChange(value: string) {
+    function handleTypeParcChange(value: string): void {
         setTypeParcId(value);
         setParcId("");
         setSiteId("");
@@ -145,25 +145,25 @@ export default function SelectParams({
         clearReportParams();
     }
 
-    function handleParcChange(value: string) {
+    function handleParcChange(value: string): void {
         setParcId(value);
         setSiteId("");
         setEnginId("");
         clearReportParams();
     }
 
-    function handleSiteChange(value: string) {
+    function handleSiteChange(value: string): void {
         setSiteId(value === "all" ? "" : value);
         setEnginId("");
         clearReportParams();
     }
 
-    function handleEnginChange(value: string) {
+    function handleEnginChange(value: string): void {
         setEnginId(value === "all" ? "" : value);
         clearReportParams();
     }
 
-    function generateReport() {
+    function generateReport(): void {
         if (!monthValue || !typeParcId || !parcId) {
             return;
         }

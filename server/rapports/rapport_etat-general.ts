@@ -122,7 +122,9 @@ async function getActiveTenantId(): Promise<
  * Options du formulaire :
  * type de parc -> parc -> engins disponibles.
  */
-export async function getOptionsRapportEtatGeneral(): Promise<ActionResponse> {
+export async function getOptionsRapportEtatGeneral(): Promise<
+    ActionResponse<TypeParcEtatGeneralOption>
+> {
     const permission = await guard(ACTION.READ, RESOURCE.RAPPORT);
 
     if (!permission.success) {

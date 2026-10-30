@@ -58,7 +58,13 @@ type Backup = {
     createdAt: string;
 };
 
-function getBackupType(fileName: string) {
+function getBackupType(
+    fileName: string,
+): {
+    label: string;
+    variant: "secondary" | "outline";
+    icon: typeof ShieldCheck | typeof FileArchive | typeof Database;
+} {
     if (fileName.startsWith("gmao_pre-restore_")) {
         return {
             label: "Sauvegarde de sécurité",
@@ -135,7 +141,7 @@ function formatDate(date: string): string {
     return parsedDate.toLocaleString();
 }
 
-export default function DatabaseBackupsPage() {
+export default function DatabaseBackupsPage(): import("react").JSX.Element {
     const [backups, setBackups] = useState<Backup[]>([]);
     const [loading, setLoading] = useState(true);
     const [creating, setCreating] = useState(false);
@@ -152,11 +158,14 @@ export default function DatabaseBackupsPage() {
 
     const isBusy = creating || restoring || deleting || uploading;
 
+    const fetchBackups = useCallback(async () => {
+        return getDatabaseBackupsAction();
+    }, []);
+
     const loadBackups = useCallback(async () => {
         setLoading(true);
-
         try {
-            const result = await getDatabaseBackupsAction();
+            const result = await fetchBackups();
 
             if (!result.success) {
                 toast.error(result.message);
@@ -169,13 +178,35 @@ export default function DatabaseBackupsPage() {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [fetchBackups]);
 
     useEffect(() => {
-        void loadBackups();
-    }, [loadBackups]);
+        let isActive = true;
 
-    async function handleCreateBackup() {
+        void fetchBackups()
+            .then((result) => {
+                if (!isActive) return;
+                if (!result.success) {
+                    toast.error(result.message);
+                    return;
+                }
+                setBackups(result.data as Backup[]);
+            })
+            .catch(() => {
+                if (isActive) {
+                    toast.error("Impossible de charger les sauvegardes.");
+                }
+            })
+            .finally(() => {
+                if (isActive) setLoading(false);
+            });
+
+        return (): void => {
+            isActive = false;
+        };
+    }, [fetchBackups]);
+
+    async function handleCreateBackup(): Promise<void> {
         if (isBusy || loading) return;
 
         setCreating(true);
@@ -189,6 +220,7 @@ export default function DatabaseBackupsPage() {
             }
 
             toast.success(result.message);
+            setLoading(true);
             await loadBackups();
         } catch {
             toast.error("La création de la sauvegarde a échoué.");
@@ -197,7 +229,7 @@ export default function DatabaseBackupsPage() {
         }
     }
 
-    async function handleRestore() {
+    async function handleRestore(): Promise<void> {
         if (!backupToRestore || isBusy) return;
 
         const fileName = backupToRestore;
@@ -214,6 +246,7 @@ export default function DatabaseBackupsPage() {
             toast.success(result.message, { duration: 10000 });
             setBackupToRestore(null);
 
+            setLoading(true);
             await loadBackups();
         } catch {
             toast.error(
@@ -224,7 +257,7 @@ export default function DatabaseBackupsPage() {
         }
     }
 
-    async function handleDelete() {
+    async function handleDelete(): Promise<void> {
         if (!backupToDelete || isBusy || backups.length <= 1) {
             return;
         }
@@ -243,6 +276,7 @@ export default function DatabaseBackupsPage() {
             toast.success(result.message);
             setBackupToDelete(null);
 
+            setLoading(true);
             await loadBackups();
         } catch {
             toast.error("La suppression de la sauvegarde a échoué.");
@@ -251,17 +285,17 @@ export default function DatabaseBackupsPage() {
         }
     }
 
-    function handleDownload(fileName: string) {
+    function handleDownload(fileName: string): void {
         if (isBusy) return;
 
-        window.location.assign(
-            `/api/database-backups/${encodeURIComponent(fileName)}`,
-        );
+        const downloadLink = document.createElement("a");
+        downloadLink.href = `/api/database-backups/${encodeURIComponent(fileName)}`;
+        downloadLink.click();
     }
 
     async function handleUploadBackup(
         event: React.ChangeEvent<HTMLInputElement>,
-    ) {
+    ): Promise<void> {
         const file = event.target.files?.[0];
 
         // Permet de sélectionner à nouveau le même fichier.
@@ -283,6 +317,7 @@ export default function DatabaseBackupsPage() {
             }
 
             toast.success(result.message);
+            setLoading(true);
             await loadBackups();
         } catch {
             toast.error("L'importation de l'archive a échoué.");

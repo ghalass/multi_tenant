@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Check, ChevronsUpDown, Search } from "lucide-react";
+import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -40,7 +40,7 @@ export function ComboboxMultiSelect({
   selectAllLabel = "Tout sélectionner",
   className,
   maxDisplay = 2,
-}: ComboboxProps) {
+}: ComboboxProps): import("react").JSX.Element {
   const [open, setOpen] = React.useState(false);
   const allValues = options.map((opt) => opt.value);
 
@@ -55,7 +55,7 @@ export function ComboboxMultiSelect({
       ? selectedLabels.join(", ")
       : `${selectedLabels.length} sélectionné(s)`;
 
-  const handleSelect = (optionValue: string) => {
+  const handleSelect = (optionValue: string): void => {
     if (value.includes(optionValue)) {
       onChange(value.filter((v) => v !== optionValue));
     } else {
@@ -63,7 +63,7 @@ export function ComboboxMultiSelect({
     }
   };
 
-  const handleSelectAll = () => {
+  const handleSelectAll = (): void => {
     if (value.length === options.length) {
       onChange([]);
     } else {

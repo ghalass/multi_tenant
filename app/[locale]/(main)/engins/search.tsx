@@ -40,7 +40,7 @@ export default function Search({
     sites,
     typeparcs,
     parcs,
-}: Props) {
+}: Props): import("react").JSX.Element {
     const searchParams = useSearchParams();
     const pathname = usePathname();
     const { replace } = useRouter();
@@ -52,7 +52,7 @@ export default function Search({
         searchParams.get("name") ?? "",
     );
 
-    function updateFilters(changes: Record<string, string>) {
+    function updateFilters(changes: Record<string, string>): void {
         const params = new URLSearchParams(searchParams.toString());
 
         for (const [key, value] of Object.entries(changes)) {
@@ -79,7 +79,7 @@ export default function Search({
         300,
     );
 
-    function handleTypeparcChange(value: string) {
+    function handleTypeparcChange(value: string): void {
         applyFilter.cancel();
 
         // Le parc choisi précédemment n'est plus nécessairement valide.
@@ -89,7 +89,7 @@ export default function Search({
         });
     }
 
-    function clearSearch() {
+    function clearSearch(): void {
         setSearch("");
         applyFilter.cancel();
 

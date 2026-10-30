@@ -80,7 +80,15 @@ function safeFilename(value: string): string {
         .slice(0, 100);
 }
 
-function MtbfLabel(props: any) {
+type ChartLabelProps = {
+    x?: number | null;
+    y?: number | null;
+    value?: number | string | null;
+    width?: number | null;
+    index?: number;
+};
+
+function MtbfLabel(props: ChartLabelProps): import("react").JSX.Element | null {
     const { x, y, value } = props;
 
     if (
@@ -105,7 +113,7 @@ function MtbfLabel(props: any) {
     );
 }
 
-function ObjectifLabel(props: any) {
+function ObjectifLabel(props: ChartLabelProps): import("react").JSX.Element | null {
     const { x, y, value, index } = props;
 
     if (
@@ -131,7 +139,7 @@ function ObjectifLabel(props: any) {
     );
 }
 
-function DispoLabel(props: any) {
+function DispoLabel(props: ChartLabelProps): import("react").JSX.Element | null {
     const { x, y, value } = props;
 
     if (
@@ -156,7 +164,7 @@ function DispoLabel(props: any) {
     );
 }
 
-function CountBarLabel(props: any) {
+function CountBarLabel(props: ChartLabelProps): import("react").JSX.Element | null {
     const { x, y, width, value } = props;
 
     if (
@@ -182,7 +190,7 @@ function CountBarLabel(props: any) {
     );
 }
 
-function PercentBarLabel(props: any) {
+function PercentBarLabel(props: ChartLabelProps): import("react").JSX.Element | null {
     const { x, y, width, value } = props;
 
     if (
@@ -212,7 +220,7 @@ function PanneName({
     item,
 }: {
     item: ParetoIndisponibiliteItem;
-}) {
+}): import("react").JSX.Element {
     return (
         <div
             className="line-clamp-2 max-w-[320px] break-words text-xs leading-4"
@@ -234,7 +242,7 @@ function EnginsHimList({
     item,
 }: {
     item: ParetoIndisponibiliteItem;
-}) {
+}): import("react").JSX.Element {
     const engins = item.engins.slice(0, 3);
 
     if (engins.length === 0) {
@@ -275,7 +283,7 @@ function EnginsNiList({
     item,
 }: {
     item: ParetoIndisponibiliteItem;
-}) {
+}): import("react").JSX.Element {
     const engins = item.engins_mtbf.slice(0, 3);
 
     if (engins.length === 0) {
@@ -334,7 +342,7 @@ function ParetoIndisponibilites({
 }: {
     data: RapportParetoData;
     periode: string;
-}) {
+}): import("react").JSX.Element {
     const topHim = data.indisponibilites
         .filter((item) => item.himTotal > 0)
         .slice(0, 10);
@@ -434,7 +442,7 @@ function TopHimTable({
 }: {
     data: RapportParetoData;
     filenameSuffix: string;
-}) {
+}): import("react").JSX.Element {
     const topHim = data.indisponibilites
         .filter((item) => item.himTotal > 0)
         .slice(0, 10);
@@ -577,7 +585,7 @@ function ParetoNi({
 }: {
     data: RapportParetoData;
     periode: string;
-}) {
+}): import("react").JSX.Element {
     const topNi = [...data.indisponibilites]
         .filter((item) => item.niTotal > 0)
         .sort((a, b) => b.niTotal - a.niTotal)
@@ -676,7 +684,7 @@ function TopNiTable({
 }: {
     data: RapportParetoData;
     filenameSuffix: string;
-}) {
+}): import("react").JSX.Element {
     const topNi = [...data.indisponibilites]
         .filter((item) => item.niTotal > 0)
         .sort((a, b) => b.niTotal - a.niTotal)
@@ -766,7 +774,7 @@ function TopNiTable({
                             <tr>
                                 <th>Panne</th>
                                 <th>Description</th>
-                                <th>Nombre d'interventions (NI)</th>
+                                <th>Nombre d&apos;interventions (NI)</th>
                                 <th>Engins affectés</th>
                             </tr>
                         </thead>
@@ -805,7 +813,7 @@ function EvolutionMtbf({
 }: {
     data: RapportParetoData;
     periode: string;
-}) {
+}): import("react").JSX.Element {
     const mtbfData = data.evolutionMtbf;
 
     const objectifMtbf =
@@ -917,7 +925,7 @@ function EvolutionDispo({
 }: {
     data: RapportParetoData;
     periode: string;
-}) {
+}): import("react").JSX.Element {
     const dispoData: ParetoDispoItem[] = data.evolutionDispo;
 
     const objectifDispo =
@@ -1026,7 +1034,7 @@ export default function ParetoResult({
 }: {
     data: RapportParetoData;
     periode: string;
-}) {
+}): import("react").JSX.Element {
     const filenameSuffix = safeFilename(
         [
             data.parcName,

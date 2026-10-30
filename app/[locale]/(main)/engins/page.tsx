@@ -49,7 +49,7 @@ export default async function EnginsPage({
     searchParams,
 }: {
     searchParams: Promise<EnginsSearchParams>;
-}) {
+}): Promise<import("react").JSX.Element> {
     const filters = await searchParams;
 
     const [response, optionsResponse] = await Promise.all([
@@ -163,7 +163,7 @@ export default async function EnginsPage({
                                     </TableCell>
                                 </TableRow>
                             ) : (
-                                engins.map((engin: any) => (
+                                engins.map((engin) => (
                                     <TableRow key={engin.id}>
                                         <TableCell className="font-medium">
                                             {engin.name}

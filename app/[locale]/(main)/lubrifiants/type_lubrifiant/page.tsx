@@ -1,7 +1,7 @@
 import UnderConstruction from '@/components/UnderConstruction'
 import React from 'react'
 
-function TypeLubrifiant() {
+function TypeLubrifiant(): import("react").JSX.Element {
     return (
         <UnderConstruction />
     )

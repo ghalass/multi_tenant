@@ -1,12 +1,10 @@
 "use client";
 
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Parc, Site } from '@/lib/generated/prisma/client';
 import { useSearchParams, usePathname, useRouter } from 'next/navigation';
 import { useTransition } from 'react';
 
-export default function SelectParams() {
+export default function SelectParams(): import("react").JSX.Element {
     const [isPending, startTransition] = useTransition();
 
     const searchParams = useSearchParams();
@@ -15,7 +13,7 @@ export default function SelectParams() {
 
     // Mise à jour immédiate d'un ou plusieurs params (pas de debounce :
     // inutile pour Select et input type="month")
-    const applyFilter = (updates: Record<string, string | null>) => {
+    const applyFilter = (updates: Record<string, string | null>): void => {
         const params = new URLSearchParams(searchParams);
         for (const [key, value] of Object.entries(updates)) {
             if (value) params.set(key, value);

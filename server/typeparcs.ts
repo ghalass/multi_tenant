@@ -7,6 +7,7 @@ import type { ActionResponse } from "@/lib/types/types";
 import { getSession } from "@/lib/auth";
 import { PAGINATION_SETTINGS, RESOURCE } from "@/lib/constantes";
 import { convertField } from "@/lib/convertField";
+import type { Prisma } from "@/lib/generated/prisma/client";
 
 export interface searchParams {
   name?: string;
@@ -14,14 +15,16 @@ export interface searchParams {
   itemsPerPage?: number;
 }
 
-async function getTenantId() {
+type TypeParcListItem = Prisma.TypeparcGetPayload<Prisma.TypeparcDefaultArgs>;
+
+async function getTenantId(): Promise<string | undefined> {
   const { currentTenantId } = await getSession();
   return currentTenantId;
 }
 
 export async function getAllTypeParcs(
   filters: searchParams = {}
-): Promise<ActionResponse> {
+): Promise<ActionResponse<TypeParcListItem>> {
   const permission = await guard(ACTION.READ, RESOURCE.TYPEPARC);
 
   if (!permission.success) {
@@ -258,7 +261,7 @@ export async function deleteTypeParc(id: string): Promise<ActionResponse> {
   }
 }
 
-export async function importTypeParcs(data: any) {
+export async function importTypeParcs(data: Record<string, unknown>): Promise<{ success: boolean; data: null; message: string; }[] | { success: boolean; data: Record<string, unknown>; message: string; }[] | { success: boolean; data: { id: string; name: string; tenantId: string; }; message: string; }[]> {
   try {
     const permission = await guard(ACTION.IMPORT, RESOURCE.TYPEPARC);
 

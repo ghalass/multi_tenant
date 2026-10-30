@@ -24,7 +24,7 @@ import { deletePermission } from "@/server/permissions";
 import DisplayError from "@/components/display-error";
 
 
-export function DeletePermissionForm({ permission }: { permission: Permission }) {
+export function DeletePermissionForm({ permission }: { permission: Permission }): import("react").JSX.Element {
   const [isLoading, setIsLoading] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState("");
@@ -32,7 +32,7 @@ export function DeletePermissionForm({ permission }: { permission: Permission })
 
   const router = useRouter();
 
-  async function onSubmit() {
+  async function onSubmit(): Promise<void> {
     try {
       setError("");
       setIsLoading(true);
@@ -70,7 +70,7 @@ export function DeletePermissionForm({ permission }: { permission: Permission })
           <DialogHeader>
             <DialogTitle>Suppression</DialogTitle>
             <DialogDescription className="flex flex-col">
-              <span>Voulez-vous vraiment supprimer l'utilisateur ?</span>
+              <span>Voulez-vous vraiment supprimer l&apos;utilisateur ?</span>
               <span className="text-destructive italic">{permission?.name}</span>
             </DialogDescription>
 

@@ -33,7 +33,7 @@ async function authorizeDatabaseAdmin(): Promise<boolean> {
     return user?.active === true && user.isSuperAdmin === true;
 }
 
-export async function getDatabaseBackupsAction() {
+export async function getDatabaseBackupsAction(): Promise<{ success: boolean; message: string; data: { createdAt: string; fileName: string; sizeBytes: number; }[]; }> {
     try {
         if (!(await authorizeDatabaseAdmin())) {
             return {
@@ -64,7 +64,7 @@ export async function getDatabaseBackupsAction() {
     }
 }
 
-export async function createDatabaseBackupAction() {
+export async function createDatabaseBackupAction(): Promise<{ success: boolean; message: string; data?: undefined; } | { success: boolean; message: string; data: { createdAt: string; fileName: string; sizeBytes: number; }; }> {
     try {
         if (!(await authorizeDatabaseAdmin())) {
             return {
@@ -95,7 +95,7 @@ export async function createDatabaseBackupAction() {
 
 export async function restoreDatabaseBackupAction(
     fileName: string,
-) {
+): Promise<{ success: boolean; message: string; data?: undefined; } | { success: boolean; message: string; data: { restoredFile: string; safetyBackup: { createdAt: string; fileName: string; sizeBytes: number; }; }; }> {
     try {
         if (!(await authorizeDatabaseAdmin())) {
             return {
@@ -130,7 +130,7 @@ export async function restoreDatabaseBackupAction(
 
 export async function deleteDatabaseBackupAction(
     fileName: string,
-) {
+): Promise<{ success: boolean; message: string; }> {
     try {
         if (!(await authorizeDatabaseAdmin())) {
             return {
@@ -156,7 +156,7 @@ export async function deleteDatabaseBackupAction(
     }
 }
 
-export async function uploadDatabaseBackupAction(formData: FormData) {
+export async function uploadDatabaseBackupAction(formData: FormData): Promise<{ success: boolean; message: string; data?: undefined; } | { success: boolean; message: string; data: { createdAt: string; fileName: string; sizeBytes: number; }; }> {
     try {
         if (!(await authorizeDatabaseAdmin())) {
             return {

@@ -51,7 +51,7 @@ async function getMaintenanceTenantId(): Promise<string | null> {
     return tenant?.id ?? null;
 }
 
-function normalizePlanInput(values: PlanMaintenanceInput) {
+function normalizePlanInput(values: PlanMaintenanceInput): { readonly error: "Le code du plan est obligatoire."; data?: undefined; } | { readonly error: "Le nom du plan est obligatoire."; data?: undefined; } | { readonly error: "L'intervalle doit être strictement supérieur à zéro."; data?: undefined; } | { readonly error: "Le seuil d'alerte doit être positif ou nul."; data?: undefined; } | { readonly data: { readonly code: string; readonly name: string; readonly description: string | null; readonly intervalleHeures: number; readonly seuilAlerteHeures: number; }; readonly error?: undefined; } {
     const code =
         typeof values?.code === "string"
             ? values.code.trim().toUpperCase()
@@ -118,7 +118,7 @@ function normalizePlanInput(values: PlanMaintenanceInput) {
  */
 export async function getPlansMaintenance(
     filters: PlanMaintenanceFilters = {},
-) {
+): Promise<{ success: boolean; message: string; data: never[]; meta: undefined; } | { success: boolean; message: string; data: ({ _count: { affectations: number; suivisEngins: number; }; } & { id: string; name: string; code: string; description: string | null; tenantId: string; createdAt: Date; updatedAt: Date; active: boolean; intervalleHeures: number; seuilAlerteHeures: number; })[]; meta: { totalItems: number; totalPages: number; currentPage: number; itemsPerPage: number; }; }> {
     const permission = await guard(
         ACTION.READ,
         RESOURCE.MAINTENANCE_PREVENTIVE,

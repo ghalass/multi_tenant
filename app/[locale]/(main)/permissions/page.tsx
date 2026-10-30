@@ -20,10 +20,9 @@ import CanAccess from "@/components/can-access";
 import { ACTION } from "@/lib/enums";
 import { RESOURCE } from "@/lib/constantes";
 
-export default async function Permissions2Page({ params, searchParams }: {
-  params: Promise<{ tenantId: string }>;
+export default async function Permissions2Page({ searchParams }: {
   searchParams: Promise<PermissionsSearchParams>;
-}) {
+}): Promise<import("react").JSX.Element> {
   const filters = await searchParams;
 
   // Récupération de l'objet contenant { data, meta }

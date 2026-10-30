@@ -18,7 +18,7 @@ import { ExportExcel } from "@/components/export-excel";
 
 import type { BacklogRecord } from "@/lib/types/backlog";
 
-function formatStatus(value: string) {
+function formatStatus(value: string): string {
     return value.replaceAll("_", " ").toLowerCase();
 }
 
@@ -26,7 +26,7 @@ export function BacklogDetails({
     backlog,
 }: {
     backlog: BacklogRecord;
-}) {
+}): import("react").JSX.Element {
     const history = backlog.historiqueStatutBacklogs ?? [];
 
     return (

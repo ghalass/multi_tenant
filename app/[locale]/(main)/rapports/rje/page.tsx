@@ -32,7 +32,7 @@ type PageProps = {
 
 export default async function RapportRJE({
     searchParams,
-}: PageProps) {
+}: PageProps): Promise<import("react").JSX.Element> {
     const params = await searchParams;
 
     const date =
@@ -89,10 +89,7 @@ export default async function RapportRJE({
             sites: [],
         };
 
-    const rje =
-        reportResponse?.success
-            ? (reportResponse.data ?? []) as any[]
-            : [];
+    const rje = reportResponse?.success ? reportResponse.data ?? [] : [];
 
     return (
         <div className="space-y-5">
@@ -257,15 +254,15 @@ export default async function RapportRJE({
                                         </TableCell>
 
                                         <TableCell>
-                                            {rje[0]?.objectif_dispo ?? "—"}
+                                            {rje[0]?.objectif_dispo?.toString() ?? "—"}
                                         </TableCell>
 
                                         <TableCell>
-                                            {rje[0]?.objectif_tdm ?? "—"}
+                                            {rje[0]?.objectif_tdm?.toString() ?? "—"}
                                         </TableCell>
 
                                         <TableCell>
-                                            {rje[0]?.objectif_mtbf ?? "—"}
+                                            {rje[0]?.objectif_mtbf?.toString() ?? "—"}
                                         </TableCell>
                                     </TableRow>
                                 )}

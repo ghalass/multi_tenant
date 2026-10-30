@@ -21,7 +21,7 @@ type PageProps = {
 
 export default async function RapportEtatMensuel({
     searchParams,
-}: PageProps) {
+}: PageProps): Promise<import("react").JSX.Element> {
     const filters = await searchParams;
 
     const moisParam =
@@ -71,7 +71,7 @@ export default async function RapportEtatMensuel({
         }[])
         : [];
 
-    const rapport = (reportResponse?.data ?? []) as any[];
+    const rapport = reportResponse?.data ?? [];
     const periode = `${String(moisParam).padStart(2, "0")}/${anneeParam}`;
 
     return (

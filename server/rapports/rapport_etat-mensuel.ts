@@ -36,6 +36,40 @@ type PeriodMetrics = {
     metrics: Metrics;
 };
 
+export type RapportEtatMensuelItem = {
+      typeParcId: string;
+      typeParcName: string;
+      parcs: {
+          parcId: string;
+          parcName: string;
+          nbreEngins: number;
+          nhoMois: number;
+          nhoAnnee: number;
+          aggregatesMois: Metrics;
+          aggregatesAnnee: Metrics;
+          objectifDispo: number | null;
+          objectifUtil: number | null;
+          engins: {
+              enginId: string;
+              enginName: string;
+              nbreEngins: number;
+              nhoMois: number;
+              nhoAnnee: number;
+              aggregatesMois: Metrics;
+              aggregatesAnnee: Metrics;
+              objectifDispo: number | null;
+              objectifUtil: number | null;
+          }[];
+      }[];
+      totalTypeParc: {
+          nbreEngins: number;
+          nhoMois: number;
+          nhoAnnee: number;
+          aggregatesMois: Metrics;
+          aggregatesAnnee: Metrics;
+      };
+};
+
 const safeNumber = (value: unknown): number => {
     const number = Number(value);
     return Number.isFinite(number) ? number : 0;
@@ -158,7 +192,7 @@ export async function getOptionsRapportEtatMensuel(): Promise<ActionResponse> {
 
 export async function getRapportEtatMensuel(
     filters?: SearchParamsRapportEtatMensuel,
-): Promise<ActionResponse> {
+): Promise<ActionResponse<RapportEtatMensuelItem>> {
     const permission = await guard(ACTION.READ, RESOURCE.RAPPORT);
 
     if (!permission.success) {

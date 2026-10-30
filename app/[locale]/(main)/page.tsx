@@ -8,7 +8,7 @@ import CanAccess from "@/components/can-access";
 import { ACTION } from "@/lib/enums";
 import { getI18n } from "@/locales/server";
 
-export default async function TenantMainPage() {
+export default async function TenantMainPage(): Promise<import("react").JSX.Element> {
   const { userId, currentTenantId } = await getSession();
   const tenants = await getAllTenants();
   const t = await getI18n()
@@ -49,7 +49,7 @@ export default async function TenantMainPage() {
               Bienvenue,
             </h1>
             <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
-              Veuillez se connecter pour accèder à l'application.
+              Veuillez se connecter pour accèder à l&apos;application.
             </p>
           </div>
         )}

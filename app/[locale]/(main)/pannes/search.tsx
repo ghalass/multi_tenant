@@ -39,7 +39,7 @@ export default function PannesSearch({
     typepannes,
     typeparcs,
     parcs,
-}: Props) {
+}: Props): import("react").JSX.Element {
     const searchParams = useSearchParams();
     const pathname = usePathname();
     const router = useRouter();
@@ -51,7 +51,7 @@ export default function PannesSearch({
     const [pending, startTransition] = useTransition();
     const [clearPending, startClearTransition] = useTransition();
 
-    function updateFilters(changes: Record<string, string>) {
+    function updateFilters(changes: Record<string, string>): void {
         const params = new URLSearchParams(
             searchParams.toString(),
         );
@@ -84,7 +84,7 @@ export default function PannesSearch({
         300,
     );
 
-    function handleTypeparcChange(value: string) {
+    function handleTypeparcChange(value: string): void {
         updateSearch.cancel();
 
         // Un changement de type de parc invalide le parc précédent.
@@ -94,7 +94,7 @@ export default function PannesSearch({
         });
     }
 
-    function clearSearch() {
+    function clearSearch(): void {
         setSearch("");
         updateSearch.cancel();
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -84,7 +84,7 @@ function EnginForm({
     engin?: Engin;
     sites: Option[];
     parcs: Option[];
-}) {
+}): import("react").JSX.Element {
     const editing = Boolean(engin);
 
     const [open, setOpen] = useState(false);
@@ -105,20 +105,18 @@ function EnginForm({
         },
     });
 
-    useEffect(() => {
-        if (!open) {
-            form.reset({
-                name: engin?.name ?? "",
-                active: engin?.active ?? true,
-                parcId: engin?.parcId ?? "",
-                siteId: engin?.siteId ?? "",
-            });
+    function handleOpenChange(nextOpen: boolean): void {
+        setOpen(nextOpen);
+        form.reset({
+            name: engin?.name ?? "",
+            active: engin?.active ?? true,
+            parcId: engin?.parcId ?? "",
+            siteId: engin?.siteId ?? "",
+        });
+        setError("");
+    }
 
-            setError("");
-        }
-    }, [open, form, engin]);
-
-    async function onSubmit(values: FormValues) {
+    async function onSubmit(values: FormValues): Promise<void> {
         try {
             setLoading(true);
             setError("");
@@ -159,7 +157,7 @@ function EnginForm({
 
             <Dialog
                 open={open}
-                onOpenChange={setOpen}
+                onOpenChange={handleOpenChange}
             >
                 <DialogTrigger
                     disabled={disabled}
@@ -190,7 +188,7 @@ function EnginForm({
                         </DialogTitle>
 
                         <DialogDescription>
-                            Renseignez les informations de l'engin.
+                            Renseignez les informations de l&apos;engin.
                         </DialogDescription>
 
                         <DisplayError error={error} />
@@ -204,7 +202,7 @@ function EnginForm({
                                 render={({ field, fieldState }) => (
                                     <Field data-invalid={fieldState.invalid}>
                                         <FieldLabel>
-                                            Nom de l'engin
+                                            Nom de l&apos;engin
                                         </FieldLabel>
 
                                         <Input
@@ -346,7 +344,7 @@ export function CreateEnginForm(
         sites: Option[];
         parcs: Option[];
     },
-) {
+): import("react").JSX.Element {
     return <EnginForm {...props} />;
 }
 
@@ -356,6 +354,6 @@ export function UpdateEnginForm(
         sites: Option[];
         parcs: Option[];
     },
-) {
+): import("react").JSX.Element {
     return <EnginForm {...props} />;
 }

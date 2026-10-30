@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { sleep } from "@/lib/utils";
 import { cache } from "react";
 
-export async function getAllTenants() {
+export async function getAllTenants(): Promise<({ createdBy: { id: string; name: string; tenantId: string | null; active: boolean; email: string; isSuperAdmin: boolean; } | null; } & { id: string; name: string; active: boolean; createdById: string | null; })[]> {
   const session = await getSession();
 
   if (!session.userId) return [];
@@ -52,7 +52,7 @@ export async function getAllTenants() {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export async function createTenant(name: string) {
+export async function createTenant(name: string): Promise<{ success: boolean; message: string; }> {
   try {
     await sleep();
 
@@ -129,7 +129,7 @@ export async function createTenant(name: string) {
   }
 }
 
-export async function getTenantById(tenantId: string) {
+export async function getTenantById(tenantId: string): Promise<{ id: string; name: string; active: boolean; createdById: string | null; } | null> {
   const session = await getSession();
 
   if (!session.userId || !tenantId) {

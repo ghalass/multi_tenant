@@ -5,7 +5,7 @@ import { Moon, Sun } from "lucide-react";
 import { useTheme } from "@wrksz/themes/client";
 import { Button } from "@/components/ui/button";
 
-const subscribe = () => () => { };
+const subscribe = () => (): void => { };
 const getSnapshot = (): boolean => true;
 const getServerSnapshot = (): boolean => false;
 

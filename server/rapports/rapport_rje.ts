@@ -7,6 +7,7 @@ import { ACTION } from "@/lib/enums";
 import type { ActionResponse } from "@/lib/types/types";
 import { getSession } from "@/lib/auth";
 import { PAGINATION_SETTINGS, RESOURCE } from "@/lib/constantes";
+import type { Prisma } from "@/lib/generated/prisma/client";
 
 export interface searchParamsRapportRje {
   date?: string;
@@ -36,6 +37,40 @@ export type RapportRjeOptionsResponse = {
   success: boolean;
   message: string;
   data: RapportRjeOptions;
+};
+
+export type RapportRjeItem = {
+    engin: string;
+    parcId: string;
+    parcName: string;
+    typeParcName: string;
+    siteId: string;
+    siteName: string;
+    annee: number;
+    objectif_dispo: Prisma.Decimal | number | null;
+    objectif_mtbf: Prisma.Decimal | number | null;
+    objectif_tdm: Prisma.Decimal | number | null;
+    nho_j: number;
+    dispo_j: string;
+    mtbf_j: string;
+    tdm_j: string;
+    him_j: number;
+    hrm_j: number;
+    ni_j: number;
+    nho_m: number;
+    dispo_m: string;
+    mtbf_m: string;
+    tdm_m: string;
+    him_m: number;
+    hrm_m: number;
+    ni_m: number;
+    nho_a: number;
+    dispo_a: string;
+    mtbf_a: string;
+    tdm_a: string;
+    him_a: number;
+    hrm_a: number;
+    ni_a: number;
 };
 
 const EMPTY_OPTIONS: RapportRjeOptions = {
@@ -139,7 +174,7 @@ export async function getOptionsRapportRje(): Promise<RapportRjeOptionsResponse>
 
 export async function getRapportRje(
   filters?: searchParamsRapportRje,
-): Promise<ActionResponse> {
+): Promise<ActionResponse<RapportRjeItem>> {
   const permission = await guard(ACTION.READ, RESOURCE.RAPPORT);
 
   if (!permission.success) {

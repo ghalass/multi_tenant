@@ -34,7 +34,7 @@ type ParcReport = {
   aggregatesAnnee: AggregateStats;
 };
 
-type TypeParcReport = {
+export type TypeParcReport = {
   typeParcId: string;
   typeParcName: string;
   parcs: ParcReport[];
@@ -58,7 +58,7 @@ const safeNumber = (value: unknown): number => {
 
 export async function getRapportUnitePhysique(
   filters?: searchParamsRapportUnitePhysique
-): Promise<ActionResponse> {
+): Promise<ActionResponse<TypeParcReport>> {
   const g = await guard(ACTION.READ, RESOURCE.RAPPORT);
 
   if (!g.success) {

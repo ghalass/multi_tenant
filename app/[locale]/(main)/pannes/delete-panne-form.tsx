@@ -18,14 +18,14 @@ export function DeletePanneForm({
     panne,
 }: {
     panne: { id: string; name: string };
-}) {
+}): import("react").JSX.Element {
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [pending, startTransition] = useTransition();
     const [error, setError] = useState("");
     const router = useRouter();
 
-    async function onDelete() {
+    async function onDelete(): Promise<void> {
         try {
             setLoading(true);
             setError("");

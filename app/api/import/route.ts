@@ -4,6 +4,10 @@ import { sleep } from "@/lib/utils";
 import { ImportService } from "@/services/importService";
 import { NextRequest, NextResponse } from "next/server";
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 export async function POST(request: NextRequest): Promise<NextResponse> {
   // 1. Vérifier le JSON reçu
   let body: { sheetName?: unknown; data?: unknown };
@@ -26,8 +30,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   if (
     typeof sheetName !== "string" ||
     !sheetName.trim() ||
-    data === undefined ||
-    data === null
+    !isRecord(data)
   ) {
     return NextResponse.json(
       {

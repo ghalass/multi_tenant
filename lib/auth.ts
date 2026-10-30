@@ -193,7 +193,7 @@ export async function login(
       success: true,
       message: "Connexion réussie.",
     };
-  } catch (error) {
+  } catch {
     console.error("Erreur lors de la connexion.");
 
     return {

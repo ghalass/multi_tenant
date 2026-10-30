@@ -90,7 +90,7 @@ export function DeleteSaisieHimForm({
                         <DialogTitle>Supprimer la saisie HIM</DialogTitle>
                         <DialogDescription>
                             Confirmez-vous la suppression de la saisie HIM pour
-                            l'engin {saisie.engin}, le {saisie.du}, concernant
+                            l&apos;engin {saisie.engin}, le {saisie.du}, concernant
                             la panne « {saisie.panne} » ?
                         </DialogDescription>
                     </DialogHeader>

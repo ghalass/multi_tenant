@@ -7,20 +7,29 @@ import { Action } from '@/lib/generated/prisma/enums';
 import { Search, X } from 'lucide-react';
 import { useSearchParams, usePathname, useRouter } from 'next/navigation';
 import { useDebouncedCallback } from 'use-debounce';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
-export default function Filters() {
+export default function Filters(): import("react").JSX.Element {
     const searchParams = useSearchParams();
+
+    return (
+        <SearchFilters
+            key={searchParams.toString()}
+            searchParams={searchParams}
+        />
+    );
+}
+
+function SearchFilters({
+    searchParams,
+}: {
+    searchParams: ReturnType<typeof useSearchParams>;
+}): import("react").JSX.Element {
     const pathname = usePathname();
     const { replace } = useRouter();
 
     // État local pour l'input (nécessaire pour le bouton X)
     const [search, setSearch] = useState(searchParams.get('s') ?? '');
-
-    // Sync si l'URL change (ex: reset depuis ailleurs)
-    useEffect(() => {
-        setSearch(searchParams.get('s') ?? '');
-    }, [searchParams]);
 
     const handleFilterChange = useDebouncedCallback((key: string, value: string) => {
         const params = new URLSearchParams(searchParams);
@@ -35,7 +44,7 @@ export default function Filters() {
     }, 300);
 
     // Effacement immédiat (pas de debounce nécessaire)
-    const clearSearch = () => {
+    const clearSearch = (): void => {
         setSearch('');
         const params = new URLSearchParams(searchParams);
         params.delete('s');

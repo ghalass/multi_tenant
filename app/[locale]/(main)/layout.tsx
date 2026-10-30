@@ -9,7 +9,7 @@ export default async function MainLayout({
   children, params,
 }: Readonly<{
   children: React.ReactNode; params: Promise<{ locale: string }>;
-}>) {
+}>): Promise<import("react").JSX.Element> {
   const { locale } = await params;
   const isRTL = locale === "ar";
 

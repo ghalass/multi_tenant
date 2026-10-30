@@ -7,6 +7,7 @@ import { dateFormater } from "@/lib/utils";
 import { guard } from "@/lib/rbac/middleware";
 import { ACTION } from "@/lib/enums";
 import { PAGINATION_SETTINGS, RESOURCE } from "@/lib/constantes";
+import type { Prisma } from "@/lib/generated/prisma/client";
 
 export interface SaisieHrmSearchParams {
   name?: string;
@@ -31,7 +32,7 @@ type SaisieHrmInput = {
   compteur: number | null;
 };
 
-async function getSaisieHrmTenantId() {
+async function getSaisieHrmTenantId(): Promise<string | null> {
   const { currentTenantId } = await getSession();
 
   if (!currentTenantId) return null;
@@ -86,7 +87,7 @@ function parseNumber(value: unknown): number | null {
   return Number.isFinite(result) ? result : null;
 }
 
-export async function getSaisieHrmOptions() {
+export async function getSaisieHrmOptions(): Promise<{ success: boolean; message: string; data: { typeparcs: { id: string; name: string; }[]; parcs: { id: string; name: string; typeparcId: string; }[]; engins: { id: string; name: string; siteId: string; parcId: string; }[]; sites: { id: string; name: string; }[]; }; }> {
   const permission = await guard(ACTION.READ, RESOURCE.SAISIE_HRM);
 
   const emptyData = {
@@ -158,7 +159,7 @@ export async function getSaisieHrmOptions() {
 
 export async function getAllSaisieHrm(
   filters: SaisieHrmSearchParams = {},
-) {
+): Promise<{ success: boolean; message: string; data: never[]; meta?: undefined; } | { success: boolean; message: string; data: ({ engin: { id: string; name: string; }; site: { id: string; name: string; }; tenant: { name: string; }; } & { id: string; hrm: number; enginId: string; siteId: string; tenantId: string; du: Date; nho: number; compteur: number | null; })[]; meta: { totalItems: number; totalPages: number; currentPage: number; itemsPerPage: number; }; }> {
   const permission = await guard(ACTION.READ, RESOURCE.SAISIE_HRM);
 
   if (!permission.success) {
@@ -208,7 +209,7 @@ export async function getAllSaisieHrm(
     ? parseSaisieHrmDate(filters.dateAu)
     : null;
 
-  const enginWhere: any = {};
+  const enginWhere: Prisma.EnginWhereInput = {};
 
   if (name) {
     enginWhere.name = {
@@ -225,7 +226,7 @@ export async function getAllSaisieHrm(
     enginWhere.parc = { typeparcId };
   }
 
-  const where: any = {
+  const where: Prisma.SaisiehrmWhereInput = {
     tenantId,
 
     ...(Object.keys(enginWhere).length > 0
@@ -276,7 +277,7 @@ export async function getAllSaisieHrm(
 async function validateSaisieHrmInput(
   values: SaisieHrmInput,
   tenantId: string,
-) {
+): Promise<{ error: string; du?: undefined; hrm?: undefined; nho?: undefined; compteur?: undefined; } | { du: Date; hrm: number; nho: number; compteur: number | null; readonly error?: undefined; }> {
   const du = parseSaisieHrmDate(values.du);
   const hrm = parseNumber(values.hrm);
   const nho = parseNumber(values.nho);
@@ -369,7 +370,7 @@ async function validateSaisieHrmInput(
   return { du, hrm, nho, compteur };
 }
 
-export async function createSaisieHrm(values: SaisieHrmInput) {
+export async function createSaisieHrm(values: SaisieHrmInput): Promise<{ success: boolean; message: string | undefined; }> {
   const permission = await guard(ACTION.CREATE, RESOURCE.SAISIE_HRM);
 
   if (!permission.success) {
@@ -433,7 +434,7 @@ export async function createSaisieHrm(values: SaisieHrmInput) {
 
 export async function updateSaisieHrm(
   values: SaisieHrmInput & { id: string },
-) {
+): Promise<{ success: boolean; message: string | undefined; }> {
   const permission = await guard(ACTION.UPDATE, RESOURCE.SAISIE_HRM);
 
   if (!permission.success) {
@@ -505,7 +506,7 @@ export async function updateSaisieHrm(
   }
 }
 
-export async function deleteSaisieHrm(id: string) {
+export async function deleteSaisieHrm(id: string): Promise<{ success: boolean; message: string; }> {
   const permission = await guard(ACTION.DELETE, RESOURCE.SAISIE_HRM);
 
   if (!permission.success) {
@@ -556,7 +557,7 @@ export async function deleteSaisieHrm(id: string) {
   }
 }
 
-export async function importSaisieHrm(data: any) {
+export async function importSaisieHrm(data: Record<string, unknown>): Promise<{ success: boolean; data: null; message: string; }[] | { success: boolean; data: Record<string, unknown>; message: string; }[] | { success: boolean; data: { id: string; siteId: string; tenantId: string; du: Date; enginId: string; hrm: number; nho: number; compteur: number | null; }; message: string; }[]> {
   try {
     const permission = await guard(
       ACTION.IMPORT,

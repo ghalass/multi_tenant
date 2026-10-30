@@ -9,7 +9,7 @@ export default function DownloadButtonSimple(): JSX.Element {
   return (
     <>
       <p className="text-sm italic ">
-        Avez-vous le support standard nécessaire pour l'importation ?
+        Avez-vous le support standard nécessaire pour l&apos;importation ?
       </p>
       <Button size={"sm"} asChild>
         <a href="/upload/to_import_gmao_nextjs.xlsx" download>

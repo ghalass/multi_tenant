@@ -98,7 +98,7 @@ export default function EtatGeneralTable({
 }: {
     data: TypeParcEtatGeneral[];
     periode: string;
-}) {
+}): import("react").JSX.Element {
     if (!data || data.length === 0) {
         return (
             <div className="rounded-lg border border-dashed p-8 text-center">
@@ -146,7 +146,7 @@ export default function EtatGeneralTable({
         });
     }
 
-    function renderHeaders() {
+    function renderHeaders(): import("react").JSX.Element {
         return (
             <TableRow>
                 {COLUMNS.map((column) => (
@@ -166,7 +166,7 @@ export default function EtatGeneralTable({
         );
     }
 
-    function renderRows(rows: ReportRow[]) {
+    function renderRows(rows: ReportRow[]): import("react").JSX.Element[] {
         return rows.map((row) => {
             const rowClass =
                 row.kind === "total-typeparc"

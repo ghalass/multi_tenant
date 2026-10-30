@@ -13,7 +13,7 @@ import { Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { GlobalLoader } from "@/components/global-loader";
 
-export default function SearchParcs() {
+export default function SearchParcs(): import("react").JSX.Element {
     const searchParams = useSearchParams();
     const pathname = usePathname();
     const { replace } = useRouter();
@@ -37,7 +37,7 @@ export default function SearchParcs() {
         });
     }, 300);
 
-    function clearSearch() {
+    function clearSearch(): void {
         setSearch("");
         handleSearch.cancel();
 

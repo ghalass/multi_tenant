@@ -57,7 +57,7 @@ async function hasActiveTenantAccess(
   return membership?.tenant.active === true;
 }
 
-export async function proxy(req: NextRequest) {
+export async function proxy(req: NextRequest): Promise<NextResponse<unknown>> {
   const { pathname } = req.nextUrl;
 
   // =========================================================

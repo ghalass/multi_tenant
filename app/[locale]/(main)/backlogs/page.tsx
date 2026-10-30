@@ -47,7 +47,7 @@ function firstString(value: string | string[] | undefined): string | undefined {
     return typeof value === "string" ? value : undefined;
 }
 
-function formatDate(value?: Date | string | null) {
+function formatDate(value?: Date | string | null): string {
     if (!value) return "—";
 
     return new Date(value).toLocaleDateString("fr-FR", {
@@ -55,11 +55,11 @@ function formatDate(value?: Date | string | null) {
     });
 }
 
-function formatStatus(value: string) {
+function formatStatus(value: string): string {
     return value.replaceAll("_", " ").toLowerCase();
 }
 
-function statusClass(status: string) {
+function statusClass(status: string): "border-green-300 bg-green-500/10 text-green-700 dark:text-green-300" | "border-purple-300 bg-purple-500/10 text-purple-700 dark:text-purple-300" | "border-blue-300 bg-blue-500/10 text-blue-700 dark:text-blue-300" | "border-yellow-300 bg-yellow-500/10 text-yellow-700 dark:text-yellow-300" | "border-muted bg-muted text-muted-foreground" {
     switch (status) {
         case "EXECUTE":
             return "border-green-300 bg-green-500/10 text-green-700 dark:text-green-300";
@@ -74,7 +74,7 @@ function statusClass(status: string) {
     }
 }
 
-function priorityClass(priority: string) {
+function priorityClass(priority: string): "border-green-300 bg-green-500/10 text-green-700 dark:text-green-300" | "border-red-300 bg-red-500/10 text-red-700 dark:text-red-300" | "border-orange-300 bg-orange-500/10 text-orange-700 dark:text-orange-300" {
     switch (priority) {
         case "ELEVEE":
             return "border-red-300 bg-red-500/10 text-red-700 dark:text-red-300";
@@ -89,7 +89,7 @@ export default async function BacklogsPage({
     searchParams,
 }: {
     searchParams: Promise<SearchParams>;
-}) {
+}): Promise<import("react").JSX.Element> {
     const params = await searchParams;
 
     const filters: BacklogFilters = {
@@ -129,7 +129,7 @@ export default async function BacklogsPage({
                         Gestion des backlogs
                     </h1>
                     <p className="mt-1 text-sm text-muted-foreground">
-                        Suivez les anomalies, les besoins en PDR et l'avancement des actions.
+                        Suivez les anomalies, les besoins en PDR et l&apos;avancement des actions.
                     </p>
                 </div>
 

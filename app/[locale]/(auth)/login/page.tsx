@@ -1,7 +1,6 @@
 import LoginForm from "./login-form";
-import { getSession } from "@/lib/auth";
 
-export default async function LoginPage() {
+export default async function LoginPage(): Promise<import("react").JSX.Element> {
   return (
     <div className="min-h-screen flex flex-col gap-4 items-center justify-center p-4">
       <LoginForm />

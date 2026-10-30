@@ -8,7 +8,7 @@ import {
 import { cn } from "@/lib/utils"
 import { Button, buttonVariants } from "@/components/ui/button"
 
-function Pagination({ className, ...props }: React.ComponentProps<"nav">) {
+function Pagination({ className, ...props }: React.ComponentProps<"nav">): import("react").JSX.Element {
   return (
     <nav
       role="navigation"
@@ -23,7 +23,7 @@ function Pagination({ className, ...props }: React.ComponentProps<"nav">) {
 function PaginationContent({
   className,
   ...props
-}: React.ComponentProps<"ul">) {
+}: React.ComponentProps<"ul">): import("react").JSX.Element {
   return (
     <ul
       data-slot="pagination-content"
@@ -33,7 +33,7 @@ function PaginationContent({
   )
 }
 
-function PaginationItem({ ...props }: React.ComponentProps<"li">) {
+function PaginationItem({ ...props }: React.ComponentProps<"li">): import("react").JSX.Element {
   return <li data-slot="pagination-item" {...props} />
 }
 
@@ -47,7 +47,7 @@ function PaginationLink({
   isActive,
   size = "icon",
   ...props
-}: PaginationLinkProps) {
+}: PaginationLinkProps): import("react").JSX.Element {
   return (
     <a
       aria-current={isActive ? "page" : undefined}
@@ -68,7 +68,7 @@ function PaginationLink({
 function PaginationPrevious({
   className,
   ...props
-}: React.ComponentProps<typeof PaginationLink>) {
+}: React.ComponentProps<typeof PaginationLink>): import("react").JSX.Element {
   return (
     <PaginationLink
       aria-label="Go to previous page"
@@ -85,7 +85,7 @@ function PaginationPrevious({
 function PaginationNext({
   className,
   ...props
-}: React.ComponentProps<typeof PaginationLink>) {
+}: React.ComponentProps<typeof PaginationLink>): import("react").JSX.Element {
   return (
     <PaginationLink
       aria-label="Go to next page"
@@ -102,7 +102,7 @@ function PaginationNext({
 function PaginationEllipsis({
   className,
   ...props
-}: React.ComponentProps<"span">) {
+}: React.ComponentProps<"span">): import("react").JSX.Element {
   return (
     <span
       aria-hidden

@@ -13,7 +13,7 @@ type ErrorProps = {
 export default function ErrorPage({
     error,
     retry,
-}: ErrorProps) {
+}: ErrorProps): import("react").JSX.Element {
     useEffect(() => {
         console.error("Erreur de l'application :", error);
     }, [error]);
@@ -30,13 +30,13 @@ export default function ErrorPage({
                 </h1>
 
                 <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                    Une erreur inattendue empêche l'affichage de cette
+                    Une erreur inattendue empêche l&apos;affichage de cette
                     page. Vous pouvez essayer de la charger à nouveau.
                 </p>
 
                 {error.digest && (
                     <p className="mt-4 break-all text-xs text-muted-foreground">
-                        Référence de l'erreur :{" "}
+                        Référence de l&apos;erreur :{" "}
                         <code>{error.digest}</code>
                     </p>
                 )}

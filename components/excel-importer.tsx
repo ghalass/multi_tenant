@@ -34,7 +34,6 @@ import {
   FilterX,
   Eye,
   CheckCircle,
-  Clock,
   XCircle,
   Trash2,
   StopCircle,
@@ -83,12 +82,42 @@ export interface User {
   isSuperAdmin: boolean;
 }
 
+type ImportResult = {
+  success?: unknown;
+  message?: unknown;
+  error?: unknown;
+  data?: unknown;
+};
+
+type NormalizedResult = {
+  success: boolean;
+  message: string;
+  data: unknown;
+};
+
+function isImportResult(value: unknown): value is ImportResult {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isSuccessfulResultItem(value: unknown): boolean {
+  return (
+    Boolean(value) &&
+    (!isImportResult(value) ||
+      value.success === undefined ||
+      value.success === true)
+  );
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 // Interface pour la mutation
 export interface ImportMutation {
   mutateAsync: (data: {
     sheetName: string;
-    data: Record<string, any>;
-  }) => Promise<any>;
+    data: Record<string, unknown>;
+  }) => Promise<unknown>;
 }
 
 export interface ExcelImporterProps {
@@ -98,9 +127,9 @@ export interface ExcelImporterProps {
   /** Fonction appelée pour traiter chaque ligne (alternative à importMutation) */
   onProcessRow?: (data: {
     sheetName: string;
-    rowData: Record<string, any>;
+    rowData: Record<string, unknown>;
     rowIndex: number;
-  }) => Promise<any>;
+  }) => Promise<unknown>;
 
   /** Titre du composant */
   title?: string;
@@ -119,20 +148,20 @@ export interface ExcelImporterProps {
 
   /** Rendu personnalisé pour les cellules */
   renderCell?: (
-    value: any,
+    value: unknown,
     column: string,
     rowIndex: number
   ) => React.ReactNode;
 
   /** Rendu personnalisé pour le statut */
-  renderStatus?: (result: any, isProcessing: boolean) => React.ReactNode;
+  renderStatus?: (result: unknown, isProcessing: boolean) => React.ReactNode;
 
   /** Fonction pour formater les données de la ligne */
   formatRowData?: (
-    row: any[],
+    row: unknown[],
     headers: string[],
     sheetName: string
-  ) => Record<string, any>;
+  ) => Record<string, unknown>;
 
   /** Désactiver l'importation */
   disabled?: boolean;
@@ -197,11 +226,11 @@ export function ExcelImporter({
   resetButtonText = "Réinitialiser",
   enableControlButtons = true,
   onStop,
-}: ExcelImporterProps) {
+}: ExcelImporterProps): import("react").JSX.Element {
   const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null);
   const [sheetNames, setSheetNames] = useState<string[]>([]);
   const [selectedSheet, setSelectedSheet] = useState("");
-  const [tableData, setTableData] = useState<any[][]>([]);
+  const [tableData, setTableData] = useState<unknown[][]>([]);
   const [headers, setHeaders] = useState<string[]>([]);
   const [progress, setProgress] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
@@ -213,7 +242,7 @@ export function ExcelImporter({
   }>({ type: "info", text: "" });
   const [currentProcessingRow, setCurrentProcessingRow] = useState(-1);
   const [processingResults, setProcessingResults] = useState<
-    Record<number, any>
+    Record<number, NormalizedResult>
   >({});
   const [previewMode, setPreviewMode] = useState<"full" | "preview">("preview");
   const [previewRowsCount, setPreviewRowsCount] = useState(50);
@@ -228,7 +257,6 @@ export function ExcelImporter({
   // États pour le contrôle du traitement
   const [isStopped, setIsStopped] = useState(false);
   const [showStopDialog, setShowStopDialog] = useState(false);
-  const [processingQueue, setProcessingQueue] = useState<number[]>([]);
   const [processedCount, setProcessedCount] = useState(0);
   const [processedAtStop, setProcessedAtStop] = useState(0);
 
@@ -256,7 +284,6 @@ export function ExcelImporter({
     setExpandedErrorDetails([]);
     setMessage({ type: "info", text: "" });
     setIsStopped(false);
-    setProcessingQueue([]);
     setProcessedCount(0);
     setProcessedAtStop(0);
     stopRequestedRef.current = false;
@@ -301,7 +328,6 @@ export function ExcelImporter({
     });
 
     setCurrentProcessingRow(-1);
-    setProcessingQueue([]);
     onStop?.();
     setShowStopDialog(false);
   }, [tableData.length, processedCount, onStop]);
@@ -312,39 +338,43 @@ export function ExcelImporter({
   }, [performStop]);
 
   // Fonction utilitaire pour vérifier si un résultat est réussi
-  const isResultSuccessful = useCallback((result: any): boolean => {
+  const isResultSuccessful = useCallback((result: unknown): boolean => {
     if (!result) return false;
 
-    // if (result.success !== undefined) {
-    //   return result.success === true;
-    // }
-
-    if (result.data) {
+    if (isImportResult(result) && result.data) {
 
       if (Array.isArray(result.data)) {
         if (result.data.length === 0) return false;
 
-        if (result.data[0] && result.data[0].success !== undefined) {
+        if (
+          isImportResult(result.data[0]) &&
+          result.data[0].success !== undefined
+        ) {
           return result.data.every(
-            (item: any) => item && item.success === true
+            (item) => isImportResult(item) && item.success === true
           );
         }
 
-        return result.data.every(
-          (item: any) =>
-            item && (item.success === undefined || item.success === true)
-        );
+        return result.data.every(isSuccessfulResultItem);
       }
 
-      if (result.data.success !== undefined) {
+      if (
+        isImportResult(result.data) &&
+        result.data.success !== undefined
+      ) {
         return result.data.success === true;
       }
     }
 
+    const message =
+      isImportResult(result) && typeof result.message === "string"
+        ? result.message.toLowerCase()
+        : "";
+
     return (
-      !result.error &&
-      !result.message?.includes("erreur") &&
-      !result.message?.includes("échec")
+      !(isImportResult(result) && result.error) &&
+      !message.includes("erreur") &&
+      !message.includes("échec")
     );
   }, []);
 
@@ -363,8 +393,8 @@ export function ExcelImporter({
 
   // Fonction de formatage par défaut des données
   const defaultFormatRowData = useCallback(
-    (row: any[], headers: string[], sheetName: string) => {
-      const formatted: Record<string, any> = {};
+    (row: unknown[], headers: string[]) => {
+      const formatted: Record<string, unknown> = {};
       headers.forEach((header, index) => {
         if (header && header.trim() !== "") {
           const value = row[index];
@@ -388,7 +418,7 @@ export function ExcelImporter({
       rowIndex,
     }: {
       sheetName: string;
-      rowData: Record<string, any>;
+      rowData: Record<string, unknown>;
       rowIndex: number;
     }) => {
       if (importMutation) {
@@ -475,6 +505,8 @@ export function ExcelImporter({
   );
 
   // Virtualizer pour les lignes
+  // TanStack Virtual exposes a mutable virtualizer API that React Compiler skips.
+  // eslint-disable-next-line react-hooks/incompatible-library
   const rowVirtualizer = useVirtualizer({
     count:
       previewMode === "full"
@@ -536,7 +568,7 @@ export function ExcelImporter({
   );
 
   // Normaliser le résultat
-  const normalizeResult = useCallback((result: any) => {
+  const normalizeResult = useCallback((result: unknown): NormalizedResult => {
     if (!result) {
       return {
         success: false,
@@ -545,25 +577,22 @@ export function ExcelImporter({
       };
     }
 
-    if (typeof result === "object" && !Array.isArray(result)) {
+    if (isImportResult(result)) {
       if (result.success !== undefined) {
         return {
           success: result.success === true,
-          message: result.message || "",
+          message: typeof result.message === "string" ? result.message : "",
           data: result.data || null,
         };
       }
 
       if (result.data && Array.isArray(result.data)) {
-        const allSuccess = result.data.every(
-          (item: any) =>
-            item && (item.success === undefined || item.success === true)
-        );
+        const allSuccess = result.data.every(isSuccessfulResultItem);
 
         return {
           success: allSuccess,
           message:
-            result.message ||
+            (typeof result.message === "string" && result.message) ||
             (allSuccess
               ? "Tous les éléments ont réussi"
               : "Certains éléments ont échoué"),
@@ -579,9 +608,7 @@ export function ExcelImporter({
     }
 
     if (Array.isArray(result)) {
-      const allSuccess = result.every(
-        (item) => item && (item.success === undefined || item.success === true)
-      );
+      const allSuccess = result.every(isSuccessfulResultItem);
 
       return {
         success: allSuccess,
@@ -633,7 +660,7 @@ export function ExcelImporter({
 
       const reader = new FileReader();
 
-      reader.onload = (e) => {
+      reader.onload = (e): void => {
         try {
           const data = new Uint8Array(e.target?.result as ArrayBuffer);
           const workbook = XLSX.read(data, {
@@ -663,7 +690,7 @@ export function ExcelImporter({
         }
       };
 
-      reader.onerror = () => {
+      reader.onerror = (): void => {
         setMessage({
           type: "error",
           text: "Erreur lors de la lecture du fichier",
@@ -712,7 +739,7 @@ export function ExcelImporter({
             return;
           }
 
-          const jsonData = XLSX.utils.sheet_to_json<any[]>(worksheet, {
+          const jsonData = XLSX.utils.sheet_to_json<unknown[]>(worksheet, {
             header: 1,
             raw: false,
             rawNumbers: false,
@@ -723,7 +750,7 @@ export function ExcelImporter({
 
           if (Array.isArray(jsonData) && jsonData.length > 0) {
             const firstRow = jsonData[0];
-            const originalHeaders = firstRow.map((header: any) => {
+            const originalHeaders = firstRow.map((header: unknown) => {
               if (header == null) return "";
               if (header instanceof Date) {
                 return header.toLocaleDateString("fr-FR");
@@ -731,7 +758,7 @@ export function ExcelImporter({
               return String(header).trim();
             });
 
-            const dataRows = jsonData.slice(1).map((row: any) => {
+            const dataRows = jsonData.slice(1).map((row: unknown) => {
               if (!Array.isArray(row)) return [];
               const paddedRow = [...Array(originalHeaders.length)].map(
                 (_, i) => {
@@ -752,7 +779,7 @@ export function ExcelImporter({
               return paddedRow;
             });
 
-            const filteredDataRows = dataRows.filter((row: any[]) =>
+            const filteredDataRows = dataRows.filter((row: unknown[]) =>
               row.some((cell) => cell != null && cell !== "")
             );
 
@@ -825,7 +852,6 @@ export function ExcelImporter({
       { length: tableData.length },
       (_, i) => i
     );
-    setProcessingQueue(indicesToProcess);
 
     try {
       const totalRows = tableData.length;
@@ -856,7 +882,6 @@ export function ExcelImporter({
 
           const newProcessedCount = i + 1;
           setProcessedCount(newProcessedCount);
-          setProcessingQueue((prev) => prev.slice(1));
           const newProgress = Math.round((newProcessedCount / totalRows) * 100);
           setProgress(newProgress);
           continue;
@@ -892,14 +917,18 @@ export function ExcelImporter({
           } else {
             failedRows++;
           }
-        } catch (error: any) {
-          if (error.name === "AbortError" || error.message.includes("arrêté")) {
+        } catch (error: unknown) {
+          const errorMessage = getErrorMessage(error);
+          if (
+            (error instanceof Error && error.name === "AbortError") ||
+            errorMessage.includes("arrêté")
+          ) {
             break;
           }
 
           const errorResult = {
             success: false,
-            message: `Erreur: ${error.message || error.toString()}`,
+            message: `Erreur: ${errorMessage}`,
             data: null,
           };
           setProcessingResults((prev) => ({ ...prev, [index]: errorResult }));
@@ -908,7 +937,6 @@ export function ExcelImporter({
 
         const newProcessedCount = i + 1;
         setProcessedCount(newProcessedCount);
-        setProcessingQueue((prev) => prev.slice(1));
 
         const newProgress = Math.round((newProcessedCount / totalRows) * 100);
         setProgress(newProgress);
@@ -951,14 +979,14 @@ export function ExcelImporter({
           text: `Traitement terminé sans lignes traitées.`,
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Erreur lors du traitement:", error);
       processingRef.current = false;
       setIsLoading(false);
       setCurrentProcessingRow(-1);
       setMessage({
         type: "error",
-        text: `Une erreur est survenue lors du traitement des données: ${error.message}`,
+        text: `Une erreur est survenue lors du traitement des données: ${getErrorMessage(error)}`,
       });
     }
   }, [
@@ -1004,10 +1032,10 @@ export function ExcelImporter({
 
   // Rendu par défaut des cellules
   const defaultRenderCell = useCallback(
-    (value: any, column: string, rowIndex: number) => {
+    (value: unknown) => {
       return value !== undefined && value !== null && value !== "" ? (
         <div className="truncate" title={String(value)}>
-          {value}
+          {String(value)}
         </div>
       ) : (
         <span className="text-muted-foreground">-</span>
@@ -1018,7 +1046,7 @@ export function ExcelImporter({
 
   // Rendu par défaut du statut
   const defaultRenderStatus = useCallback(
-    (result: any, isProcessing: boolean) => {
+    (result: unknown, isProcessing: boolean) => {
       if (isProcessing) {
         return (
           <div className="flex items-center gap-2">
@@ -1263,7 +1291,7 @@ export function ExcelImporter({
                 {isSheetLoading && (
                   <div className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400">
                     <div className="h-3 w-3 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
-                    <span>Chargement de l'onglet "{selectedSheet}"...</span>
+                    <span>Chargement de l&apos;onglet &quot;{selectedSheet}&quot;...</span>
                   </div>
                 )}
               </div>
@@ -1324,7 +1352,7 @@ export function ExcelImporter({
                 <AlertTitle>Traitement arrêté</AlertTitle>
                 <AlertDescription>
                   Le traitement a été arrêté manuellement. {processedAtStop}{" "}
-                  ligne(s) ont été traitées avant l'arrêt.
+                  ligne(s) ont été traitées avant l&apos;arrêt.
                 </AlertDescription>
               </Alert>
             )}
@@ -1603,11 +1631,14 @@ export function ExcelImporter({
                                       Array.isArray(rowResult.data) ? (
                                       <ScrollArea className="h-full max-h-24">
                                         {rowResult.data.map(
-                                          (item: any, idx: number) => {
+                                          (item: unknown, idx: number) => {
+                                            const resultItem = isImportResult(item)
+                                              ? item
+                                              : null;
                                             const isSuccess =
-                                              item?.success === true;
+                                              resultItem?.success === true;
                                             const isError =
-                                              item?.success === false;
+                                              resultItem?.success === false;
 
                                             return (
                                               <div
@@ -1619,7 +1650,8 @@ export function ExcelImporter({
                                                     : "bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
                                                   }`}
                                               >
-                                                {item?.message ||
+                                                {(typeof resultItem?.message === "string" &&
+                                                  resultItem.message) ||
                                                   "Sans message"}
                                               </div>
                                             );
@@ -1660,11 +1692,7 @@ export function ExcelImporter({
                                           header,
                                           originalIndex
                                         )
-                                        : defaultRenderCell(
-                                          value,
-                                          header,
-                                          originalIndex
-                                        )}
+                                        : defaultRenderCell(value)}
                                     </div>
                                   </div>
                                 );
@@ -1727,13 +1755,13 @@ export function ExcelImporter({
               <div className="text-center py-12 border rounded-lg">
                 <div className="space-y-2">
                   <p className="text-muted-foreground">
-                    Aucune donnée trouvée dans l'onglet{" "}
+                    Aucune donnée trouvée dans l&apos;onglet{" "}
                     <span className="font-medium text-foreground">
                       {selectedSheet}
                     </span>
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    Assurez-vous que l'onglet contient des données
+                    Assurez-vous que l&apos;onglet contient des données
                   </p>
                 </div>
               </div>
@@ -1747,7 +1775,7 @@ export function ExcelImporter({
                   </div>
                   <div className="space-y-2">
                     <p className="text-muted-foreground">
-                      Chargement des données de l'onglet{" "}
+                      Chargement des données de l&apos;onglet{" "}
                       <span className="font-medium text-foreground">
                         {selectedSheet}
                       </span>
@@ -1808,7 +1836,7 @@ export function ExcelImporter({
             <DialogDescription asChild className="pt-4">
               <div className="space-y-3">
                 <p>
-                  Vous êtes sur le point d'arrêter définitivement le traitement
+                  Vous êtes sur le point d&apos;arrêter définitivement le traitement
                   en cours. Cette action ne peut pas être annulée.
                 </p>
 
@@ -1838,7 +1866,7 @@ export function ExcelImporter({
                   <AlertTriangle className="h-4 w-4" />
                   <AlertTitle>Avertissement</AlertTitle>
                   <AlertDescription className="text-xs">
-                    Le traitement s'arrêtera immédiatement et ne pourra pas être
+                    Le traitement s&apos;arrêtera immédiatement et ne pourra pas être
                     repris. Seules les lignes déjà traitées seront sauvegardées.
                   </AlertDescription>
                 </Alert>

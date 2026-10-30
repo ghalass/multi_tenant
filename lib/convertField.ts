@@ -62,7 +62,16 @@ const convertExcelDate = (excelDateNumber: number): Date | null => {
  * @param fieldType : string | number | int | boolean | date
  * @returns
  */
-export const convertField = (value: any, fieldType: string = "string"): any => {
+export function convertField(value: unknown): string | null;
+export function convertField(value: unknown, fieldType: "string"): string | null;
+export function convertField(value: unknown, fieldType: "number" | "int"): number | null;
+export function convertField(value: unknown, fieldType: "boolean"): boolean | null;
+export function convertField(value: unknown, fieldType: "date"): Date | null;
+export function convertField(value: unknown, fieldType: string): unknown;
+export function convertField(
+  value: unknown,
+  fieldType: string = "string",
+): unknown {
   // console.log("#####################################");
   // console.log(`value = ${value}, typeof value:${typeof value}`);
   if (value === null || value === undefined || value === "") {
@@ -75,11 +84,11 @@ export const convertField = (value: any, fieldType: string = "string"): any => {
         return String(value).trim();
 
       case "number":
-        const num = parseFloat(value);
+        const num = parseFloat(String(value));
         return isNaN(num) ? null : num;
 
       case "int":
-        const int = parseInt(value);
+        const int = parseInt(String(value));
         return isNaN(int) ? null : int;
 
       case "boolean":
@@ -111,7 +120,7 @@ export const convertField = (value: any, fieldType: string = "string"): any => {
     );
     return null;
   }
-};
+}
 
 export function isValidFormat(code: string): boolean {
   const regex = /^[A-Z0-9]{1,10}-\d{2}-\d+$/i;

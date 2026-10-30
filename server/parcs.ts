@@ -8,6 +8,7 @@ import type { ActionResponse } from "@/lib/types/types";
 import { getSession } from "@/lib/auth";
 import { PAGINATION_SETTINGS, RESOURCE } from "@/lib/constantes";
 import { convertField } from "@/lib/convertField";
+import type { Prisma } from "@/lib/generated/prisma/client";
 
 export interface SearchParamsParcs {
   name?: string;
@@ -15,7 +16,14 @@ export interface SearchParamsParcs {
   itemsPerPage?: number | string;
 }
 
-async function getTenantId() {
+export type ParcListItem = Prisma.ParcGetPayload<{
+  include: {
+    typeparc: { select: { id: true; name: true } };
+    tenant: { select: { id: true; name: true } };
+  };
+}>;
+
+async function getTenantId(): Promise<string | null> {
   const { currentTenantId } = await getSession();
 
   if (!currentTenantId) return null;
@@ -30,7 +38,7 @@ async function getTenantId() {
 
 export async function getAllParcs(
   filters: SearchParamsParcs = {}
-): Promise<ActionResponse> {
+): Promise<ActionResponse<ParcListItem>> {
   const permission = await guard(ACTION.READ, RESOURCE.PARC);
 
   if (!permission.success) {
@@ -60,7 +68,7 @@ export async function getAllParcs(
   const isUnpaged = requestedItems === 0;
   const itemsPerPage = requestedItems;
 
-  const where: any = { tenantId };
+  const where: Prisma.ParcWhereInput = { tenantId };
 
   const name = filters.name?.trim();
 
@@ -97,7 +105,7 @@ export async function getAllParcs(
   };
 }
 
-export async function getParcTypeOptions() {
+export async function getParcTypeOptions(): Promise<{ success: boolean; message: string; data: { id: string; name: string; }[]; }> {
   const permission = await guard(ACTION.READ, RESOURCE.PARC);
 
   if (!permission.success) {
@@ -308,7 +316,7 @@ export async function deleteParc(id: string): Promise<ActionResponse> {
   }
 }
 
-export async function importParcs(data: any) {
+export async function importParcs(data: Record<string, unknown>): Promise<{ success: boolean; data: null; message: string; }[] | { success: boolean; data: Record<string, unknown>; message: string; }[] | { success: boolean; data: { id: string; name: string; tenantId: string; typeparcId: string; }; message: string; }[]> {
   try {
     const permission = await guard(ACTION.IMPORT, RESOURCE.PARC);
 

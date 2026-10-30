@@ -10,7 +10,7 @@ import {
 import { useTheme } from "@wrksz/themes/client";
 import { Toaster as Sonner, type ToasterProps } from "sonner"
 
-const Toaster = ({ ...props }: ToasterProps) => {
+const Toaster = ({ ...props }: ToasterProps): import("react").JSX.Element => {
   const { theme = "system" } = useTheme()
 
   return (

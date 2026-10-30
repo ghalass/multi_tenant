@@ -23,7 +23,7 @@ export default async function ParcsPage({
     searchParams,
 }: {
     searchParams: Promise<SearchParamsParcs>;
-}) {
+}): Promise<import("react").JSX.Element> {
     const filters = await searchParams;
     const [response, typeResponse] = await Promise.all([
         getAllParcs(filters),
@@ -93,7 +93,7 @@ export default async function ParcsPage({
                                         </TableCell>
                                     </TableRow>
                                 ) : (
-                                    parcs.map((parc: any) => (
+                                    parcs.map((parc) => (
                                         <TableRow key={parc.id}>
                                             <TableCell className="font-medium">
                                                 {parc.name}

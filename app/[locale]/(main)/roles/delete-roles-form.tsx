@@ -22,7 +22,7 @@ import { deleteRole } from "@/server/roles";
 import DisplayError from "@/components/display-error";
 import { Role } from "@/lib/generated/prisma/client";
 
-export function DeleteRoleForm({ role }: { role: Role }) {
+export function DeleteRoleForm({ role }: { role: Role }): import("react").JSX.Element {
     const [isLoading, setIsLoading] = useState(false);
     const [isPending, startTransition] = useTransition();
     const [error, setError] = useState("");
@@ -30,7 +30,7 @@ export function DeleteRoleForm({ role }: { role: Role }) {
 
     const router = useRouter();
 
-    async function onSubmit() {
+    async function onSubmit(): Promise<void> {
         try {
             setError("");
             setIsLoading(true);
