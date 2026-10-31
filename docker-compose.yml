@@ -1,0 +1,67 @@
+
+services:
+  db:
+    image: postgres:18-bookworm
+    container_name: gmao_postgres
+    restart: unless-stopped
+
+    env_file:
+      - .env.docker
+
+    ports:
+      - "5433:5432"
+
+    volumes:
+      - gmao_pgdata:/var/lib/postgresql
+      - ./docker-data/import:/imports:ro
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  migrate:
+    build:
+      context: .
+      target: builder
+
+    container_name: gmao_migrate
+
+    env_file:
+      - .env.docker
+
+    command: ["pnpm", "prisma", "migrate", "deploy"]
+
+    depends_on:
+      db:
+        condition: service_healthy
+
+    restart: "no"
+
+  app:
+    build:
+      context: .
+      target: runner
+
+    container_name: gmao_app
+    restart: unless-stopped
+
+    env_file:
+      - .env.docker
+
+    ports:
+      - "3000:3000"
+
+    volumes:
+      - ./docker-data/backups:/backups
+
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  gmao_pgdata:

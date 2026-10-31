@@ -1,5 +1,4 @@
 allowBuilds:
-  '@prisma/engines': true
-  prisma: true
-  sharp: true
-  unrs-resolver: true
+  '@prisma/engines@7.10.0': true
+  'prisma@7.10.0': true
+  'unrs-resolver@1.12.2': true

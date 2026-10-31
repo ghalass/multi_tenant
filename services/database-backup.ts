@@ -135,8 +135,11 @@ function getDatabaseConfig(): { host: string; port: string; database: string; us
 /**
  * Vérifie que le répertoire de sauvegarde est hors du projet.
  */
+
 async function assertBackupDirectory(): Promise<string> {
-    const projectDirectory = path.resolve(/*turbopackIgnore: true*/ process.cwd());
+    const projectDirectory = path.resolve(
+        /*turbopackIgnore: true*/ process.cwd()
+    );
     const directory = getBackupDirectory();
 
     const relative = path.relative(projectDirectory, directory);
@@ -160,13 +163,18 @@ async function assertBackupDirectory(): Promise<string> {
         mode: 0o700,
     });
 
-    // Sous les systèmes POSIX, restreindre les permissions du dossier.
-    if (process.platform !== "win32") {
+    // Sous Linux, restreindre les permissions du dossier,
+    // sauf lorsque le stockage est un volume Windows Docker.
+    if (
+        process.platform !== "win32" &&
+        process.env.GMAO_BACKUP_SKIP_CHMOD !== "true"
+    ) {
         await chmod(directory, 0o700);
     }
 
     return directory;
 }
+
 
 /**
  * Exécute pg_dump ou pg_restore sans exposer le mot de passe

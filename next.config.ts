@@ -1,8 +1,12 @@
 // next.config.ts
+
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  turbopack: {}, // Configuration pour les fichiers statiques
+  output: "standalone",
+
+  turbopack: {},
+
   async headers() {
     return [
       {
@@ -12,12 +16,11 @@ const nextConfig: NextConfig = {
             key: "Cache-Control",
             value: "public, max-age=31536000, immutable",
           },
-          // Note: Ne spécifiez pas Content-Type ici pour tous les fichiers
-          // Car tous les fichiers dans uploads/ ne sont pas des .xlsx
         ],
       },
     ];
   },
+
   experimental: {
     serverActions: {
       bodySizeLimit: "110mb",
@@ -27,3 +30,4 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
+
