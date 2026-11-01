@@ -1,8 +1,10 @@
 // app/(main)/page.tsx
 
 import { getAllTenants } from "@/server/tenants";
+import { getTenantDashboard } from "@/server/dashboard";
 import { CreateTenantForm } from "./create-tenant-form";
 import TenantSwitcher from "../../../components/tenant-link";
+import TenantDashboard from "./tenant-dashboard";
 import { getSession } from "@/lib/auth";
 import CanAccess from "@/components/can-access";
 import { ACTION } from "@/lib/enums";
@@ -10,10 +12,18 @@ import { getI18n } from "@/locales/server";
 
 export default async function TenantMainPage(): Promise<import("react").JSX.Element> {
   const { userId, currentTenantId } = await getSession();
-  const tenants = await getAllTenants();
-  const t = await getI18n()
+  const [tenants, dashboard, t] = await Promise.all([
+    getAllTenants(),
+    currentTenantId ? getTenantDashboard() : Promise.resolve(null),
+    getI18n(),
+  ]);
+
+  if (dashboard) {
+    return <TenantDashboard dashboard={dashboard} tenants={tenants} />;
+  }
+
   return (
-    <div>
+    <div className="py-8">
       <div className="max-w-6xl mx-auto">
 
         {/* En-tête */}
@@ -21,7 +31,9 @@ export default async function TenantMainPage(): Promise<import("react").JSX.Elem
           <div className="text-center mb-8 md:mb-12">
             <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-3">
 
-              {tenants?.length && `Liste de vos tenants (${tenants?.length})`}
+              {tenants.length
+                ? `Sélectionnez votre tenant (${tenants.length})`
+                : "Aucun tenant disponible"}
             </h1>
             <CanAccess action={ACTION.READ} resource="tenant">
               <CreateTenantForm />
