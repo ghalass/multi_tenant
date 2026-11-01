@@ -24,6 +24,8 @@ import {
   Target,
   Server,
   UserStar,
+  Package,
+  Rows,
 } from "lucide-react";
 
 import {
@@ -124,7 +126,6 @@ const configItems = {
     },
 
     { title: "Utilisateurs", url: `/users`, icon: Users, description: "Gérer les utilisateurs" },
-    { title: "Import", url: `/import`, icon: Upload, description: "Import" },
   ],
 };
 
@@ -254,6 +255,15 @@ const maintenancePreventiveItems = {
   ],
 };
 
+const Importation = {
+  title: "Importation",
+  icon: Upload,
+  list: [
+    { title: "En lot", url: `/batch-import`, icon: Package, description: "Gérer les importations" },
+    { title: "Par ligne", url: `/import`, icon: Rows, description: "Gérer les importations" },
+  ],
+};
+
 
 export function AppSidebar(): JSX.Element {
   const locale = useCurrentLocale();
@@ -278,6 +288,7 @@ export function AppSidebar(): JSX.Element {
     SuiviPerformances,
     configItems,
     AccessControl,
+    Importation,
     superAdmin,
   ];
 
