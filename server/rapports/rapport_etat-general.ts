@@ -21,6 +21,7 @@ export interface EnginEtatGeneral {
     parcName: string;
     typeParcName: string;
     hrmMois: number;
+    compteurCourant: number | null;
 }
 
 export interface ParcEtatGeneral {
@@ -358,14 +359,16 @@ export async function getRapportEtatGeneral(
                 saisiehrms: {
                     where: {
                         tenantId,
-                        du: {
-                            gte: debutMois,
-                            lt: finMois,
-                        },
+                        compteur: { not: null },
                     },
                     select: {
-                        hrm: true,
+                        compteur: true,
                     },
+                    orderBy: [
+                        { du: "desc" },
+                        { id: "desc" },
+                    ],
+                    take: 1,
                 },
             },
             orderBy: {
@@ -388,13 +391,33 @@ export async function getRapportEtatGeneral(
             };
         }
 
+        const hrmParEngin = await prisma.saisiehrm.groupBy({
+            by: ["enginId"],
+            where: {
+                tenantId,
+                enginId: {
+                    in: engins.map((engin) => engin.id),
+                },
+                du: {
+                    gte: debutMois,
+                    lt: finMois,
+                },
+            },
+            _sum: {
+                hrm: true,
+            },
+        });
+
+        const hrmMoisParEngin = new Map(
+            hrmParEngin.map((item) => [
+                item.enginId,
+                safeNumber(item._sum.hrm),
+            ]),
+        );
+
         const enginsResult: EnginEtatGeneral[] = engins.map(
             (engin) => {
-                const hrmMois = engin.saisiehrms.reduce(
-                    (total, saisie) =>
-                        total + safeNumber(saisie.hrm),
-                    0,
-                );
+                const hrmMois = hrmMoisParEngin.get(engin.id) ?? 0;
 
                 return {
                     enginId: engin.id,
@@ -403,6 +426,8 @@ export async function getRapportEtatGeneral(
                     parcName: parcSelectionne.name,
                     typeParcName: parcSelectionne.typeparc.name,
                     hrmMois,
+                    compteurCourant:
+                        engin.saisiehrms[0]?.compteur ?? null,
                 };
             },
         );

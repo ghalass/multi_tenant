@@ -18,9 +18,16 @@ type Filters = {
     typeparcId?: string;
     parcId?: string;
     siteId?: string;
+    enginId?: string;
+    planMaintenanceId?: string;
 };
 
 type FilterOptions = {
+    plans: {
+        id: string;
+        code: string;
+        name: string;
+    }[];
     typeparcs: {
         id: string;
         name: string;
@@ -59,6 +66,10 @@ export function CompteursReferenceFilters({
     );
     const [parcId, setParcId] = useState(initialFilters.parcId ?? "");
     const [siteId, setSiteId] = useState(initialFilters.siteId ?? "");
+    const [enginId, setEnginId] = useState(initialFilters.enginId ?? "");
+    const [planMaintenanceId, setPlanMaintenanceId] = useState(
+        initialFilters.planMaintenanceId ?? "",
+    );
 
     const parcById = useMemo(
         () => new Map(options.parcs.map((parc) => [parc.id, parc])),
@@ -74,7 +85,7 @@ export function CompteursReferenceFilters({
         [options.parcs, typeparcId],
     );
 
-    const filteredEngins = useMemo(
+    const enginsForSelectedParc = useMemo(
         () =>
             options.engins.filter((engin) => {
                 const parc = parcById.get(engin.parcId);
@@ -88,14 +99,22 @@ export function CompteursReferenceFilters({
         [options.engins, parcById, typeparcId, parcId],
     );
 
+    const filteredEngins = useMemo(
+        () =>
+            enginsForSelectedParc.filter(
+                (engin) => !siteId || engin.siteId === siteId,
+            ),
+        [enginsForSelectedParc, siteId],
+    );
+
     const availableSiteIds = useMemo(
         () =>
             new Set(
-                filteredEngins
+                enginsForSelectedParc
                     .map((engin) => engin.siteId)
                     .filter((id): id is string => Boolean(id)),
             ),
-        [filteredEngins],
+        [enginsForSelectedParc],
     );
 
     const filteredSites = useMemo(
@@ -110,15 +129,26 @@ export function CompteursReferenceFilters({
         setTypeparcId(value === ALL_VALUE ? "" : value);
         setParcId("");
         setSiteId("");
+        setEnginId("");
     }
 
     function handleParcChange(value: string): void {
         setParcId(value === ALL_VALUE ? "" : value);
         setSiteId("");
+        setEnginId("");
     }
 
     function handleSiteChange(value: string): void {
         setSiteId(value === ALL_VALUE ? "" : value);
+        setEnginId("");
+    }
+
+    function handleEnginChange(value: string): void {
+        setEnginId(value === ALL_VALUE ? "" : value);
+    }
+
+    function handlePlanMaintenanceChange(value: string): void {
+        setPlanMaintenanceId(value === ALL_VALUE ? "" : value);
     }
 
     function handleSubmit(event: FormEvent<HTMLFormElement>): void {
@@ -141,6 +171,14 @@ export function CompteursReferenceFilters({
             params.set("siteId", siteId);
         }
 
+        if (enginId) {
+            params.set("enginId", enginId);
+        }
+
+        if (planMaintenanceId) {
+            params.set("planMaintenanceId", planMaintenanceId);
+        }
+
         router.push(`${pathname}?${params.toString()}`);
     }
 
@@ -148,6 +186,8 @@ export function CompteursReferenceFilters({
         setTypeparcId("");
         setParcId("");
         setSiteId("");
+        setEnginId("");
+        setPlanMaintenanceId("");
 
         router.push(pathname);
     }
@@ -157,7 +197,7 @@ export function CompteursReferenceFilters({
             onSubmit={handleSubmit}
             className="space-y-4 rounded-lg border p-4"
         >
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
                 <div className="space-y-2">
                     <label className="text-sm font-medium">
                         Type de parc
@@ -244,6 +284,64 @@ export function CompteursReferenceFilters({
                                     value={site.id}
                                 >
                                     {site.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                <div className="space-y-2">
+                    <label className="text-sm font-medium">
+                        Engin
+                    </label>
+
+                    <Select
+                        value={enginId || ALL_VALUE}
+                        onValueChange={handleEnginChange}
+                        disabled={!typeparcId}
+                    >
+                        <SelectTrigger>
+                            <SelectValue placeholder="Tous les engins" />
+                        </SelectTrigger>
+
+                        <SelectContent>
+                            <SelectItem value={ALL_VALUE}>
+                                Tous les engins
+                            </SelectItem>
+
+                            {filteredEngins.map((engin) => (
+                                <SelectItem
+                                    key={engin.id}
+                                    value={engin.id}
+                                >
+                                    {engin.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                <div className="space-y-2">
+                    <label className="text-sm font-medium">
+                        Plan de maintenance
+                    </label>
+
+                    <Select
+                        value={planMaintenanceId || ALL_VALUE}
+                        onValueChange={handlePlanMaintenanceChange}
+                    >
+                        <SelectTrigger>
+                            <SelectValue placeholder="Tous les plans" />
+                        </SelectTrigger>
+
+                        <SelectContent>
+                            <SelectItem value={ALL_VALUE}>
+                                Tous les plans
+                            </SelectItem>
+
+                            {options.plans.map((plan) => (
+                                <SelectItem key={plan.id} value={plan.id}>
+                                    {plan.code} — {plan.name}
                                 </SelectItem>
                             ))}
                         </SelectContent>

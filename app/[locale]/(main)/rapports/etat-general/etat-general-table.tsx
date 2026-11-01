@@ -19,7 +19,8 @@ type ColumnKey =
     | "site"
     | "parc"
     | "typeParc"
-    | "hrmMois";
+    | "hrmMois"
+    | "compteurCourant";
 
 type Column = {
     key: ColumnKey;
@@ -39,6 +40,7 @@ type ReportRow = {
     parc: string;
     typeParc: string;
     hrmMois: number | null;
+    compteurCourant: number | null;
 };
 
 const COLUMNS: Column[] = [
@@ -47,6 +49,7 @@ const COLUMNS: Column[] = [
     { key: "parc", label: "Parc" },
     { key: "typeParc", label: "Type de parc" },
     { key: "hrmMois", label: "HRM du mois (h)" },
+    { key: "compteurCourant", label: "Compteur courant (h châssis)" },
 ];
 
 function formatNumber(
@@ -89,6 +92,7 @@ function toEnginRow(
         parc: engin.parcName,
         typeParc: engin.typeParcName,
         hrmMois: engin.hrmMois,
+        compteurCourant: engin.compteurCourant,
     };
 }
 
@@ -132,6 +136,7 @@ export default function EtatGeneralTable({
                 parc: "",
                 typeParc: "",
                 hrmMois: parc.totalParc.totalHRMMois,
+                compteurCourant: null,
             });
         }
 
@@ -143,6 +148,7 @@ export default function EtatGeneralTable({
             parc: "",
             typeParc: "",
             hrmMois: typeParc.totalTypeParc.totalHRMMois,
+            compteurCourant: null,
         });
     }
 

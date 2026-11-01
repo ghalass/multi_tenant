@@ -33,6 +33,8 @@ export default async function AffectationsMaintenancePage({
         typeparcId: readParam(params.typeparcId),
         parcId: readParam(params.parcId),
         siteId: readParam(params.siteId),
+        enginId: readParam(params.enginId),
+        planMaintenanceId: readParam(params.planMaintenanceId),
     };
 
     // Les résultats ne sont chargés qu'après une demande explicite.
@@ -123,6 +125,8 @@ export default async function AffectationsMaintenancePage({
                     <p className="text-sm text-muted-foreground">
                         Sélectionnez un type de parc, puis affinez
                         éventuellement par parc et par site.
+                        Vous pouvez aussi cibler un engin ou un plan de
+                        maintenance.
                     </p>
                 </div>
 
@@ -132,9 +136,12 @@ export default async function AffectationsMaintenancePage({
                             filters.typeparcId ?? "",
                             filters.parcId ?? "",
                             filters.siteId ?? "",
+                            filters.enginId ?? "",
+                            filters.planMaintenanceId ?? "",
                         ].join("|")}
                         options={{
                             typeparcs: options.typeparcs,
+                            plans: options.plans,
                             parcs: options.parcs,
                             sites: options.sites,
                             engins: options.engins,

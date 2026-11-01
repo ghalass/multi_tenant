@@ -1025,6 +1025,8 @@ export async function getSuivisCompteursReference(
         typeparcId?: string;
         parcId?: string;
         siteId?: string;
+        enginId?: string;
+        planMaintenanceId?: string;
     } = {},
 ): Promise<ActionResult<SuiviCompteurReference[]>> {
     const permission = await guard(
@@ -1056,9 +1058,17 @@ export async function getSuivisCompteursReference(
                 where: {
                     tenantId,
                     active: true,
-                    planMaintenance: { tenantId },
+                    planMaintenance: {
+                        tenantId,
+                        ...(filters.planMaintenanceId
+                            ? { id: filters.planMaintenanceId }
+                            : {}),
+                    },
                     engin: {
                         tenantId,
+                        ...(filters.enginId
+                            ? { id: filters.enginId }
+                            : {}),
                         ...(filters.parcId
                             ? { parcId: filters.parcId }
                             : {}),
