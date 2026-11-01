@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { BarChart3, Droplet } from "lucide-react";
 import { ExportExcel } from "@/components/export-excel";
+import Pagination from "@/components/pagination";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { PAGINATION_SETTINGS } from "@/lib/constantes";
 import type {
   LubrifiantConsumptionReport,
   LubrifiantReportOptions,
@@ -26,7 +28,7 @@ type Props = {
   canExport: boolean;
 };
 
-type ReportMode = "engin" | "specificite";
+type ReportMode = "ventilation" | "specificite";
 
 export default function RapportLubrifiantsClient({
   options,
@@ -38,7 +40,7 @@ export default function RapportLubrifiantsClient({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [pending, startTransition] = useTransition();
-  const [mode, setMode] = useState<ReportMode>("engin");
+  const [mode, setMode] = useState<ReportMode>("ventilation");
   const [du, setDu] = useState(searchParams.get("du") ?? "");
   const [au, setAu] = useState(searchParams.get("au") ?? "");
   const [typeParcId, setTypeParcId] = useState(searchParams.get("typeParcId") ?? "");
@@ -49,12 +51,22 @@ export default function RapportLubrifiantsClient({
   const [section, setSection] = useState(searchParams.get("section") ?? "");
   const [imputation, setImputation] = useState(searchParams.get("imputation") ?? "");
 
-  const parcs = options.typeParcs.find((item) => item.id === typeParcId)?.parcs ?? [];
-  const lubrifiants = options.typeLubrifiants.find((item) => item.id === typeLubrifiantId)?.lubrifiants ?? [];
+  const parcs = typeParcId
+    ? options.typeParcs.find((item) => item.id === typeParcId)?.parcs ?? []
+    : options.typeParcs.flatMap((item) => item.parcs);
+  const lubrifiants = typeLubrifiantId
+    ? options.typeLubrifiants.find((item) => item.id === typeLubrifiantId)?.lubrifiants ?? []
+    : options.typeLubrifiants.flatMap((item) => item.lubrifiants);
+  const requestedPageSize = Number(searchParams.get("itemsPerPage"));
+  const itemsPerPage = Number.isInteger(requestedPageSize) && requestedPageSize > 0
+    ? requestedPageSize
+    : PAGINATION_SETTINGS.itemsPerPage;
+  const requestedPage = Number(searchParams.get("currentPage"));
 
   function generate(): void {
     if (!du || !au || du > au) return;
     const params = new URLSearchParams(searchParams.toString());
+    params.set("currentPage", "1");
     params.set("du", du);
     params.set("au", au);
     if (typeParcId) params.set("typeParcId", typeParcId);
@@ -74,8 +86,16 @@ export default function RapportLubrifiantsClient({
     startTransition(() => router.replace(`${pathname}?${params.toString()}`, { scroll: false }));
   }
 
-  const reportTableId = mode === "engin" ? "rapport-lubrifiants-engin" : "rapport-lubrifiants-specificite";
-  const reportFileName = mode === "engin" ? "Consommations_lubrifiants_par_engin" : "Consommations_specifiques_lubrifiants";
+  const reportTableId = mode === "ventilation" ? "rapport-lubrifiants-ventilation" : "rapport-lubrifiants-specificite";
+  const reportFileName = mode === "ventilation" ? "Ventilation_consommations_par_lubrifiant" : "Consommations_specifiques_lubrifiants";
+  const rows = mode === "ventilation"
+    ? report?.byEngin ?? []
+    : report?.specificByParcAndLubrifiant ?? [];
+  const totalPages = Math.max(1, Math.ceil(rows.length / itemsPerPage));
+  const currentPage = Number.isInteger(requestedPage) && requestedPage > 0
+    ? Math.min(requestedPage, totalPages)
+    : 1;
+  const pageStart = (currentPage - 1) * itemsPerPage;
 
   return (
     <div className="space-y-5">
@@ -85,7 +105,7 @@ export default function RapportLubrifiantsClient({
           Rapports des lubrifiants
         </h1>
         <p className="mt-1 text-muted-foreground">
-          Analysez les consommations par engin et la consommation spécifique par parc et lubrifiant.
+          Consultez la ventilation des consommations par lubrifiant ou leur consommation spécifique selon vos filtres.
         </p>
       </div>
 
@@ -110,7 +130,7 @@ export default function RapportLubrifiantsClient({
         </div>
         <div className="grid min-w-48 gap-2">
           <Label>Parc</Label>
-          <Select value={parcId || "all"} onValueChange={(value) => setParcId(value === "all" ? "" : value)} disabled={!typeParcId}>
+          <Select value={parcId || "all"} onValueChange={(value) => setParcId(value === "all" ? "" : value)}>
             <SelectTrigger><SelectValue placeholder="Tous les parcs" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Tous les parcs</SelectItem>
@@ -130,7 +150,7 @@ export default function RapportLubrifiantsClient({
         </div>
         <div className="grid min-w-48 gap-2">
           <Label>Lubrifiant</Label>
-          <Select value={lubrifiantId || "all"} onValueChange={(value) => setLubrifiantId(value === "all" ? "" : value)} disabled={!typeLubrifiantId}>
+          <Select value={lubrifiantId || "all"} onValueChange={(value) => setLubrifiantId(value === "all" ? "" : value)}>
             <SelectTrigger><SelectValue placeholder="Tous les lubrifiants" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Tous les lubrifiants</SelectItem>
@@ -155,14 +175,14 @@ export default function RapportLubrifiantsClient({
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex gap-2">
-          <Button type="button" variant={mode === "engin" ? "default" : "outline"} onClick={() => setMode("engin")}>
-            <Droplet aria-hidden="true" /> Par engin
+          <Button type="button" variant={mode === "ventilation" ? "default" : "outline"} onClick={() => setMode("ventilation")}>
+            <Droplet aria-hidden="true" /> Ventilation par lubrifiant
           </Button>
           <Button type="button" variant={mode === "specificite" ? "default" : "outline"} onClick={() => setMode("specificite")}>
-            <BarChart3 aria-hidden="true" /> Spécifique
+            <BarChart3 aria-hidden="true" /> Rapport spécifique
           </Button>
         </div>
-        {canExport && report && report[mode === "engin" ? "byEngin" : "specificByParcAndLubrifiant"].length > 0 && (
+        {canExport && report && rows.length > 0 && (
           <ExportExcel tableName={reportTableId} fileName={reportFileName} />
         )}
       </div>
@@ -173,15 +193,47 @@ export default function RapportLubrifiantsClient({
           Sélectionnez une période puis générez le rapport.
         </div>
       )}
-      {report && mode === "engin" && (
-        <div className="rounded-md border">
-          <TableForEngin report={report} tableId={reportTableId} />
-        </div>
+      {report && mode === "ventilation" && (
+        <>
+          <div className="rounded-md border">
+            <TableForEngin rows={report.byEngin.slice(pageStart, pageStart + itemsPerPage)} />
+          </div>
+          <div aria-hidden="true" style={{ position: "absolute", left: "-10000px", top: 0 }}>
+            <TableForEngin rows={report.byEngin} tableId={reportTableId} />
+          </div>
+          {rows.length > 0 && (
+            <Pagination
+              totalPages={totalPages}
+              currentPage={currentPage}
+              totalItems={rows.length}
+              itemsPerPage={itemsPerPage}
+            />
+          )}
+        </>
       )}
       {report && mode === "specificite" && (
-        <div className="rounded-md border">
-          <TableForSpecificite report={report} tableId={reportTableId} />
-        </div>
+        <>
+          <section className="space-y-3">
+            <h2 className="text-xl font-semibold">Spécifique global par type de lubrifiant</h2>
+            <div className="rounded-md border">
+              <TableForSpecificiteGlobale rows={report.specificByTypeLubrifiant} />
+            </div>
+          </section>
+          <div className="rounded-md border">
+            <TableForSpecificite rows={report.specificByParcAndLubrifiant.slice(pageStart, pageStart + itemsPerPage)} />
+          </div>
+          <div aria-hidden="true" style={{ position: "absolute", left: "-10000px", top: 0 }}>
+            <TableForSpecificite rows={report.specificByParcAndLubrifiant} tableId={reportTableId} />
+          </div>
+          {rows.length > 0 && (
+            <Pagination
+              totalPages={totalPages}
+              currentPage={currentPage}
+              totalItems={rows.length}
+              itemsPerPage={itemsPerPage}
+            />
+          )}
+        </>
       )}
       {report && (
         <p className="text-sm text-muted-foreground">
@@ -192,20 +244,41 @@ export default function RapportLubrifiantsClient({
   );
 }
 
+function TableForSpecificiteGlobale({
+  rows,
+}: {
+  rows: LubrifiantConsumptionReport["specificByTypeLubrifiant"];
+}): React.JSX.Element {
+  return (
+    <table className="w-full text-sm">
+      <thead><tr className="border-b bg-muted/50 text-left">
+        <th className="p-3">Type de lubrifiant</th><th className="p-3">Unité</th><th className="p-3 text-right">Consommation globale</th><th className="p-3 text-right">HRM période</th><th className="p-3 text-right">Spécifique global (quantité/HRM)</th>
+      </tr></thead>
+      <tbody>
+        {rows.length ? rows.map((item) => (
+          <tr key={`${item.typeLubrifiantId}-${item.unite}`} className="border-b">
+            <td className="p-3">{item.typeLubrifiantName}</td><td className="p-3">{item.unite}</td><td className="p-3 text-right">{item.qte.toLocaleString()} {item.unite}</td><td className="p-3 text-right">{item.hrm.toLocaleString()}</td><td className="p-3 text-right">{item.specific === null ? "—" : `${item.specific.toFixed(4)} ${item.unite}/h`}</td>
+          </tr>
+        )) : <tr><td colSpan={5} className="p-8 text-center">Aucune consommation pour cette période.</td></tr>}
+      </tbody>
+    </table>
+  );
+}
+
 function TableForEngin({
-  report,
+  rows,
   tableId,
 }: {
-  report: LubrifiantConsumptionReport;
-  tableId: string;
+  rows: LubrifiantConsumptionReport["byEngin"];
+  tableId?: string;
 }): React.JSX.Element {
   return (
     <table id={tableId} className="w-full text-sm">
       <thead><tr className="border-b bg-muted/50 text-left">
-        <th className="p-3">Type de parc</th><th className="p-3">Parc</th><th className="p-3">Engin</th><th className="p-3">Code</th><th className="p-3">Lubrifiant</th><th className="p-3">Désignation</th><th className="p-3 text-right">Consommation</th>
+        <th className="p-3">Type de parc</th><th className="p-3">Parc</th><th className="p-3">Engin</th><th className="p-3">Code</th><th className="p-3">Lubrifiant</th><th className="p-3">Type de lubrifiant</th><th className="p-3 text-right">Consommation</th>
       </tr></thead>
       <tbody>
-        {report.byEngin.length ? report.byEngin.map((item) => (
+        {rows.length ? rows.map((item) => (
           <tr key={`${item.enginId}-${item.lubrifiantId}`} className="border-b">
             <td className="p-3">{item.typeParcName}</td><td className="p-3">{item.parcName}</td><td className="p-3">{item.enginName}</td><td className="p-3">{item.code}</td><td className="p-3">{item.lubrifiantName}</td><td className="p-3">{item.typeLubrifiantName}</td><td className="p-3 text-right">{item.qte.toLocaleString()} {item.unite}</td>
           </tr>
@@ -216,19 +289,19 @@ function TableForEngin({
 }
 
 function TableForSpecificite({
-  report,
+  rows,
   tableId,
 }: {
-  report: LubrifiantConsumptionReport;
-  tableId: string;
+  rows: LubrifiantConsumptionReport["specificByParcAndLubrifiant"];
+  tableId?: string;
 }): React.JSX.Element {
   return (
     <table id={tableId} className="w-full text-sm">
       <thead><tr className="border-b bg-muted/50 text-left">
-        <th className="p-3">Type de parc</th><th className="p-3">Parc</th><th className="p-3">Code</th><th className="p-3">Lubrifiant</th><th className="p-3">Désignation</th><th className="p-3 text-right">Consommation</th><th className="p-3 text-right">HRM période</th><th className="p-3 text-right">Spécifique (quantité/HRM)</th>
+        <th className="p-3">Type de parc</th><th className="p-3">Parc</th><th className="p-3">Code</th><th className="p-3">Lubrifiant</th><th className="p-3">Type de lubrifiant</th><th className="p-3 text-right">Consommation</th><th className="p-3 text-right">HRM période</th><th className="p-3 text-right">Spécifique (quantité/HRM)</th>
       </tr></thead>
       <tbody>
-        {report.specificByParcAndLubrifiant.length ? report.specificByParcAndLubrifiant.map((item) => (
+        {rows.length ? rows.map((item) => (
           <tr key={`${item.parcId}-${item.lubrifiantId}`} className="border-b">
             <td className="p-3">{item.typeParcName}</td><td className="p-3">{item.parcName}</td><td className="p-3">{item.code}</td><td className="p-3">{item.lubrifiantName}</td><td className="p-3">{item.typeLubrifiantName}</td><td className="p-3 text-right">{item.qte.toLocaleString()} {item.unite}</td><td className="p-3 text-right">{item.hrm.toLocaleString()}</td><td className="p-3 text-right">{item.specific === null ? "—" : `${item.specific.toFixed(4)} ${item.unite}/h`}</td>
           </tr>

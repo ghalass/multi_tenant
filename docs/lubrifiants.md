@@ -23,10 +23,11 @@ Dans `parcNames`, séparer plusieurs noms de parcs par un point-virgule. Les nom
 
 ## Rapports
 
-- **Consommations par engin** : somme des quantités par engin et lubrifiant, en conservant l’unité de chaque lubrifiant.
-- **Spécifique par parc et lubrifiant** : somme des quantités divisée par la somme des HRM de la période pour les engins ayant consommé ce lubrifiant dans ce parc. Si aucun HRM n’est disponible, le spécifique n’est pas calculé.
+- **Ventilation par lubrifiant** : somme des quantités par engin et lubrifiant, en conservant l’unité de chaque lubrifiant. Le tableau peut être filtré par type de parc, parc, engin, type de lubrifiant et lubrifiant, seuls ou combinés.
+- **Spécifique** : présente le spécifique par parc et lubrifiant ainsi qu’un spécifique global par type de lubrifiant et unité. Le global divise la consommation totale par la somme des HRM de la période des engins ayant consommé ce type et cette unité, chaque engin étant compté une seule fois. La séparation par unité évite d’additionner des quantités incompatibles. Si aucun HRM n’est disponible, le spécifique n’est pas calculé.
+- **Évolution spécifique** (`/rapports/evolution-specifique-lubrifiants`) : courbe mensuelle par type de lubrifiant et unité, avec filtres année, type de parc, parc, site, engin, type de lubrifiant et lubrifiant. Le lubrifiant est sélectionné dans le type choisi. Les objectifs annuels `spe_huile`, `spe_go` et `spe_graisse` sont associés aux types dont le nom désigne respectivement l’huile, le gasoil/diesel ou la graisse ; les objectifs de plusieurs sites sont moyennés lorsque le filtre site n’est pas précisé.
 
-Une saisie n’est incluse dans un rapport que si sa période entière se trouve dans la période filtrée. Les filtres de parc et de lubrifiant sont hiérarchiques ; les filtres engin, section et imputation sont également disponibles.
+Une saisie n’est incluse dans un rapport que si sa période entière se trouve dans la période filtrée. Les filtres de parc, engin, type de lubrifiant, lubrifiant, section et imputation peuvent être combinés ou appliqués seuls. Les deux rapports sont paginés et l’export Excel conserve l’ensemble des résultats filtrés.
 
 ## Mise en service locale
 

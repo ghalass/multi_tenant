@@ -60,6 +60,14 @@ export type LubrifiantConsumptionReport = {
     hrm: number;
     specific: number | null;
   }[];
+  specificByTypeLubrifiant: {
+    typeLubrifiantId: string;
+    typeLubrifiantName: string;
+    unite: string;
+    qte: number;
+    hrm: number;
+    specific: number | null;
+  }[];
 };
 
 export async function getLubrifiantReportOptions(): Promise<ActionResponse<LubrifiantReportOptions>> {
@@ -183,7 +191,7 @@ export async function getLubrifiantConsumptionReport(
           name: true,
           code: true,
           unite: true,
-          typeLubrifiant: { select: { name: true } },
+          typeLubrifiant: { select: { id: true, name: true } },
         },
       },
     },
@@ -203,6 +211,13 @@ export async function getLubrifiantConsumptionReport(
     qte: number;
   }>();
   const relevantEnginsByGroup = new Map<string, Set<string>>();
+  const globalSpecificGroups = new Map<string, {
+    typeLubrifiantId: string;
+    typeLubrifiantName: string;
+    unite: string;
+    qte: number;
+  }>();
+  const relevantEnginsByGlobalGroup = new Map<string, Set<string>>();
   const specificGroups = new Map<string, {
     parcId: string;
     parcName: string;
@@ -257,6 +272,23 @@ export async function getLubrifiantConsumptionReport(
       relevantEnginsByGroup.set(parcKey, new Set());
     }
     relevantEnginsByGroup.get(parcKey)?.add(entry.enginId);
+
+    const globalKey = `${entry.lubrifiant.typeLubrifiant.id}\u0000${entry.lubrifiant.unite}`;
+    const globalGroup = globalSpecificGroups.get(globalKey);
+    if (globalGroup) {
+      globalGroup.qte += entry.qte;
+    } else {
+      globalSpecificGroups.set(globalKey, {
+        typeLubrifiantId: entry.lubrifiant.typeLubrifiant.id,
+        typeLubrifiantName: entry.lubrifiant.typeLubrifiant.name,
+        unite: entry.lubrifiant.unite,
+        qte: entry.qte,
+      });
+    }
+    if (!relevantEnginsByGlobalGroup.has(globalKey)) {
+      relevantEnginsByGlobalGroup.set(globalKey, new Set());
+    }
+    relevantEnginsByGlobalGroup.get(globalKey)?.add(entry.enginId);
   }
 
   const relevantEnginIds = [...new Set(entries.map((entry) => entry.enginId))];
@@ -288,6 +320,19 @@ export async function getLubrifiantConsumptionReport(
       };
     },
   );
+  const specificByTypeLubrifiant = [...globalSpecificGroups.entries()].map(
+    ([key, group]) => {
+      const hrm = [...(relevantEnginsByGlobalGroup.get(key) ?? [])].reduce(
+        (sum, enginId) => sum + (hrmByEngin.get(enginId) ?? 0),
+        0,
+      );
+      return {
+        ...group,
+        hrm,
+        specific: hrm > 0 ? group.qte / hrm : null,
+      };
+    },
+  );
 
   const report: LubrifiantConsumptionReport = {
     period: { du: filters.du, au: filters.au },
@@ -301,6 +346,11 @@ export async function getLubrifiantConsumptionReport(
       (a, b) =>
         a.parcName.localeCompare(b.parcName) ||
         a.lubrifiantName.localeCompare(b.lubrifiantName),
+    ),
+    specificByTypeLubrifiant: specificByTypeLubrifiant.sort(
+      (a, b) =>
+        a.typeLubrifiantName.localeCompare(b.typeLubrifiantName) ||
+        a.unite.localeCompare(b.unite),
     ),
   };
   return { success: true, message: "Rapports calculés.", data: [report] };

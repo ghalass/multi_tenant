@@ -19,6 +19,7 @@ import {
   Boxes,
   Wrench, Gauge, ClipboardList,
   BarChart3,
+  LineChart,
   Droplet,
   Droplets,
   Target,
@@ -177,6 +178,12 @@ const rapportsItems = {
       url: "/rapports/lubrifiants",
       icon: Droplet,
       description: "Rapports de consommation des lubrifiants",
+    },
+    {
+      title: "Évolution spécifique lubrifiants",
+      url: "/rapports/evolution-specifique-lubrifiants",
+      icon: LineChart,
+      description: "Évolution mensuelle du spécifique par type de lubrifiant",
     },
   ],
 };
