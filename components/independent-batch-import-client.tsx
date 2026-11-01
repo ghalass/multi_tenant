@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
-import { AlertCircle, CheckCircle2, FileSpreadsheet, Upload } from "lucide-react";
+import { AlertCircle, CheckCircle2, Download, FileSpreadsheet, Upload } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -379,6 +379,32 @@ export default function IndependentBatchImportClient({
     }
   }
 
+  function exportErrors(): void {
+    const errors = results.filter((result) => !result.success);
+    if (errors.length === 0) return;
+
+    const moduleLabel = MODULES.find((item) => item.key === module)?.label ?? module;
+    const contents = [
+      "Erreurs d’import en lots",
+      `Module : ${moduleLabel}`,
+      `Fichier : ${fileName || "non spécifié"}`,
+      `Feuille : ${sheetName || "non spécifiée"}`,
+      `Nombre d’erreurs : ${errors.length}`,
+      "",
+      ...errors.map((result) => `Ligne Excel ${result.row} : ${result.message}`),
+    ].join("\r\n");
+    const blob = new Blob(["\uFEFF", contents], {
+      type: "text/plain;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const safeModule = (module || "import").replace(/[^a-z0-9_-]/gi, "-");
+    link.href = url;
+    link.download = `erreurs-import-${safeModule}.txt`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div dir={isArabic ? "rtl" : "ltr"} className="mx-auto max-w-6xl space-y-6 py-6">
       <header className="space-y-2">
@@ -571,9 +597,15 @@ export default function IndependentBatchImportClient({
         <Card>
           <CardHeader>
             <CardTitle>{isArabic ? "النتائج" : "Résultats du lot"}</CardTitle>
-            <div className="flex gap-2 pt-2">
+            <div className="flex flex-wrap items-center gap-2 pt-2">
               <Badge variant="secondary">Réussies : {successCount}</Badge>
               <Badge variant={errorCount ? "destructive" : "secondary"}>Erreurs : {errorCount}</Badge>
+              {errorCount > 0 && (
+                <Button type="button" variant="outline" onClick={exportErrors}>
+                  <Download aria-hidden="true" />
+                  {isArabic ? "تصدير الأخطاء إلى TXT" : "Exporter les erreurs en TXT"}
+                </Button>
+              )}
             </div>
           </CardHeader>
           <CardContent className="max-h-80 space-y-2 overflow-auto">

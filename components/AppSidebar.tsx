@@ -260,7 +260,7 @@ const Importation = {
   icon: Upload,
   list: [
     { title: "En lot", url: `/batch-import`, icon: Package, description: "Gérer les importations" },
-    { title: "Par ligne", url: `/import`, icon: Rows, description: "Gérer les importations" },
+    // { title: "Par ligne", url: `/import`, icon: Rows, description: "Gérer les importations" },
   ],
 };
 
