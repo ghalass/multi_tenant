@@ -117,7 +117,10 @@ function rowFailure(row: SourceRow, error: unknown): IndependentBatchRowResult {
     row.data.enginName ?? row.data.engin ??
     (row.data.name && row.data.parcName ? row.data.name : undefined);
   if (engineName && text(engineName)) context.push(`Engin : ${text(engineName)}`);
-  for (const key of ["du", "dateDetection", "dateExecution"]) {
+  for (const key of ["du", "au", "dateDetection", "dateExecution"]) {
+    if (text(row.data[key])) context.push(`${key} : ${text(row.data[key])}`);
+  }
+  for (const key of ["section", "imputation", "code", "lubrifiantName", "designation", "qte"]) {
     if (text(row.data[key])) context.push(`${key} : ${text(row.data[key])}`);
   }
   const message = error instanceof Error ? error.message : "Erreur inattendue.";
@@ -133,14 +136,32 @@ function deduplicationKey(
   data: Record<string, unknown>,
 ): string {
   const normalized = (value: unknown): string => text(value).toLocaleLowerCase();
+  const dateKey = (value: unknown, field: string): string => {
+    try {
+      return parseDate(value, field).toISOString().slice(0, 10);
+    } catch {
+      return normalized(value);
+    }
+  };
   switch (module) {
     case "sites":
     case "typeparcs":
     case "typepannes":
+    case "type_lubrifiants":
     case "parcs":
     case "engins":
     case "pannes":
+    case "lubrifiants":
       return normalized(data.name);
+    case "saisie_lubrifiants":
+      return makeRowKey(
+        dateKey(data.du, "du"),
+        dateKey(data.au, "au"),
+        normalized(data.enginName),
+        normalized(data.lubrifiantName),
+        normalized(data.section),
+        normalized(data.imputation),
+      );
     case "backlogs":
       return normalized(data.numeroBacklog ?? data.numero);
     case "objectifs":
@@ -193,7 +214,7 @@ function makeRowKey(...values: (string | number)[]): string {
 }
 
 async function batchNamedRecords(
-  module: "sites" | "typeparcs" | "typepannes",
+  module: "sites" | "typeparcs" | "typepannes" | "type_lubrifiants",
   tenantId: string,
   input: SourceRow[],
 ): Promise<IndependentBatchRowResult[]> {
@@ -228,10 +249,15 @@ async function batchNamedRecords(
             where: { tenantId, name: { in: names, mode: "insensitive" } },
             select: { id: true, name: true },
           })
-        : await prisma.typepanne.findMany({
-            where: { tenantId, name: { in: names, mode: "insensitive" } },
-            select: { id: true, name: true },
-          });
+        : module === "typepannes"
+          ? await prisma.typepanne.findMany({
+              where: { tenantId, name: { in: names, mode: "insensitive" } },
+              select: { id: true, name: true },
+            })
+          : await prisma.typeLubrifiant.findMany({
+              where: { tenantId, name: { in: names, mode: "insensitive" } },
+              select: { id: true, name: true },
+            });
   const byName = new Map<string, { id: string; name: string }[]>();
   for (const record of existing) {
     const key = record.name.toLocaleLowerCase();
@@ -274,7 +300,7 @@ async function batchNamedRecords(
           const match = byName.get(row.key)?.[0];
           if (match) await tx.typeparc.update({ where: { id: match.id }, data: { name: row.value.name } });
         }
-      } else {
+      } else if (module === "typepannes") {
         if (inserts.length) {
           await tx.typepanne.createMany({
             data: inserts.map((row) => ({
@@ -295,6 +321,26 @@ async function batchNamedRecords(
             });
           }
         }
+      } else {
+        if (inserts.length) {
+          await tx.typeLubrifiant.createMany({
+            data: inserts.map((row) => ({
+              id: randomUUID(),
+              name: row.value.name,
+              tenantId,
+            })),
+            skipDuplicates: true,
+          });
+        }
+        for (const row of updates) {
+          const match = byName.get(row.key)?.[0];
+          if (match) {
+            await tx.typeLubrifiant.update({
+              where: { id: match.id },
+              data: { name: row.value.name },
+            });
+          }
+        }
       }
     });
     for (const row of accepted) {
@@ -302,6 +348,412 @@ async function batchNamedRecords(
     }
   } catch (error) {
     for (const row of accepted) results.push(rowFailure(row, error));
+  }
+  return results.sort((a, b) => a.row - b.row);
+}
+
+function splitNames(value: unknown): string[] {
+  return [...new Set(text(value).split(/[;|\n]/).map((name) => name.trim()).filter(Boolean))];
+}
+
+async function batchLubrifiants(
+  tenantId: string,
+  input: SourceRow[],
+): Promise<IndependentBatchRowResult[]> {
+  const results: IndependentBatchRowResult[] = [];
+  const typeNames = [...new Set(input.map(({ data }) => text(data.typeLubrifiantName)).filter(Boolean))];
+  const parcNames = [...new Set(input.flatMap(({ data }) => splitNames(data.parcNames)))];
+  const [types, parcs] = await Promise.all([
+    prisma.typeLubrifiant.findMany({
+      where: { tenantId, name: { in: typeNames, mode: "insensitive" } },
+      select: { id: true, name: true },
+    }),
+    prisma.parc.findMany({
+      where: { tenantId, name: { in: parcNames, mode: "insensitive" } },
+      select: { id: true, name: true },
+    }),
+  ]);
+  const typesByName = new Map<string, typeof types>();
+  const parcsByName = new Map<string, typeof parcs>();
+  for (const type of types) {
+    const key = type.name.toLocaleLowerCase();
+    typesByName.set(key, [...(typesByName.get(key) ?? []), type]);
+  }
+  for (const parc of parcs) {
+    const key = parc.name.toLocaleLowerCase();
+    parcsByName.set(key, [...(parcsByName.get(key) ?? []), parc]);
+  }
+
+  const prepared: PreparedRow<{
+    key: string;
+    name: string;
+    code: string;
+    unite: string;
+    typeLubrifiantId: string;
+    parcIds: string[];
+  }>[] = [];
+  for (const row of input) {
+    try {
+      const name = requiredText(row.data, "name");
+      const code = requiredText(row.data, "code");
+      const unite = requiredText(row.data, "unite");
+      const typeName = requiredText(row.data, "typeLubrifiantName");
+      const typeMatches = typesByName.get(typeName.toLocaleLowerCase()) ?? [];
+      if (typeMatches.length !== 1) {
+        throw new Error(typeMatches.length
+          ? `Le type de lubrifiant "${typeName}" est ambigu.`
+          : `Le type de lubrifiant "${typeName}" est introuvable.`);
+      }
+      const requestedParcs = splitNames(row.data.parcNames);
+      if (!requestedParcs.length) throw new Error("Indiquez au moins un parc dans parcNames.");
+      const parcIds = requestedParcs.map((parcName) => {
+        const matches = parcsByName.get(parcName.toLocaleLowerCase()) ?? [];
+        if (matches.length !== 1) {
+          throw new Error(matches.length
+            ? `Le parc "${parcName}" est ambigu.`
+            : `Le parc "${parcName}" est introuvable.`);
+        }
+        return matches[0].id;
+      });
+      prepared.push({
+        ...row,
+        value: {
+          key: name.toLocaleLowerCase(),
+          name,
+          code,
+          unite,
+          typeLubrifiantId: typeMatches[0].id,
+          parcIds,
+        },
+      });
+    } catch (error) {
+      results.push(rowFailure(row, error));
+    }
+  }
+  if (!prepared.length) return results;
+
+  const latest = groupByLast(prepared.map((row) => ({ ...row, key: row.value.key })));
+  const names = latest.map(({ value }) => value.name);
+  const existing = await prisma.lubrifiant.findMany({
+    where: { tenantId, name: { in: names, mode: "insensitive" } },
+    select: { id: true, name: true },
+  });
+  const byName = new Map<string, typeof existing>();
+  for (const item of existing) {
+    const key = item.name.toLocaleLowerCase();
+    byName.set(key, [...(byName.get(key) ?? []), item]);
+  }
+  const ambiguous = new Set<string>();
+  for (const row of latest) {
+    if ((byName.get(row.key)?.length ?? 0) > 1) {
+      ambiguous.add(row.key);
+      results.push(rowFailure(row, new Error(`Plusieurs lubrifiants correspondent à "${row.value.name}".`)));
+    }
+  }
+  const accepted = latest.filter((row) => !ambiguous.has(row.key));
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      for (const row of accepted) {
+        const found = byName.get(row.key)?.[0];
+        const record = found
+          ? await tx.lubrifiant.update({
+              where: { id: found.id },
+              data: {
+                name: row.value.name,
+                code: row.value.code,
+                unite: row.value.unite,
+                typeLubrifiantId: row.value.typeLubrifiantId,
+              },
+              select: { id: true },
+            })
+          : await tx.lubrifiant.create({
+              data: {
+                name: row.value.name,
+                code: row.value.code,
+                unite: row.value.unite,
+                typeLubrifiantId: row.value.typeLubrifiantId,
+                tenantId,
+              },
+              select: { id: true },
+            });
+        await tx.lubrifiantParc.deleteMany({
+          where: { tenantId, lubrifiantId: record.id },
+        });
+        await tx.lubrifiantParc.createMany({
+          data: row.value.parcIds.map((parcId) => ({
+            parcId,
+            lubrifiantId: record.id,
+            tenantId,
+          })),
+        });
+      }
+    });
+    for (const row of accepted) {
+      results.push(rowSuccess(row, `Lubrifiant « ${row.value.name} » importé avec ses parcs.`));
+    }
+  } catch (error) {
+    for (const row of accepted) results.push(rowFailure(row, error));
+  }
+  return results.sort((a, b) => a.row - b.row);
+}
+
+async function batchSaisieLubrifiants(
+  tenantId: string,
+  input: SourceRow[],
+): Promise<IndependentBatchRowResult[]> {
+  const results: IndependentBatchRowResult[] = [];
+  const enginNames = [...new Set(input.map(({ data }) => text(data.enginName)).filter(Boolean))];
+  const lubrifiantNames = [...new Set(input.map(({ data }) => text(data.lubrifiantName)).filter(Boolean))];
+  const [engins, lubrifiants] = await Promise.all([
+    prisma.engin.findMany({
+      where: { tenantId, name: { in: enginNames, mode: "insensitive" } },
+      select: { id: true, name: true, parcId: true },
+    }),
+    prisma.lubrifiant.findMany({
+      where: { tenantId, name: { in: lubrifiantNames, mode: "insensitive" } },
+      select: {
+        id: true,
+        name: true,
+        code: true,
+        parcs: { where: { tenantId }, select: { parcId: true } },
+        typeLubrifiant: { select: { name: true } },
+      },
+    }),
+  ]);
+  const enginsByName = new Map<string, typeof engins>();
+  const lubrifiantsByName = new Map<string, typeof lubrifiants>();
+  for (const engin of engins) {
+    const key = engin.name.toLocaleLowerCase();
+    enginsByName.set(key, [...(enginsByName.get(key) ?? []), engin]);
+  }
+  for (const lubrifiant of lubrifiants) {
+    const key = lubrifiant.name.toLocaleLowerCase();
+    lubrifiantsByName.set(key, [...(lubrifiantsByName.get(key) ?? []), lubrifiant]);
+  }
+  const prepared: PreparedRow<{
+    key: string;
+    du: Date;
+    au: Date;
+    section: string;
+    imputation: string;
+    qte: number;
+    enginId: string;
+    enginName: string;
+    lubrifiantId: string;
+    lubrifiantName: string;
+  }>[] = [];
+
+  for (const row of input) {
+    try {
+      const du = parseDate(row.data.du, "du");
+      const au = parseDate(row.data.au, "au");
+      if (du > au) throw new Error("La date « du » doit être antérieure ou égale à « au ».");
+      const section = requiredText(row.data, "section");
+      const imputation = requiredText(row.data, "imputation");
+      const code = requiredText(row.data, "code");
+      const name = requiredText(row.data, "lubrifiantName");
+      const designation = requiredText(row.data, "designation");
+      const enginName = requiredText(row.data, "enginName");
+      const enginMatches = enginsByName.get(enginName.toLocaleLowerCase()) ?? [];
+      const lubrifiantMatches = lubrifiantsByName.get(name.toLocaleLowerCase()) ?? [];
+      if (enginMatches.length !== 1) {
+        throw new Error(enginMatches.length
+          ? `Le nom d’engin "${enginName}" correspond à plusieurs engins.`
+          : `Engin "${enginName}" introuvable.`);
+      }
+      if (lubrifiantMatches.length !== 1) {
+        throw new Error(lubrifiantMatches.length
+          ? `Le nom de lubrifiant "${name}" correspond à plusieurs lubrifiants.`
+          : `Lubrifiant "${name}" introuvable.`);
+      }
+      const engin = enginMatches[0];
+      const lubrifiant = lubrifiantMatches[0];
+      if (lubrifiant.code.toLocaleLowerCase() !== code.toLocaleLowerCase()) {
+        throw new Error(`Le code "${code}" ne correspond pas au lubrifiant "${name}".`);
+      }
+      if (lubrifiant.typeLubrifiant.name.toLocaleLowerCase() !== designation.toLocaleLowerCase()) {
+        throw new Error(`La désignation "${designation}" ne correspond pas au lubrifiant "${name}".`);
+      }
+      if (!lubrifiant.parcs.some((item) => item.parcId === engin.parcId)) {
+        throw new Error(`Le lubrifiant "${name}" n’est pas associé au parc de l’engin "${enginName}".`);
+      }
+      const qte = numberValue(row.data.qte, "qte", true);
+      if (qte === null || qte <= 0) throw new Error("La quantité doit être strictement positive.");
+      prepared.push({
+        ...row,
+        value: {
+          key: makeRowKey(
+            du.toISOString().slice(0, 10),
+            au.toISOString().slice(0, 10),
+            engin.id,
+            lubrifiant.id,
+            section.toLocaleLowerCase(),
+            imputation.toLocaleLowerCase(),
+          ),
+          du,
+          au,
+          section,
+          imputation,
+          qte,
+          enginId: engin.id,
+          enginName: engin.name,
+          lubrifiantId: lubrifiant.id,
+          lubrifiantName: lubrifiant.name,
+        },
+      });
+    } catch (error) {
+      results.push(rowFailure(row, error));
+    }
+  }
+  if (!prepared.length) return results;
+
+  const latest = groupByLast(prepared.map((row) => ({ ...row, key: row.value.key })));
+  const conflicts = new Map<string, string>();
+  for (let first = 0; first < latest.length; first += 1) {
+    for (let second = first + 1; second < latest.length; second += 1) {
+      const left = latest[first].value;
+      const right = latest[second].value;
+      if (
+        left.enginId === right.enginId &&
+        left.lubrifiantId === right.lubrifiantId &&
+        left.du <= right.au &&
+        right.du <= left.au
+      ) {
+        conflicts.set(left.key, right.key);
+        conflicts.set(right.key, left.key);
+      }
+    }
+  }
+  const conflictRows = latest.filter((row) => conflicts.has(row.key));
+  for (const row of conflictRows) {
+    results.push(rowFailure(
+      row,
+      new Error(`La période chevauche une autre ligne du fichier pour l’engin "${row.value.enginName}" et le lubrifiant "${row.value.lubrifiantName}".`),
+    ));
+  }
+  const candidates = latest.filter((row) => !conflicts.has(row.key));
+  if (!candidates.length) return results.sort((a, b) => a.row - b.row);
+
+  const minDu = candidates.reduce((min, row) => row.value.du < min ? row.value.du : min, candidates[0].value.du);
+  const maxAu = candidates.reduce((max, row) => row.value.au > max ? row.value.au : max, candidates[0].value.au);
+  const pairs = [...new Map(candidates.map((row) => [
+    makeRowKey(row.value.enginId, row.value.lubrifiantId),
+    { enginId: row.value.enginId, lubrifiantId: row.value.lubrifiantId },
+  ])).values()];
+  const existing = await prisma.saisieLubrifiant.findMany({
+    where: {
+      tenantId,
+      du: { lte: maxAu },
+      au: { gte: minDu },
+      OR: pairs,
+    },
+    select: {
+      id: true,
+      du: true,
+      au: true,
+      enginId: true,
+      lubrifiantId: true,
+      section: true,
+      imputation: true,
+    },
+  });
+  const toProcess: typeof candidates = [];
+  for (const row of candidates) {
+    const exactKey = row.value.key;
+    const overlapping = existing.find((item) =>
+      item.enginId === row.value.enginId &&
+      item.lubrifiantId === row.value.lubrifiantId &&
+      item.du <= row.value.au &&
+      item.au >= row.value.du &&
+      makeRowKey(
+        item.du.toISOString().slice(0, 10),
+        item.au.toISOString().slice(0, 10),
+        item.enginId,
+        item.lubrifiantId,
+        item.section.toLocaleLowerCase(),
+        item.imputation.toLocaleLowerCase(),
+      ) !== exactKey,
+    );
+    if (overlapping) {
+      results.push(rowFailure(
+        row,
+        new Error(`La période chevauche la consommation existante du ${overlapping.du.toISOString().slice(0, 10)} au ${overlapping.au.toISOString().slice(0, 10)} pour l’engin "${row.value.enginName}" et le lubrifiant "${row.value.lubrifiantName}".`),
+      ));
+    } else {
+      toProcess.push(row);
+    }
+  }
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      for (const row of toProcess) {
+        const value = row.value;
+        const overlap = await tx.saisieLubrifiant.findFirst({
+          where: {
+            tenantId,
+            enginId: value.enginId,
+            lubrifiantId: value.lubrifiantId,
+            du: { lte: value.au },
+            au: { gte: value.du },
+            NOT: {
+              du: value.du,
+              au: value.au,
+              section: value.section,
+              imputation: value.imputation,
+            },
+          },
+          select: { id: true },
+        });
+        if (overlap) throw new Error("OVERLAPPING_CONSUMPTION");
+
+        const existingRow = await tx.saisieLubrifiant.findUnique({
+          where: {
+            du_au_enginId_lubrifiantId_section_imputation_tenantId: {
+              du: value.du,
+              au: value.au,
+              enginId: value.enginId,
+              lubrifiantId: value.lubrifiantId,
+              section: value.section,
+              imputation: value.imputation,
+              tenantId,
+            },
+          },
+          select: { id: true },
+        });
+        if (existingRow) {
+          await tx.saisieLubrifiant.update({
+            where: { id: existingRow.id },
+            data: { qte: value.qte },
+          });
+        } else {
+          await tx.saisieLubrifiant.create({
+            data: {
+              du: value.du,
+              au: value.au,
+              section: value.section,
+              imputation: value.imputation,
+              qte: value.qte,
+              enginId: value.enginId,
+              lubrifiantId: value.lubrifiantId,
+              tenantId,
+            },
+          });
+        }
+      }
+    }, { isolationLevel: "Serializable" });
+    for (const row of toProcess) {
+      results.push(rowSuccess(row, `Consommation du lubrifiant « ${row.value.lubrifiantName} » importée pour l’engin « ${row.value.enginName} ».`));
+    }
+  } catch (error) {
+    for (const row of toProcess) {
+      results.push(rowFailure(
+        row,
+        new Error(error instanceof Error && error.message === "OVERLAPPING_CONSUMPTION"
+          ? "Une consommation concurrente chevauche cette période."
+          : error instanceof Error ? error.message : "Erreur d’écriture du lot."),
+      ));
+    }
   }
   return results.sort((a, b) => a.row - b.row);
 }
@@ -913,7 +1365,14 @@ export class IndependentBatchImportService {
           case "sites":
           case "typeparcs":
           case "typepannes":
+          case "type_lubrifiants":
             chunkResults = await batchNamedRecords(request.module, tenantId, chunk);
+            break;
+          case "lubrifiants":
+            chunkResults = await batchLubrifiants(tenantId, chunk);
+            break;
+          case "saisie_lubrifiants":
+            chunkResults = await batchSaisieLubrifiants(tenantId, chunk);
             break;
           case "parcs":
             chunkResults = await batchParcs(tenantId, chunk);

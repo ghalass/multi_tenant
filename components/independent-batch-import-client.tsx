@@ -59,6 +59,9 @@ const MODULES: ModuleDefinition[] = [
   { key: "engins", label: "Engins", columns: ["name", "parcName", "siteName", "active"], required: ["name", "parcName", "siteName"] },
   { key: "typepannes", label: "Types de panne", columns: ["name", "description"], required: ["name"] },
   { key: "pannes", label: "Pannes", columns: ["name", "description", "typepanneName", "parcName"], required: ["name", "description", "typepanneName", "parcName"] },
+  { key: "type_lubrifiants", label: "Types de lubrifiant", columns: ["name"], required: ["name"] },
+  { key: "lubrifiants", label: "Lubrifiants", columns: ["name", "code", "unite", "typeLubrifiantName", "parcNames"], required: ["name", "code", "unite", "typeLubrifiantName", "parcNames"] },
+  { key: "saisie_lubrifiants", label: "Saisies lubrifiants", columns: ["du", "au", "section", "imputation", "code", "lubrifiantName", "designation", "enginName", "qte"], required: ["du", "au", "section", "imputation", "code", "lubrifiantName", "designation", "enginName", "qte"] },
   { key: "saisie_hrm", label: "Saisies HRM", columns: ["du", "hrm", "nho", "compteur", "enginName", "siteName"], required: ["du", "hrm", "nho", "enginName", "siteName"] },
   { key: "saisie_hims", label: "Saisies HIM", columns: ["du", "him", "ni", "obs", "enginName", "panneName"], required: ["du", "him", "enginName", "panneName"] },
   {
@@ -447,6 +450,16 @@ export default function IndependentBatchImportClient({
                     <Badge key={column} variant={unmapped.includes(column) ? "destructive" : "secondary"}>{column}</Badge>
                   ))}
                 </div>
+                {module === "lubrifiants" && (
+                  <p className="text-sm text-muted-foreground">
+                    Pour <code>parcNames</code>, séparez les parcs avec un point-virgule.
+                  </p>
+                )}
+                {module === "saisie_lubrifiants" && (
+                  <p className="text-sm text-muted-foreground">
+                    Les périodes du même engin et du même lubrifiant ne doivent pas se chevaucher.
+                  </p>
+                )}
               </div>
             )}
           </CardContent>

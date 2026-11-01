@@ -113,17 +113,19 @@ const configItems = {
     },
 
     {
-      title: "lubrifiant",
-      url: "/lubrifiant",
+      title: "Type de lubrifiant",
+      url: "/types-lubrifiants",
+      icon: Droplets,
+      description: "Gérer les types de lubrifiants",
+    },
+
+    {
+      title: "Lubrifiants",
+      url: "/lubrifiants",
       icon: Droplet,
       description: "Gérer les lubrifiants",
     },
-    {
-      title: "Type de lubrifiant",
-      url: "/type_lubrifiant",
-      icon: Droplets,
-      description: "Gérer les type des lubrifiants",
-    },
+
 
     { title: "Utilisateurs", url: `/users`, icon: Users, description: "Gérer les utilisateurs" },
   ],
@@ -170,6 +172,12 @@ const rapportsItems = {
       icon: BarChart3,
       description: "Paretos",
     },
+    {
+      title: "Lubrifiants",
+      url: "/rapports/lubrifiants",
+      icon: Droplet,
+      description: "Rapports de consommation des lubrifiants",
+    },
   ],
 };
 
@@ -206,6 +214,11 @@ const SuiviPerformances = {
       url: "/saisie-him",
       icon: ClipboardList,
       description: "Gérer les saisies HIM",
+    }, {
+      title: "Saisies lubrifiants",
+      url: "/saisie-lubrifiants",
+      icon: Droplet,
+      description: "Gérer les consommations de lubrifiants",
     },
   ],
 };

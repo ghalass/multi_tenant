@@ -36,6 +36,10 @@ model Tenant {
 
   affectationsPlansMaintenance AffectationPlanMaintenance[]
   suivisPlansMaintenance       SuiviPlanMaintenanceEngin[]
+  typeLubrifiants              TypeLubrifiant[]
+  lubrifiants                  Lubrifiant[]
+  saisieLubrifiants            SaisieLubrifiant[]
+  lubrifiantParcs              LubrifiantParc[]
 
   @@map("tenant")
 }
@@ -173,6 +177,7 @@ model Parc {
   objectifs Objectif[]
 
   affectationsMaintenance AffectationPlanMaintenance[]
+  lubrifiantParcs         LubrifiantParc[]
 
   @@unique([name, tenantId])
   @@map("parc")
@@ -187,11 +192,12 @@ model Engin {
   tenantId String
 
   // Relations
-  parc       Parc        @relation(fields: [parcId], references: [id], onDelete: Restrict)
-  site       Site        @relation(fields: [siteId], references: [id], onDelete: Restrict)
-  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  saisiehrms Saisiehrm[]
-  backlogs   Backlog[]
+  parc              Parc               @relation(fields: [parcId], references: [id], onDelete: Restrict)
+  site              Site               @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  tenant            Tenant             @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  saisiehrms        Saisiehrm[]
+  backlogs          Backlog[]
+  saisieLubrifiants SaisieLubrifiant[]
 
   affectationsMaintenance AffectationPlanMaintenance[]
   suivisPlansMaintenance  SuiviPlanMaintenanceEngin[]
@@ -285,6 +291,70 @@ model Saisiehim {
 
   @@unique([panneId, saisiehrmId, tenantId])
   @@map("saisie_him")
+}
+
+model TypeLubrifiant {
+  id       String @id @default(cuid(2))
+  name     String
+  tenantId String
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  lubrifiants Lubrifiant[]
+
+  @@unique([name, tenantId])
+  @@map("type_lubrifiant")
+}
+
+model Lubrifiant {
+  id               String @id @default(cuid(2))
+  name             String
+  code             String
+  unite            String
+  typeLubrifiantId String
+  tenantId         String
+
+  tenant         Tenant             @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  typeLubrifiant TypeLubrifiant     @relation(fields: [typeLubrifiantId], references: [id], onDelete: Restrict)
+  parcs          LubrifiantParc[]
+  saisies        SaisieLubrifiant[]
+
+  @@unique([name, tenantId])
+  @@map("lubrifiant")
+}
+
+model LubrifiantParc {
+  parcId       String
+  lubrifiantId String
+  tenantId     String
+
+  parc       Parc       @relation(fields: [parcId], references: [id], onDelete: Restrict)
+  lubrifiant Lubrifiant @relation(fields: [lubrifiantId], references: [id], onDelete: Restrict)
+  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+
+  @@id([parcId, lubrifiantId])
+  @@index([tenantId])
+  @@map("lubrifiant_parc")
+}
+
+model SaisieLubrifiant {
+  id           String   @id @default(cuid(2))
+  du           DateTime @db.Date
+  au           DateTime @db.Date
+  section      String
+  imputation   String
+  qte          Float
+  enginId      String
+  lubrifiantId String
+  tenantId     String
+
+  engin      Engin      @relation(fields: [enginId], references: [id], onDelete: Restrict)
+  lubrifiant Lubrifiant @relation(fields: [lubrifiantId], references: [id], onDelete: Restrict)
+  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+
+  @@unique([du, au, enginId, lubrifiantId, section, imputation, tenantId], map: "saisie_lubrifiant_dedupe_key")
+  @@index([tenantId, du, au], map: "saisie_lubrifiant_tenant_dates_idx")
+  @@index([tenantId, enginId, lubrifiantId, du, au], map: "saisie_lubrifiant_engine_dates_idx")
+  @@map("saisie_lubrifiant")
 }
 
 model Objectif {
