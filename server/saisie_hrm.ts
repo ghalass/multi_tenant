@@ -647,11 +647,6 @@ export async function createSaisieHrm(
           );
         }
 
-        if (currentEngin.siteId !== values.siteId) {
-          throw new Error(
-            "Le site sélectionné ne correspond plus au site actuel de l'engin.",
-          );
-        }
 
         const currentSite = await tx.site.findFirst({
           where: {
@@ -1163,15 +1158,6 @@ export async function importSaisieHrm(
       }];
     }
 
-    if (engin.siteId !== site.id) {
-      return [{
-        success: false,
-        data,
-        message:
-          `Le site "${site.name}" ne correspond pas au site actuel de l'engin "${enginName}".`,
-      }];
-    }
-
     const compteurData =
       hasCompteur && compteur !== null ? { compteur } : {};
 
@@ -1192,11 +1178,6 @@ export async function importSaisieHrm(
           throw new Error(`Engin "${enginName}" introuvable.`);
         }
 
-        if (currentEngin.siteId !== site.id) {
-          throw new Error(
-            `Le site "${site.name}" ne correspond plus au site actuel de l'engin "${enginName}".`,
-          );
-        }
 
         const currentSite = await tx.site.findFirst({
           where: {

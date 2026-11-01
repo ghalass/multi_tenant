@@ -360,6 +360,8 @@ export async function getRapportEtatGeneral(
                     where: {
                         tenantId,
                         compteur: { not: null },
+                        // Dernier compteur connu à la clôture du mois demandé.
+                        du: { lt: finMois },
                     },
                     select: {
                         compteur: true,
