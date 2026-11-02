@@ -185,7 +185,6 @@ export function UpdatePermissionForm({ permission }: { permission: Permission })
                           <SelectItem value={Action.read}>Lecture</SelectItem>
                           <SelectItem value={Action.update}>Modification</SelectItem>
                           <SelectItem value={Action.delete}>Suppression</SelectItem>
-                          <SelectItem value={Action.export}>Exporation</SelectItem>
                         </SelectContent>
                       </Select>
                       {fieldState.invalid && (

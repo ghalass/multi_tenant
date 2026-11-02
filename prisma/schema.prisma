@@ -65,7 +65,6 @@ enum Action {
   read
   update
   delete
-  export
   import
 }
 
@@ -89,6 +88,7 @@ model User {
   password     String
   active       Boolean @default(true)
   isSuperAdmin Boolean @default(false)
+  phone        String?
 
   createdTenants Tenant[] @relation("TenantCreatedBy")
 

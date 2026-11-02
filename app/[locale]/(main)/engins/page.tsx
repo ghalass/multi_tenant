@@ -95,15 +95,10 @@ export default async function EnginsPage({
                         />
                     </CanAccess>
 
-                    <CanAccess
-                        resource={RESOURCE.ENGIN}
-                        action={ACTION.EXPORT}
-                    >
-                        <ExportExcel
-                            tableName="engins-table"
-                            fileName="Engins"
-                        />
-                    </CanAccess>
+                    <ExportExcel
+                        tableName="engins-table"
+                        fileName="Engins"
+                    />
                 </div>
             </div>
 

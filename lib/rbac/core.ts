@@ -43,7 +43,9 @@ export async function hasPermission(
   if (is_super_admin) return true
   // check permissions
   const userPermissions = await getUserPermissions(userId);
-  const requiredPermission = `${action}:${resourceName}`;
+  const permissionAction =
+    action === ACTION.EXPORT ? ACTION.READ : action;
+  const requiredPermission = `${permissionAction}:${resourceName}`;
   return userPermissions.includes(requiredPermission);
 }
 
