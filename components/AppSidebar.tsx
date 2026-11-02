@@ -53,7 +53,7 @@ import { JSX, useEffect } from "react";
 
 // Hook personnalisé pour la navigation active
 import { usePathname } from "next/navigation";
-import { useCurrentLocale, useI18n } from "@/locales/client";
+import { useCurrentLocale } from "@/locales/client";
 
 function useActivePath(): (url: string) => boolean {
   const pathname = usePathname();
@@ -227,6 +227,12 @@ const SuiviPerformances = {
       icon: Droplet,
       description: "Gérer les consommations de lubrifiants",
     },
+    {
+      title: "Retards HRM",
+      url: "/saisie_hrm_stats",
+      icon: BarChart3,
+      description: "Surveiller les saisies HRM journalières manquantes",
+    },
   ],
 };
 
@@ -291,7 +297,6 @@ export function AppSidebar({
   isSuperAdmin: boolean;
 }): JSX.Element {
   const locale = useCurrentLocale();
-  const t = useI18n();
   const isRTL = locale === "ar";
 
   const { isMobile, setOpenMobile } = useSidebar();
@@ -306,24 +311,11 @@ export function AppSidebar({
 
   const isActivePath = useActivePath();
 
-  const suiviPerformances = {
-    ...SuiviPerformances,
-    list: [
-      ...SuiviPerformances.list,
-      {
-        title: t("hrmStats.navTitle"),
-        url: "/saisie_hrm_stats",
-        icon: BarChart3,
-        description: t("hrmStats.navDescription"),
-      },
-    ],
-  };
-
   const allItems = [
     rapportsItems,
     backlogItems,
     maintenancePreventiveItems,
-    suiviPerformances,
+    SuiviPerformances,
     configItems,
     AccessControl,
     Importation,

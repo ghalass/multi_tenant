@@ -14,7 +14,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { GlobalLoader } from "@/components/global-loader";
-import { useI18n } from "@/locales/client";
 import type {
   SaisieHrmStatsFilters,
   SaisieHrmStatsOptions,
@@ -31,7 +30,6 @@ export default function SaisieHrmStatsFilters({
   defaultMonth,
   options,
 }: Props): JSX.Element {
-  const t = useI18n();
   const router = useRouter();
   const pathname = usePathname();
   const [pending, startTransition] = useTransition();
@@ -108,12 +106,12 @@ export default function SaisieHrmStatsFilters({
     setError("");
 
     if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
-      setError(t("hrmStats.filters.invalidMonth"));
+      setError("Sélectionnez un mois valide.");
       return;
     }
 
     if (month > defaultMonth) {
-      setError(t("hrmStats.filters.futureMonth"));
+      setError("Le mois sélectionné ne peut pas être dans le futur.");
       return;
     }
 
@@ -152,7 +150,7 @@ export default function SaisieHrmStatsFilters({
         <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
           <div className="space-y-1">
             <label htmlFor="hrm-stats-month" className="text-sm font-medium">
-              {t("hrmStats.filters.month")}
+              Mois
             </label>
             <Input
               id="hrm-stats-month"
@@ -169,7 +167,7 @@ export default function SaisieHrmStatsFilters({
 
           <div className="space-y-1">
             <label htmlFor="hrm-stats-site" className="text-sm font-medium">
-              {t("hrmStats.filters.site")}
+              Site
             </label>
             <Select
               value={siteId}
@@ -187,7 +185,7 @@ export default function SaisieHrmStatsFilters({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">
-                  {t("hrmStats.filters.allSites")}
+                  Tous les sites
                 </SelectItem>
                 {options.sites.map((site) => (
                   <SelectItem key={site.id} value={site.id}>
@@ -200,7 +198,7 @@ export default function SaisieHrmStatsFilters({
 
           <div className="space-y-1">
             <label htmlFor="hrm-stats-typeparc" className="text-sm font-medium">
-              {t("hrmStats.filters.typeParc")}
+              Type de parc
             </label>
             <Select
               value={typeparcId}
@@ -218,7 +216,7 @@ export default function SaisieHrmStatsFilters({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">
-                  {t("hrmStats.filters.allTypes")}
+                  Tous les types
                 </SelectItem>
                 {options.typeParcs.map((typeParc) => (
                   <SelectItem key={typeParc.id} value={typeParc.id}>
@@ -231,7 +229,7 @@ export default function SaisieHrmStatsFilters({
 
           <div className="space-y-1">
             <label htmlFor="hrm-stats-parc" className="text-sm font-medium">
-              {t("hrmStats.filters.parc")}
+              Parc
             </label>
             <Select
               value={parcId}
@@ -245,7 +243,7 @@ export default function SaisieHrmStatsFilters({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">
-                  {t("hrmStats.filters.allParcs")}
+                  Tous les parcs
                 </SelectItem>
                 {filteredParcs.map((parc) => (
                   <SelectItem key={parc.id} value={parc.id}>
@@ -258,7 +256,7 @@ export default function SaisieHrmStatsFilters({
 
           <div className="space-y-1">
             <label htmlFor="hrm-stats-search" className="text-sm font-medium">
-              {t("hrmStats.filters.engin")}
+              Engin
             </label>
             <Select
               value={enginId}
@@ -272,7 +270,7 @@ export default function SaisieHrmStatsFilters({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">
-                  {t("hrmStats.filters.allEngins")}
+                  Tous les engins
                 </SelectItem>
                 {filteredEngins.map((engin) => (
                   <SelectItem key={engin.id} value={engin.id}>
@@ -293,7 +291,7 @@ export default function SaisieHrmStatsFilters({
         <div className="flex flex-wrap gap-2">
           <Button type="submit" disabled={pending}>
             <SearchIcon className="size-4" />
-            {t("hrmStats.filters.apply")}
+            Rechercher
           </Button>
           <Button
             type="button"
@@ -302,7 +300,7 @@ export default function SaisieHrmStatsFilters({
             disabled={pending}
           >
             <RotateCcw className="size-4" />
-            {t("hrmStats.filters.reset")}
+            Réinitialiser
           </Button>
         </div>
       </form>

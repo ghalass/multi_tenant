@@ -6,7 +6,6 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { JSX } from "react";
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useI18n } from "@/locales/client";
 
 type Props = {
   currentPage: number;
@@ -23,7 +22,6 @@ export default function SaisieHrmStatsPagination({
   totalItems,
   perPage,
 }: Props): JSX.Element {
-  const t = useI18n();
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -42,12 +40,12 @@ export default function SaisieHrmStatsPagination({
 
   return (
     <nav
-      aria-label={t("hrmStats.pagination.label")}
+      aria-label="Pagination des engins en retard"
       className="flex flex-col items-center justify-between gap-3 py-3 sm:flex-row"
     >
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <label htmlFor="hrm-stats-per-page">
-          {t("hrmStats.pagination.perPage")}
+          Lignes par page
         </label>
         <Select
           value={isShowingAll ? "all" : String(perPage)}
@@ -63,14 +61,12 @@ export default function SaisieHrmStatsPagination({
               </SelectItem>
             ))}
             {totalItems > 0 && (
-              <SelectItem value="all">{t("hrmStats.pagination.showAll")}</SelectItem>
+              <SelectItem value="all">Afficher tout</SelectItem>
             )}
           </SelectContent>
         </Select>
         <span>
-          {t("hrmStats.pagination.results", {
-            count: new Intl.NumberFormat().format(totalItems),
-          })}
+          {new Intl.NumberFormat("fr-FR").format(totalItems)} résultat(s)
         </span>
       </div>
 
@@ -87,13 +83,10 @@ export default function SaisieHrmStatsPagination({
           ].join(" ")}
         >
           <ChevronLeft className="size-4" />
-          {t("hrmStats.pagination.previous")}
+          Précédent
         </Link>
         <span className="text-sm text-muted-foreground">
-          {t("hrmStats.pagination.page", {
-            current: String(currentPage),
-            total: String(totalPages),
-          })}
+          Page {currentPage} sur {totalPages}
         </span>
         <Link
           href={`${pathname}?${nextParams.toString()}`}
@@ -106,7 +99,7 @@ export default function SaisieHrmStatsPagination({
               : "hover:bg-accent",
           ].join(" ")}
         >
-          {t("hrmStats.pagination.next")}
+          Suivant
           <ChevronRight className="size-4" />
         </Link>
       </div>

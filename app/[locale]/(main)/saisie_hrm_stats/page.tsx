@@ -27,7 +27,6 @@ import {
 } from "@/components/ui/table";
 import { RESOURCE } from "@/lib/constantes";
 import { getPageAccessFallback } from "@/lib/rbac/page-access";
-import { getCurrentLocale, getI18n } from "@/locales/server";
 import {
   getSaisieHrmStats,
   getSaisieHrmStatsOptions,
@@ -52,9 +51,9 @@ function getBadgeClass(daysLate: number | null): string {
   return "border-red-300 bg-red-100 text-red-900 dark:border-red-800 dark:bg-red-950 dark:text-red-200";
 }
 
-function formatDate(value: string, locale: string): string {
+function formatDate(value: string): string {
   return new Date(`${value}T00:00:00.000Z`).toLocaleDateString(
-    locale === "ar" ? "ar" : "fr-FR",
+    "fr-FR",
     {
       year: "numeric",
       month: "2-digit",
@@ -105,11 +104,7 @@ export default async function SaisieHrmStatsPage({
   const currentPage = Number(firstParam(params.currentPage)) || 1;
   const perPage = firstParam(params.perPage) ?? "10";
 
-  const [accessFallback, t, locale] = await Promise.all([
-    getPageAccessFallback(RESOURCE.SAISIE_HRM),
-    getI18n(),
-    getCurrentLocale(),
-  ]);
+  const accessFallback = await getPageAccessFallback(RESOURCE.SAISIE_HRM);
   if (accessFallback) return accessFallback;
 
   const [optionsResult, statsResult] = await Promise.all([
@@ -125,16 +120,15 @@ export default async function SaisieHrmStatsPage({
   ]);
 
   if (!optionsResult.success) {
-    const error = t(
+    const error =
       optionsResult.error === "forbidden"
-        ? "hrmStats.errors.forbidden"
-        : "hrmStats.errors.missingTenant",
-    );
+        ? "Vous n’êtes pas autorisé à consulter les saisies HRM."
+        : "Sélectionnez un tenant actif pour consulter ce tableau de bord.";
     return (
       <div className="container mx-auto space-y-4 py-2">
         <h1 className="flex items-center gap-2 text-3xl font-bold">
           <Gauge className="size-8" />
-          {t("hrmStats.title")}
+          Suivi des saisies HRM
         </h1>
         <DisplayError error={error} />
       </div>
@@ -147,81 +141,60 @@ export default async function SaisieHrmStatsPage({
     statsResult?.success === true ? statsResult : null;
   const statsError =
     statsResult && !statsResult.success
-      ? t(`hrmStats.errors.${statsResult.error}`)
+      ? statsResult.error === "forbidden"
+        ? "Vous n’êtes pas autorisé à consulter les saisies HRM."
+        : statsResult.error === "missingTenant"
+          ? "Sélectionnez un tenant actif pour consulter ce tableau de bord."
+          : statsResult.error === "invalidMonth"
+            ? "Sélectionnez un mois valide."
+            : statsResult.error === "futureMonth"
+              ? "Le mois sélectionné ne peut pas être dans le futur."
+              : "La date sélectionnée est invalide."
       : null;
-  const numberFormat = new Intl.NumberFormat(locale === "ar" ? "ar" : "fr-FR");
+  const numberFormat = new Intl.NumberFormat("fr-FR");
   const percentFormat = new Intl.NumberFormat(
-    locale === "ar" ? "ar" : "fr-FR",
+    "fr-FR",
     { style: "percent", maximumFractionDigits: 1 },
   );
-  const weekdays: Array<
-    | "hrmStats.weekdays.monday"
-    | "hrmStats.weekdays.tuesday"
-    | "hrmStats.weekdays.wednesday"
-    | "hrmStats.weekdays.thursday"
-    | "hrmStats.weekdays.friday"
-    | "hrmStats.weekdays.saturday"
-    | "hrmStats.weekdays.sunday"
-  > =
-    locale === "ar"
-      ? [
-          "hrmStats.weekdays.sunday",
-          "hrmStats.weekdays.monday",
-          "hrmStats.weekdays.tuesday",
-          "hrmStats.weekdays.wednesday",
-          "hrmStats.weekdays.thursday",
-          "hrmStats.weekdays.friday",
-          "hrmStats.weekdays.saturday",
-        ]
-      : [
-          "hrmStats.weekdays.monday",
-          "hrmStats.weekdays.tuesday",
-          "hrmStats.weekdays.wednesday",
-          "hrmStats.weekdays.thursday",
-          "hrmStats.weekdays.friday",
-          "hrmStats.weekdays.saturday",
-          "hrmStats.weekdays.sunday",
-        ];
+  const weekdays = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
   const firstDayOffset =
-    stats && locale === "ar"
-      ? new Date(`${stats.month}-01T00:00:00.000Z`).getUTCDay()
-      : stats
-        ? (new Date(`${stats.month}-01T00:00:00.000Z`).getUTCDay() + 6) % 7
-        : 0;
+    stats
+      ? (new Date(`${stats.month}-01T00:00:00.000Z`).getUTCDay() + 6) % 7
+      : 0;
   const selectedDayStats = stats?.days.find(
     (day) => day.date === stats.selectedDay,
   );
   const selectedFilterSummary = stats
     ? [
-        `${t("hrmStats.filters.month")}: ${new Date(
+        `Mois: ${new Date(
           `${stats.month}-01T00:00:00.000Z`,
-        ).toLocaleDateString(locale === "ar" ? "ar" : "fr-FR", {
+        ).toLocaleDateString("fr-FR", {
           month: "long",
           year: "numeric",
           timeZone: "UTC",
         })}`,
         ...(stats.selectedDay
-          ? [`${t("hrmStats.filters.referenceDate")}: ${formatDate(stats.selectedDay, locale)}`]
+          ? [`Date de référence: ${formatDate(stats.selectedDay)}`]
           : []),
         ...(filters.siteId
           ? optionsResult.data.sites
               .filter((site) => site.id === filters.siteId)
-              .map((site) => `${t("hrmStats.filters.site")}: ${site.name}`)
+              .map((site) => `Site: ${site.name}`)
           : []),
         ...(filters.typeparcId
           ? optionsResult.data.typeParcs
               .filter((typeParc) => typeParc.id === filters.typeparcId)
-              .map((typeParc) => `${t("hrmStats.filters.typeParc")}: ${typeParc.name}`)
+              .map((typeParc) => `Type de parc: ${typeParc.name}`)
           : []),
         ...(filters.parcId
           ? optionsResult.data.parcs
               .filter((parc) => parc.id === filters.parcId)
-              .map((parc) => `${t("hrmStats.filters.parc")}: ${parc.name}`)
+              .map((parc) => `Parc: ${parc.name}`)
           : []),
         ...(filters.enginId
           ? optionsResult.data.engins
               .filter((engin) => engin.id === filters.enginId)
-              .map((engin) => `${t("hrmStats.filters.engin")}: ${engin.name}`)
+              .map((engin) => `Engin: ${engin.name}`)
           : []),
       ]
     : [];
@@ -231,10 +204,10 @@ export default async function SaisieHrmStatsPage({
       <header>
         <h1 className="flex items-center gap-2 text-3xl font-bold">
           <Gauge className="size-8" />
-          {t("hrmStats.title")}
+          Suivi des saisies HRM
         </h1>
         <p className="mt-1 text-muted-foreground">
-          {t("hrmStats.description")}
+          Repérez les engins actifs sans saisie HRM à la date sélectionnée.
         </p>
       </header>
 
@@ -247,7 +220,7 @@ export default async function SaisieHrmStatsPage({
 
       {!searched && (
         <p className="rounded-lg border p-6 text-center text-muted-foreground">
-          {t("hrmStats.searchBeforeResults")}
+          Choisissez un mois et vos filtres, puis cliquez sur « Rechercher » pour afficher le calendrier.
         </p>
       )}
 
@@ -255,13 +228,13 @@ export default async function SaisieHrmStatsPage({
 
       {stats && (
         <>
-          <section aria-label={t("hrmStats.calendarTitle")} className="space-y-2">
+          <section aria-label="Suivi quotidien des saisies HRM" className="space-y-2">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <h2 className="text-xl font-semibold">
-                {t("hrmStats.calendarTitle")}
+                Suivi quotidien des saisies HRM
               </h2>
               <p className="text-sm text-muted-foreground">
-                {t("hrmStats.calendarHelp")}
+                Cliquez sur un jour pour afficher les engins en retard.
               </p>
             </div>
 
@@ -271,7 +244,7 @@ export default async function SaisieHrmStatsPage({
                   key={weekday}
                   className="py-1 text-center text-[11px] font-medium text-muted-foreground sm:text-xs"
                 >
-                  {t(weekday)}
+                  {weekday}
                 </div>
               ))}
 
@@ -297,12 +270,10 @@ export default async function SaisieHrmStatsPage({
                   <Link
                     key={day.date}
                     href={href}
-                    aria-label={`${formatDate(day.date, locale)}: ${
+                    aria-label={`${formatDate(day.date)}: ${
                       isFuture
-                        ? t("hrmStats.calendar.future")
-                        : t("hrmStats.calendar.missingCount", {
-                            count: numberFormat.format(day.missingCount ?? 0),
-                          })
+                        ? "Date à venir"
+                        : `${numberFormat.format(day.missingCount ?? 0)} engins sans saisie HRM`
                     }`}
                     aria-current={isSelected ? "date" : undefined}
                     aria-disabled={isFuture}
@@ -328,7 +299,7 @@ export default async function SaisieHrmStatsPage({
                         : numberFormat.format(day.missingCount ?? 0)}
                     </span>
                     <span className="hidden text-[9px] leading-none text-muted-foreground sm:inline">
-                      {t("hrmStats.calendar.missingLabel")}
+                      sans saisie
                     </span>
                   </Link>
                 );
@@ -339,11 +310,11 @@ export default async function SaisieHrmStatsPage({
           {selectedDayStats && stats.selectedDay && (
             <>
               <section
-                aria-label={t("hrmStats.selectedFilters")}
+                aria-label="Filtres sélectionnés"
                 className="space-y-1"
               >
                 <h2 className="text-lg font-semibold">
-                  {t("hrmStats.selectedFilters")}
+                  Filtres sélectionnés
                 </h2>
                 <p className="text-sm text-muted-foreground">
                   {selectedFilterSummary.join(" · ")}
@@ -351,14 +322,14 @@ export default async function SaisieHrmStatsPage({
               </section>
 
               <section
-                aria-label={t("hrmStats.summary")}
+                aria-label="Synthèse des saisies HRM"
                 className="grid gap-3 md:grid-cols-3"
               >
                 <Card className="gap-0 py-2">
                   <CardHeader className="flex flex-row items-center gap-2 px-4 py-1 space-y-0 [&.border-b]:pb-1">
                     <Truck className="size-4 text-muted-foreground" />
                     <CardTitle className="text-sm font-medium">
-                      {t("hrmStats.totalEngins")}
+                      Parc total
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="flex items-center gap-3 px-4 pb-1">
@@ -366,7 +337,7 @@ export default async function SaisieHrmStatsPage({
                       {numberFormat.format(stats.totalActiveEngins)}
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      {formatDate(stats.selectedDay, locale)}
+                      {formatDate(stats.selectedDay)}
                     </p>
                   </CardContent>
                 </Card>
@@ -375,7 +346,7 @@ export default async function SaisieHrmStatsPage({
                   <CardHeader className="flex flex-row items-center gap-2 px-4 py-1 space-y-0 [&.border-b]:pb-1">
                     <CheckCircle2 className="size-4 text-emerald-600" />
                     <CardTitle className="text-sm font-medium">
-                      {t("hrmStats.upToDate")}
+                      Saisies HRM à jour
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="flex items-baseline gap-3 px-4 pb-1">
@@ -401,7 +372,7 @@ export default async function SaisieHrmStatsPage({
                   <CardHeader className="flex flex-row items-center gap-2 px-4 py-1 space-y-0 [&.border-b]:pb-1">
                     <AlertTriangle className="size-4 text-destructive" />
                     <CardTitle className="text-sm font-medium">
-                      {t("hrmStats.overdue")}
+                      Saisies HRM en retard
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="flex items-baseline gap-3 px-4 pb-1">
@@ -425,13 +396,13 @@ export default async function SaisieHrmStatsPage({
                   <div className="flex flex-wrap items-center gap-2">
                     <AlertTriangle className="size-5 text-destructive" />
                     <h2 className="text-xl font-semibold">
-                      {t("hrmStats.lateTitle")}
+                      Saisies HRM en retard
                     </h2>
                     <Badge variant="destructive">
                       {numberFormat.format(selectedDayStats.missingCount ?? 0)}
                     </Badge>
                     <span className="text-sm text-muted-foreground">
-                      {formatDate(stats.selectedDay, locale)}
+                      {formatDate(stats.selectedDay)}
                     </span>
                   </div>
                   {stats.pagination?.totalItems ? (
@@ -445,7 +416,7 @@ export default async function SaisieHrmStatsPage({
                 {stats.pagination?.totalItems === 0 ? (
                   <div className="flex items-start gap-3 rounded-lg border border-emerald-300 bg-emerald-50 p-5 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200">
                     <CheckCircle2 className="mt-0.5 size-5 shrink-0" />
-                    <p>{t("hrmStats.allUpToDate")}</p>
+                    <p>Toutes les saisies HRM sont à jour pour la date sélectionnée.</p>
                   </div>
                 ) : (
                   <>
@@ -453,13 +424,13 @@ export default async function SaisieHrmStatsPage({
                       <Table id="hrm-stats-late-engins">
                         <TableHeader>
                           <TableRow>
-                            <TableHead>{t("hrmStats.columns.typeParc")}</TableHead>
-                            <TableHead>{t("hrmStats.columns.parc")}</TableHead>
-                            <TableHead>{t("hrmStats.columns.engin")}</TableHead>
-                            <TableHead>{t("hrmStats.columns.site")}</TableHead>
-                            <TableHead>{t("hrmStats.columns.lastEntry")}</TableHead>
-                            <TableHead>{t("hrmStats.columns.delay")}</TableHead>
-                            <TableHead>{t("hrmStats.columns.status")}</TableHead>
+                            <TableHead>Type de parc</TableHead>
+                            <TableHead>Parc</TableHead>
+                            <TableHead>Engin</TableHead>
+                            <TableHead>Site</TableHead>
+                            <TableHead>Dernière saisie HRM</TableHead>
+                            <TableHead>Retard</TableHead>
+                            <TableHead>Statut</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -481,19 +452,19 @@ export default async function SaisieHrmStatsPage({
                               <TableCell>{engin.site}</TableCell>
                               <TableCell>
                                 {engin.latestDate
-                                  ? formatDate(engin.latestDate, locale)
-                                  : t("hrmStats.noEntry")}
+                                  ? formatDate(engin.latestDate)
+                                  : "Aucune saisie"}
                               </TableCell>
                               <TableCell>
                                 <Badge className={getBadgeClass(engin.daysLate)}>
                                   {engin.daysLate === null
-                                    ? t("hrmStats.notCalculable")
-                                    : `${numberFormat.format(engin.daysLate)} ${t(engin.daysLate === 1 ? "hrmStats.daySingular" : "hrmStats.dayPlural")}`}
+                                    ? "Non calculable"
+                                    : `${numberFormat.format(engin.daysLate)} ${engin.daysLate === 1 ? "jour de retard" : "jours de retard"}`}
                                 </Badge>
                               </TableCell>
                               <TableCell>
                                 <Badge variant="destructive">
-                                  {t("hrmStats.overdueStatus")}
+                                  En retard
                                 </Badge>
                               </TableCell>
                             </TableRow>
