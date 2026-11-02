@@ -53,7 +53,7 @@ import { JSX, useEffect } from "react";
 
 // Hook personnalisé pour la navigation active
 import { usePathname } from "next/navigation";
-import { useCurrentLocale } from "@/locales/client";
+import { useCurrentLocale, useI18n } from "@/locales/client";
 
 function useActivePath(): (url: string) => boolean {
   const pathname = usePathname();
@@ -291,6 +291,7 @@ export function AppSidebar({
   isSuperAdmin: boolean;
 }): JSX.Element {
   const locale = useCurrentLocale();
+  const t = useI18n();
   const isRTL = locale === "ar";
 
   const { isMobile, setOpenMobile } = useSidebar();
@@ -305,11 +306,24 @@ export function AppSidebar({
 
   const isActivePath = useActivePath();
 
+  const suiviPerformances = {
+    ...SuiviPerformances,
+    list: [
+      ...SuiviPerformances.list,
+      {
+        title: t("hrmStats.navTitle"),
+        url: "/saisie_hrm_stats",
+        icon: BarChart3,
+        description: t("hrmStats.navDescription"),
+      },
+    ],
+  };
+
   const allItems = [
     rapportsItems,
     backlogItems,
     maintenancePreventiveItems,
-    SuiviPerformances,
+    suiviPerformances,
     configItems,
     AccessControl,
     Importation,
