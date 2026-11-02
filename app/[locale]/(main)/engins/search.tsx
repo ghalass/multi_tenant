@@ -121,8 +121,8 @@ export default function Search({
         <>
             <GlobalLoader show={clearPending} />
 
-            <div className="mb-5 mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                <div className="relative">
+            <div className="mb-5 mt-2 flex flex-wrap items-end gap-2">
+                <div className="relative grid w-full gap-2 sm:w-48 sm:flex-none">
                     <SearchIcon
                         className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
                     />
@@ -152,119 +152,127 @@ export default function Search({
                     )}
                 </div>
 
-                <Select
-                    value={searchParams.get("siteId") ?? "all"}
-                    onValueChange={(value) =>
-                        updateFilters({ siteId: value })
-                    }
-                    disabled={pending}
-                >
-                    <SelectTrigger>
-                        <SelectValue placeholder="Site" />
-                    </SelectTrigger>
+                <div className="grid w-48 flex-none gap-2">
+                    <Select
+                        value={searchParams.get("siteId") ?? "all"}
+                        onValueChange={(value) =>
+                            updateFilters({ siteId: value })
+                        }
+                        disabled={pending}
+                    >
+                        <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Site" />
+                        </SelectTrigger>
 
-                    <SelectContent>
-                        <SelectItem value="all">
-                            Tous les sites
-                        </SelectItem>
-
-                        {sites.map((site) => (
-                            <SelectItem
-                                key={site.id}
-                                value={site.id}
-                            >
-                                {site.name}
+                        <SelectContent>
+                            <SelectItem value="all">
+                                Tous les sites
                             </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
 
-                <Select
-                    value={selectedTypeparcId}
-                    onValueChange={handleTypeparcChange}
-                    disabled={pending}
-                >
-                    <SelectTrigger>
-                        <SelectValue placeholder="Type de parc" />
-                    </SelectTrigger>
+                            {sites.map((site) => (
+                                <SelectItem
+                                    key={site.id}
+                                    value={site.id}
+                                >
+                                    {site.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
 
-                    <SelectContent>
-                        <SelectItem value="all">
-                            Tous les types de parc
-                        </SelectItem>
+                <div className="grid w-48 flex-none gap-2">
+                    <Select
+                        value={selectedTypeparcId}
+                        onValueChange={handleTypeparcChange}
+                        disabled={pending}
+                    >
+                        <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Type de parc" />
+                        </SelectTrigger>
 
-                        {typeparcs.map((typeparc) => (
-                            <SelectItem
-                                key={typeparc.id}
-                                value={typeparc.id}
-                            >
-                                {typeparc.name}
+                        <SelectContent>
+                            <SelectItem value="all">
+                                Tous les types de parc
                             </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
 
-                <Select
-                    value={selectedParcId}
-                    onValueChange={(value) =>
-                        updateFilters({ parcId: value })
-                    }
-                    disabled={
-                        pending ||
-                        selectedTypeparcId === "all"
-                    }
-                >
-                    <SelectTrigger>
-                        <SelectValue
-                            placeholder={
-                                selectedTypeparcId === "all"
-                                    ? "Choisir d'abord un type de parc"
-                                    : "Parc"
-                            }
-                        />
-                    </SelectTrigger>
+                            {typeparcs.map((typeparc) => (
+                                <SelectItem
+                                    key={typeparc.id}
+                                    value={typeparc.id}
+                                >
+                                    {typeparc.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
 
-                    <SelectContent>
-                        <SelectItem value="all">
-                            Tous les parcs de ce type
-                        </SelectItem>
+                <div className="grid w-48 flex-none gap-2">
+                    <Select
+                        value={selectedParcId}
+                        onValueChange={(value) =>
+                            updateFilters({ parcId: value })
+                        }
+                        disabled={
+                            pending ||
+                            selectedTypeparcId === "all"
+                        }
+                    >
+                        <SelectTrigger className="w-full">
+                            <SelectValue
+                                placeholder={
+                                    selectedTypeparcId === "all"
+                                        ? "Choisir d'abord un type de parc"
+                                        : "Parc"
+                                }
+                            />
+                        </SelectTrigger>
 
-                        {filteredParcs.map((parc) => (
-                            <SelectItem
-                                key={parc.id}
-                                value={parc.id}
-                            >
-                                {parc.name}
+                        <SelectContent>
+                            <SelectItem value="all">
+                                Tous les parcs de ce type
                             </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
 
-                <Select
-                    value={searchParams.get("active") ?? "all"}
-                    onValueChange={(value) =>
-                        updateFilters({ active: value })
-                    }
-                    disabled={pending}
-                >
-                    <SelectTrigger>
-                        <SelectValue placeholder="Statut" />
-                    </SelectTrigger>
+                            {filteredParcs.map((parc) => (
+                                <SelectItem
+                                    key={parc.id}
+                                    value={parc.id}
+                                >
+                                    {parc.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
 
-                    <SelectContent>
-                        <SelectItem value="all">
-                            Tous les statuts
-                        </SelectItem>
+                <div className="ml-2 grid w-48 flex-none gap-2">
+                    <Select
+                        value={searchParams.get("active") ?? "all"}
+                        onValueChange={(value) =>
+                            updateFilters({ active: value })
+                        }
+                        disabled={pending}
+                    >
+                        <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Statut" />
+                        </SelectTrigger>
 
-                        <SelectItem value={ACTIVE.YES}>
-                            Actifs
-                        </SelectItem>
+                        <SelectContent>
+                            <SelectItem value="all">
+                                Tous les statuts
+                            </SelectItem>
 
-                        <SelectItem value={ACTIVE.NO}>
-                            Inactifs
-                        </SelectItem>
-                    </SelectContent>
-                </Select>
+                            <SelectItem value={ACTIVE.YES}>
+                                Actifs
+                            </SelectItem>
+
+                            <SelectItem value={ACTIVE.NO}>
+                                Inactifs
+                            </SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
             </div>
         </>
     );
