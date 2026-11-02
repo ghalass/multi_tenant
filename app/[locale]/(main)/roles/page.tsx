@@ -22,6 +22,7 @@ import DisplayError from "@/components/display-error";
 import CanAccess from "@/components/can-access";
 import { ACTION } from "@/lib/enums";
 import { RESOURCE } from "@/lib/constantes";
+import { getPageAccessFallback } from "@/lib/rbac/page-access";
 
 export default async function RolesPage({
   params,
@@ -30,6 +31,10 @@ export default async function RolesPage({
   params: Promise<{ tenantId: string }>;
   searchParams: Promise<RoleSearchParams>;
 }): Promise<import("react").JSX.Element> {
+  const resource = RESOURCE.ROLE;
+  const accessFallback = await getPageAccessFallback(resource);
+  if (accessFallback) return accessFallback;
+
   const filters = await searchParams;
   const { tenantId } = await params;
 
@@ -38,9 +43,6 @@ export default async function RolesPage({
   const meta = result?.meta;
 
   const permissions = await getAllPermissions();
-
-  const resource = RESOURCE.ROLE
-
 
   return (
     <div className="container mx-auto py-2">

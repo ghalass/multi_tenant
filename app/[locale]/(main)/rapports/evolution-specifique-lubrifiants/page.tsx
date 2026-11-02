@@ -14,6 +14,7 @@ import {
 } from "@/server/rapports/rapport-evolution-specificite-lubrifiants";
 import SelectParams from "./select-params";
 import EvolutionCharts from "./evolution-charts";
+import { getPageAccessFallback } from "@/lib/rbac/page-access";
 
 type SearchParams = {
   [key: string]: string | string[] | undefined;
@@ -28,6 +29,9 @@ export default async function EvolutionSpecificiteLubrifiantsPage({
 }: {
   searchParams: Promise<SearchParams>;
 }): Promise<React.JSX.Element> {
+  const accessFallback = await getPageAccessFallback(RESOURCE.RAPPORT);
+  if (accessFallback) return accessFallback;
+
   const params = await searchParams;
   const annee = Number(firstString(params.annee));
   const filters: EvolutionSpecificiteFilters = {

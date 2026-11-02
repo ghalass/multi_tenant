@@ -18,12 +18,16 @@ import CanAccess from "@/components/can-access";
 import { ACTION } from "@/lib/enums";
 import { RESOURCE } from "@/lib/constantes";
 import { ExportExcel } from "@/components/export-excel";
+import { getPageAccessFallback } from "@/lib/rbac/page-access";
 
 export default async function ParcsPage({
     searchParams,
 }: {
     searchParams: Promise<SearchParamsParcs>;
 }): Promise<import("react").JSX.Element> {
+    const accessFallback = await getPageAccessFallback(RESOURCE.PARC);
+    if (accessFallback) return accessFallback;
+
     const filters = await searchParams;
     const [response, typeResponse] = await Promise.all([
         getAllParcs(filters),
@@ -61,14 +65,17 @@ export default async function ParcsPage({
                 <DisplayError className="mt-4" error={response.message} />
             )}
 
-            {typeparcs.length === 0 && (
-                <DisplayError
-                    className="mt-4"
-                    error="Aucun type de parc disponible. Créez d'abord un type de parc."
-                />
-            )}
+            <CanAccess
+                resource={RESOURCE.PARC}
+                action={ACTION.READ}
+            >
+                {typeparcs.length === 0 && (
+                    <DisplayError
+                        className="mt-4"
+                        error="Aucun type de parc disponible. Créez d'abord un type de parc."
+                    />
+                )}
 
-            <CanAccess resource={RESOURCE.PARC} action={ACTION.READ}>
                 <div className="my-4">
                     <Search />
                 </div>

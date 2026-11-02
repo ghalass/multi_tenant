@@ -45,6 +45,10 @@ type Option = {
     name: string;
 };
 
+type ParcOption = Option & {
+    typeparcId: string;
+};
+
 type Engin = {
     id: string;
     name: string;
@@ -79,11 +83,13 @@ type FormValues = yup.InferType<typeof schema>;
 function EnginForm({
     engin,
     sites,
+    typeparcs,
     parcs,
 }: {
     engin?: Engin;
     sites: Option[];
-    parcs: Option[];
+    typeparcs: Option[];
+    parcs: ParcOption[];
 }): import("react").JSX.Element {
     const editing = Boolean(engin);
 
@@ -91,6 +97,9 @@ function EnginForm({
     const [loading, setLoading] = useState(false);
     const [pending, startTransition] = useTransition();
     const [error, setError] = useState("");
+    const [selectedTypeparcId, setSelectedTypeparcId] = useState(
+        () => parcs.find((parc) => parc.id === engin?.parcId)?.typeparcId ?? "",
+    );
 
     const router = useRouter();
 
@@ -113,6 +122,9 @@ function EnginForm({
             parcId: engin?.parcId ?? "",
             siteId: engin?.siteId ?? "",
         });
+        setSelectedTypeparcId(
+            parcs.find((parc) => parc.id === engin?.parcId)?.typeparcId ?? "",
+        );
         setError("");
     }
 
@@ -150,6 +162,9 @@ function EnginForm({
         loading ||
         sites.length === 0 ||
         parcs.length === 0;
+    const filteredParcs = parcs.filter(
+        (parc) => parc.typeparcId === selectedTypeparcId,
+    );
 
     return (
         <>
@@ -220,6 +235,36 @@ function EnginForm({
                                 )}
                             />
 
+                            <Field>
+                                <FieldLabel>Type de parc</FieldLabel>
+
+                                <Select
+                                    value={selectedTypeparcId}
+                                    onValueChange={(value) => {
+                                        setSelectedTypeparcId(value);
+                                        form.setValue("parcId", "", {
+                                            shouldValidate: true,
+                                        });
+                                    }}
+                                    disabled={loading}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Sélectionner un type de parc" />
+                                    </SelectTrigger>
+
+                                    <SelectContent>
+                                        {typeparcs.map((item) => (
+                                            <SelectItem
+                                                key={item.id}
+                                                value={item.id}
+                                            >
+                                                {item.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </Field>
+
                             <Controller
                                 name="parcId"
                                 control={form.control}
@@ -230,7 +275,10 @@ function EnginForm({
                                         <Select
                                             value={field.value}
                                             onValueChange={field.onChange}
-                                            disabled={loading}
+                                            disabled={
+                                                loading ||
+                                                !selectedTypeparcId
+                                            }
                                         >
                                             <SelectTrigger
                                                 aria-invalid={fieldState.invalid}
@@ -239,7 +287,7 @@ function EnginForm({
                                             </SelectTrigger>
 
                                             <SelectContent>
-                                                {parcs.map((item) => (
+                                                {filteredParcs.map((item) => (
                                                     <SelectItem
                                                         key={item.id}
                                                         value={item.id}
@@ -342,7 +390,8 @@ function EnginForm({
 export function CreateEnginForm(
     props: {
         sites: Option[];
-        parcs: Option[];
+        typeparcs: Option[];
+        parcs: ParcOption[];
     },
 ): import("react").JSX.Element {
     return <EnginForm {...props} />;
@@ -352,7 +401,8 @@ export function UpdateEnginForm(
     props: {
         engin: Engin;
         sites: Option[];
-        parcs: Option[];
+        typeparcs: Option[];
+        parcs: ParcOption[];
     },
 ): import("react").JSX.Element {
     return <EnginForm {...props} />;

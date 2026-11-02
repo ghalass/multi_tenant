@@ -12,6 +12,7 @@ import { getHistoriqueMaintenancesPreventives } from "@/server/maintenance-preve
 import { HistoriqueFilters } from "./historique-filters";
 import { HistoriqueTable } from "./historique-table";
 import Link from "next/link";
+import { getPageAccessFallback } from "@/lib/rbac/page-access";
 
 type PageSearchParams = {
     [key: string]: string | string[] | undefined;
@@ -56,6 +57,11 @@ export default async function HistoriqueMaintenancePage({
 }: {
     searchParams: Promise<PageSearchParams>;
 }): Promise<ReactElement> {
+    const accessFallback = await getPageAccessFallback(
+        RESOURCE.MAINTENANCE_PREVENTIVE,
+    );
+    if (accessFallback) return accessFallback;
+
     const params = await searchParams;
 
     const filters = {

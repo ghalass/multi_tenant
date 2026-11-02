@@ -5,6 +5,7 @@ import { getSession } from "../auth";
 import { prisma } from "../prisma";
 import { getCurrentTenant } from "@/server/tenants";
 import { ACTION } from "../enums";
+import { READ_ACCESS_DENIED_MESSAGE } from "./access-messages";
 
 const checkTenant = async (): Promise<NextResponse | null> => {
   const currentTenant = await getCurrentTenant();
@@ -83,7 +84,10 @@ export async function protectRoute(
     if (!hasAccess) {
       return NextResponse.json(
         {
-          message: `Vous n'êtes pas autorisé ${humanizeAction(action)}`,
+          message:
+            action === ACTION.READ
+              ? READ_ACCESS_DENIED_MESSAGE
+              : `Vous n'êtes pas autorisé ${humanizeAction(action)}`,
         },
         { status: 403 },
       );

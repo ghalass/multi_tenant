@@ -20,6 +20,7 @@ import CanAccess from "@/components/can-access";
 import { ACTION } from "@/lib/enums";
 import { RESOURCE } from "@/lib/constantes";
 import { ExportExcel } from "@/components/export-excel";
+import { getPageAccessFallback } from "@/lib/rbac/page-access";
 import type { JSX } from "react";
 
 export default async function TypePannesPage({
@@ -27,6 +28,9 @@ export default async function TypePannesPage({
 }: {
     searchParams: Promise<TypePannesSearchParams>;
 }): Promise<JSX.Element> {
+    const accessFallback = await getPageAccessFallback(RESOURCE.TYPEPANNE);
+    if (accessFallback) return accessFallback;
+
     const filters = await searchParams;
     const response = await getAllTypePannes(filters);
     const typepannes = response.data ?? [];

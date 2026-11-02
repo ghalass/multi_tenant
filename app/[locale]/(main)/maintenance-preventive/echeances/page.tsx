@@ -12,6 +12,7 @@ import { getEcheancesMaintenancePreventive } from "@/server/maintenance-preventi
 import { EcheancesFilters } from "./echeances-filters";
 import { EcheancesTable } from "./echeances-table";
 import { EcheancesSummaryCards } from "./echeances-summary-cards";
+import { getPageAccessFallback } from "@/lib/rbac/page-access";
 
 type PageSearchParams = {
     [key: string]: string | string[] | undefined;
@@ -55,6 +56,11 @@ export default async function EcheancesMaintenancePage({
 }: {
     searchParams: Promise<PageSearchParams>;
 }): Promise<ReactElement> {
+    const accessFallback = await getPageAccessFallback(
+        RESOURCE.MAINTENANCE_PREVENTIVE,
+    );
+    if (accessFallback) return accessFallback;
+
     const params = await searchParams;
 
     const typeparcId = readParam(params.typeparcId);

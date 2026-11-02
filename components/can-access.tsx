@@ -1,6 +1,7 @@
 import type { JSX, ReactNode } from "react";
 import { ACTION } from "@/lib/enums";
 import { hasPermission } from "@/lib/rbac/core";
+import AccessDeniedCard from "@/components/access-denied-card";
 
 export default async function CanAccess({
     resource,
@@ -13,5 +14,11 @@ export default async function CanAccess({
 }): Promise<JSX.Element> {
     const has_permission = await hasPermission(action, resource);
 
-    return <>{has_permission && children}</>;
+    if (has_permission) {
+        return <>{children}</>;
+    }
+
+    return action === ACTION.READ
+        ? <AccessDeniedCard />
+        : <></>;
 }

@@ -17,6 +17,7 @@ import CanAccess from "@/components/can-access";
 import { ACTION } from "@/lib/enums";
 import { RESOURCE } from "@/lib/constantes";
 import { ExportExcel } from "@/components/export-excel";
+import { getPageAccessFallback } from "@/lib/rbac/page-access";
 import type { JSX } from "react";
 
 export default async function TypeParcsPage({
@@ -24,6 +25,9 @@ export default async function TypeParcsPage({
 }: {
     searchParams: Promise<searchParams>;
 }): Promise<JSX.Element> {
+    const accessFallback = await getPageAccessFallback(RESOURCE.TYPEPARC);
+    if (accessFallback) return accessFallback;
+
     const filters = await searchParams;
     const response = await getAllTypeParcs(filters);
     const typeparcs = response?.data || [];

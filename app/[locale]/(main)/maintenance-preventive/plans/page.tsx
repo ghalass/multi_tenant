@@ -25,6 +25,7 @@ import {
 } from "./plan-maintenance-form";
 import { PlanMaintenanceActiveToggle } from "./plan-maintenance-active-toggle";
 import PlansMaintenanceSearch from "./search";
+import { getPageAccessFallback } from "@/lib/rbac/page-access";
 
 type PageSearchParams = {
     search?: string;
@@ -44,6 +45,11 @@ export default async function PlansMaintenancePage({
 }: {
     searchParams: Promise<PageSearchParams>;
 }): Promise<JSX.Element> {
+    const accessFallback = await getPageAccessFallback(
+        RESOURCE.MAINTENANCE_PREVENTIVE,
+    );
+    if (accessFallback) return accessFallback;
+
     const filters = await searchParams;
     const response = await getPlansMaintenance(filters);
     const plans = response.data;

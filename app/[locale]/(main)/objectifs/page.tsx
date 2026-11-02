@@ -12,6 +12,7 @@ import CanAccess from "@/components/can-access";
 import { ACTION } from "@/lib/enums";
 import { RESOURCE } from "@/lib/constantes";
 import { ExportExcel } from "@/components/export-excel";
+import { getPageAccessFallback } from "@/lib/rbac/page-access";
 import type { JSX } from "react";
 
 const metricColumns = [
@@ -31,6 +32,9 @@ export default async function ObjectifsPage({
 }: {
     searchParams: Promise<ObjectifsSearchParams>;
 }): Promise<JSX.Element> {
+    const accessFallback = await getPageAccessFallback(RESOURCE.OBJECTIF);
+    if (accessFallback) return accessFallback;
+
     const searchFilters = await searchParams;
     const filters = {
         ...searchFilters,
@@ -72,7 +76,8 @@ export default async function ObjectifsPage({
             </p>
 
             {!response.success && <DisplayError className="mt-4" error={response.message} />}
-            {!optionsResponse.success && (
+            {!optionsResponse.success &&
+                optionsResponse.message !== response.message && (
                 <DisplayError className="mt-4" error={optionsResponse.message} />
             )}
             {optionsResponse.success && (options.sites.length === 0 || options.parcs.length === 0) && (

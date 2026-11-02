@@ -12,12 +12,16 @@ import {
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/ui/table";
 import React from "react";
 import { getAllSites } from "@/server/sites";
+import { getPageAccessFallback } from "@/lib/rbac/page-access";
 
 export default async function RapportUnitePhysique({
     searchParams,
 }: {
     searchParams: Promise<searchParamsRapportUnitePhysique>;
 }): Promise<import("react").JSX.Element> {
+    const accessFallback = await getPageAccessFallback(RESOURCE.RAPPORT);
+    if (accessFallback) return accessFallback;
+
     const filters = await searchParams;
     const { data: sites } = await getAllSites();
 

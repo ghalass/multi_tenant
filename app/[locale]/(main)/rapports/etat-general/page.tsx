@@ -15,6 +15,7 @@ import {
 
 import SelectParams from "./select-params";
 import EtatGeneralTable from "./etat-general-table";
+import { getPageAccessFallback } from "@/lib/rbac/page-access";
 
 type PageProps = {
     searchParams: Promise<{
@@ -25,6 +26,9 @@ type PageProps = {
 export default async function RapportEtatGeneral({
     searchParams,
 }: PageProps): Promise<import("react").JSX.Element> {
+    const accessFallback = await getPageAccessFallback(RESOURCE.RAPPORT);
+    if (accessFallback) return accessFallback;
+
     const params = await searchParams;
 
     const moisParam =

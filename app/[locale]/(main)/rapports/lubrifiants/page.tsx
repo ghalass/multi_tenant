@@ -8,6 +8,7 @@ import {
   getLubrifiantReportOptions,
   type LubrifiantReportFilters,
 } from "@/server/rapports/rapport-lubrifiants";
+import { getPageAccessFallback } from "@/lib/rbac/page-access";
 
 type SearchParams = LubrifiantReportFilters;
 
@@ -16,6 +17,9 @@ export default async function RapportLubrifiantsPage({
 }: {
   searchParams: Promise<SearchParams>;
 }): Promise<React.JSX.Element> {
+  const accessFallback = await getPageAccessFallback(RESOURCE.RAPPORT);
+  if (accessFallback) return accessFallback;
+
   const filters = await searchParams;
   const [optionsResponse, canExport] = await Promise.all([
     getLubrifiantReportOptions(),

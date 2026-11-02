@@ -26,6 +26,7 @@ import { ACTION } from "@/lib/enums";
 import { RESOURCE } from "@/lib/constantes";
 import { ExportExcel } from "@/components/export-excel";
 import type { JSX } from "react";
+import { getPageAccessFallback } from "@/lib/rbac/page-access";
 
 const EMPTY_OPTIONS: SaisieHrmPageOptions = {
   typeParcs: [],
@@ -39,6 +40,9 @@ export default async function SaisieHrmPage({
 }: {
   searchParams: Promise<SaisieHrmSearchParams>;
 }): Promise<JSX.Element> {
+  const accessFallback = await getPageAccessFallback(RESOURCE.SAISIE_HRM);
+  if (accessFallback) return accessFallback;
+
   const filters = await searchParams;
   const hasSearched = filters.search === "1";
 

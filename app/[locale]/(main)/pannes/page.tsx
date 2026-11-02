@@ -22,6 +22,7 @@ import CanAccess from "@/components/can-access";
 import { ACTION } from "@/lib/enums";
 import { RESOURCE } from "@/lib/constantes";
 import { ExportExcel } from "@/components/export-excel";
+import { getPageAccessFallback } from "@/lib/rbac/page-access";
 
 type Option = {
     id: string;
@@ -43,6 +44,9 @@ export default async function PannesPage({
 }: {
     searchParams: Promise<PannesSearchParams>;
 }): Promise<import("react").JSX.Element> {
+    const accessFallback = await getPageAccessFallback(RESOURCE.PANNE);
+    if (accessFallback) return accessFallback;
+
     const filters = await searchParams;
 
     const [response, optionsResponse] = await Promise.all([

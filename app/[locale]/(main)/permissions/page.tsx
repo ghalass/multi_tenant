@@ -19,18 +19,21 @@ import DisplayError from "@/components/display-error";
 import CanAccess from "@/components/can-access";
 import { ACTION } from "@/lib/enums";
 import { RESOURCE } from "@/lib/constantes";
+import { getPageAccessFallback } from "@/lib/rbac/page-access";
 
 export default async function Permissions2Page({ searchParams }: {
   searchParams: Promise<PermissionsSearchParams>;
 }): Promise<import("react").JSX.Element> {
+  const resource = RESOURCE.PERMISSION;
+  const accessFallback = await getPageAccessFallback(resource);
+  if (accessFallback) return accessFallback;
+
   const filters = await searchParams;
 
   // Récupération de l'objet contenant { data, meta }
   const result = await getAllPermission(filters);
   const permissions = result?.data || [];
   const meta = result?.meta;
-
-  const resource = RESOURCE.PERMISSION
 
   return (
     <div className="container mx-auto py-2">

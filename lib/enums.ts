@@ -4,5 +4,5 @@ export enum ACTION {
   UPDATE = "update",
   DELETE = "delete",
   EXPORT = "export",
-  IMPORT = "import"
+  IMPORT = "import",
 }

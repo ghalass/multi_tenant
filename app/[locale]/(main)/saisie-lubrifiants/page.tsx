@@ -9,6 +9,7 @@ import {
   getSaisieLubrifiantOptions,
   type SaisieLubrifiantFilters,
 } from "@/server/saisie-lubrifiants";
+import { getPageAccessFallback } from "@/lib/rbac/page-access";
 
 type PageProps = {
   searchParams: Promise<SaisieLubrifiantFilters>;
@@ -17,6 +18,11 @@ type PageProps = {
 export default async function SaisieLubrifiantsPage({
   searchParams,
 }: PageProps): Promise<React.JSX.Element> {
+  const accessFallback = await getPageAccessFallback(
+    RESOURCE.SAISIE_LUBRIFIANT,
+  );
+  if (accessFallback) return accessFallback;
+
   const filters = await searchParams;
   const hasSearched = filters.search === "1";
   const [response, optionsResponse, canCreate, canUpdate, canDelete, canExport] =

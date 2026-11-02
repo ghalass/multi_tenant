@@ -1,5 +1,6 @@
 import { AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { READ_ACCESS_DENIED_MESSAGE } from "@/lib/rbac/access-messages";
 import type { JSX } from "react";
 
 interface DisplayErrorProps {
@@ -12,6 +13,7 @@ export default function DisplayError({
     className,
 }: DisplayErrorProps): JSX.Element | null {
     if (!error) return null;
+    if (error === READ_ACCESS_DENIED_MESSAGE) return null;
 
     return (
         <div

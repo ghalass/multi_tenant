@@ -285,7 +285,11 @@ const Importation = {
 };
 
 
-export function AppSidebar(): JSX.Element {
+export function AppSidebar({
+  isSuperAdmin,
+}: {
+  isSuperAdmin: boolean;
+}): JSX.Element {
   const locale = useCurrentLocale();
   const isRTL = locale === "ar";
 
@@ -309,7 +313,7 @@ export function AppSidebar(): JSX.Element {
     configItems,
     AccessControl,
     Importation,
-    superAdmin,
+    ...(isSuperAdmin ? [superAdmin] : []),
   ];
 
   return (

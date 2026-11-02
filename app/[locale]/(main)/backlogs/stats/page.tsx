@@ -10,6 +10,7 @@ import { getBacklogOptions, getBacklogStatsByPeriod } from "@/server/backlogs";
 
 import BacklogStatsCharts from "./backlog-stats-charts";
 import BacklogStatsFiltersForm from "./backlog-stats-filters";
+import { getPageAccessFallback } from "@/lib/rbac/page-access";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -24,6 +25,9 @@ export default async function BacklogStatsPage({
 }: {
     searchParams: Promise<SearchParams>;
 }): Promise<JSX.Element> {
+    const accessFallback = await getPageAccessFallback(RESOURCE.BACKLOG);
+    if (accessFallback) return accessFallback;
+
     const params = await searchParams;
     const global = firstString(params.global) === "1";
     const dateFrom = global ? "" : firstString(params.dateFrom) ?? "";

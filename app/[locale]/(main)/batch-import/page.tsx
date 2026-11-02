@@ -6,5 +6,5 @@ export default async function IndependentBatchImportPage({
   params: Promise<{ locale: string }>;
 }): Promise<import("react").JSX.Element> {
   const { locale } = await params;
-  return <IndependentBatchImportClient locale={locale} />;
+  return <IndependentBatchImportClient locale={locale} />
 }

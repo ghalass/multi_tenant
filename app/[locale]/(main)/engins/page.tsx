@@ -35,6 +35,7 @@ import {
 
 import { ExportExcel } from "@/components/export-excel";
 import { Badge } from "@/components/ui/badge";
+import { getPageAccessFallback } from "@/lib/rbac/page-access";
 
 type Option = {
     id: string;
@@ -50,6 +51,9 @@ export default async function EnginsPage({
 }: {
     searchParams: Promise<EnginsSearchParams>;
 }): Promise<import("react").JSX.Element> {
+    const accessFallback = await getPageAccessFallback(RESOURCE.ENGIN);
+    if (accessFallback) return accessFallback;
+
     const filters = await searchParams;
 
     const [response, optionsResponse] = await Promise.all([
@@ -86,6 +90,7 @@ export default async function EnginsPage({
                     >
                         <CreateEnginForm
                             sites={options.sites}
+                            typeparcs={options.typeparcs}
                             parcs={options.parcs}
                         />
                     </CanAccess>
@@ -204,6 +209,7 @@ export default async function EnginsPage({
                                                     <UpdateEnginForm
                                                         engin={engin}
                                                         sites={options.sites}
+                                                        typeparcs={options.typeparcs}
                                                         parcs={options.parcs}
                                                     />
                                                 </CanAccess>

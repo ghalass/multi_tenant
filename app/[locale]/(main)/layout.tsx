@@ -4,6 +4,7 @@ import { AppSidebar } from "@/components/AppSidebar";
 import Navbar from "@/components/Navbar";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { getSession } from "@/lib/auth";
+import { isSuperAdmin } from "@/lib/rbac/core";
 
 export default async function MainLayout({
   children, params,
@@ -14,6 +15,9 @@ export default async function MainLayout({
   const isRTL = locale === "ar";
 
   const session = await getSession();
+  const superAdmin = session.userId
+    ? await isSuperAdmin(session.userId)
+    : false;
 
   return (
     <SidebarProvider>
@@ -21,7 +25,9 @@ export default async function MainLayout({
 
         {/* Sidebar */}
         {/* {<AppSidebar />} */}
-        {session?.currentTenantId && <AppSidebar />}
+        {session?.currentTenantId && (
+          <AppSidebar isSuperAdmin={superAdmin} />
+        )}
 
         {/* Zone principale */}
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">

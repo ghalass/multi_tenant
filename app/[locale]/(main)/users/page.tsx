@@ -21,6 +21,7 @@ import CanAccess from "@/components/can-access";
 import { ACTION } from "@/lib/enums";
 import { ACTIVE, RESOURCE } from "@/lib/constantes";
 import { ExportExcel } from "@/components/export-excel";
+import { getPageAccessFallback } from "@/lib/rbac/page-access";
 import type { JSX } from "react";
 
 export default async function UsersPage({
@@ -28,6 +29,9 @@ export default async function UsersPage({
 }: {
   searchParams: Promise<UsersSearchParams>;
 }): Promise<JSX.Element> {
+  const accessFallback = await getPageAccessFallback(RESOURCE.USER);
+  if (accessFallback) return accessFallback;
+
   const filters = await searchParams;
 
   const response = await getAllUsers(filters);

@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/table";
 
 import SelectParams from "./select-params";
+import { getPageAccessFallback } from "@/lib/rbac/page-access";
 
 type PageProps = {
     searchParams: Promise<{
@@ -33,6 +34,9 @@ type PageProps = {
 export default async function RapportRJE({
     searchParams,
 }: PageProps): Promise<import("react").JSX.Element> {
+    const accessFallback = await getPageAccessFallback(RESOURCE.RAPPORT);
+    if (accessFallback) return accessFallback;
+
     const params = await searchParams;
 
     const date =

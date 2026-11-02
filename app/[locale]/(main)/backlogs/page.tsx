@@ -33,6 +33,7 @@ import { BacklogForm } from "./backlog-form";
 import { DeleteBacklogForm } from "./delete-backlog-form";
 import { BacklogDetails } from "./backlog-details";
 import BacklogSearch from "./search";
+import { getPageAccessFallback } from "@/lib/rbac/page-access";
 
 const EMPTY_OPTIONS: BacklogOptions = {
     typeparcs: [],
@@ -90,6 +91,9 @@ export default async function BacklogsPage({
 }: {
     searchParams: Promise<SearchParams>;
 }): Promise<import("react").JSX.Element> {
+    const accessFallback = await getPageAccessFallback(RESOURCE.BACKLOG);
+    if (accessFallback) return accessFallback;
+
     const params = await searchParams;
 
     const filters: BacklogFilters = {
