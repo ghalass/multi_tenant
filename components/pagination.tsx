@@ -29,6 +29,7 @@ interface PaginationProps {
     totalItems?: number;
     itemsPerPage?: number;
     perPageOptions?: number[];
+    pageParam?: string;
 }
 
 export default function Pagination({
@@ -37,6 +38,7 @@ export default function Pagination({
     totalItems,
     itemsPerPage = PAGINATION_SETTINGS.itemsPerPage,
     perPageOptions = PAGINATION_SETTINGS.perPageOptions,
+    pageParam = "currentPage",
 }: PaginationProps): JSX.Element {
     const searchParams = useSearchParams();
     const pathname = usePathname();
@@ -52,7 +54,7 @@ export default function Pagination({
     function handlePageChange(pageNumber: number): void {
         const params = new URLSearchParams(searchParams.toString());
 
-        params.set("currentPage", String(pageNumber));
+        params.set(pageParam, String(pageNumber));
 
         replace(`${pathname}?${params.toString()}`);
     }
@@ -71,7 +73,7 @@ export default function Pagination({
         }
 
         // Revenir à la première page après le changement.
-        params.set("currentPage", "1");
+        params.set(pageParam, "1");
 
         replace(`${pathname}?${params.toString()}`);
     }

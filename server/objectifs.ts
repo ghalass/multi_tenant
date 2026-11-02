@@ -10,6 +10,7 @@ import { convertField } from "@/lib/convertField";
 
 export interface ObjectifsSearchParams {
     annee?: string;
+    typeParcId?: string;
     siteId?: string;
     parcId?: string;
     currentPage?: number | string;
@@ -102,6 +103,9 @@ export async function getAllObjectifs(
             : {}),
         ...(filters.siteId ? { siteId: filters.siteId } : {}),
         ...(filters.parcId ? { parcId: filters.parcId } : {}),
+        ...(filters.typeParcId
+            ? { parc: { is: { typeparcId: filters.typeParcId, tenantId } } }
+            : {}),
     };
 
     try {

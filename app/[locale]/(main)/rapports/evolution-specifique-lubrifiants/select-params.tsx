@@ -62,7 +62,14 @@ export default function SelectParams({
 
   function generate(): void {
     const year = Number(annee);
-    if (!Number.isInteger(year) || year < 2000 || year > 9999 || !typeParcId || !parcId) return;
+    if (
+      !Number.isInteger(year) ||
+      year < 2000 ||
+      year > 9999 ||
+      !typeParcId ||
+      !parcId ||
+      !typeLubrifiantId
+    ) return;
     if (enginId && (!siteId || !engins.some((item) => item.id === enginId))) return;
     const params = new URLSearchParams(searchParams.toString());
     params.set("annee", String(year));
@@ -82,8 +89,8 @@ export default function SelectParams({
   return (
     <>
       <GlobalLoader show={generating} />
-      <div className="mb-5 flex flex-wrap items-end gap-3">
-        <div className="grid w-full gap-2 sm:w-36">
+      <div className="mb-5 flex flex-wrap items-end gap-1">
+        <div className="grid w-full gap-2 sm:w-32 sm:flex-none">
           <Label htmlFor="evolution-specificite-annee">Année</Label>
           <Input
             id="evolution-specificite-annee"
@@ -95,7 +102,7 @@ export default function SelectParams({
             disabled={pending}
           />
         </div>
-        <div className="grid w-full gap-2 sm:w-56">
+        <div className="grid w-full gap-2 sm:w-48 sm:flex-none">
           <Label>Type de parc</Label>
           <Select
             value={typeParcId}
@@ -108,13 +115,13 @@ export default function SelectParams({
             }}
             disabled={pending || typeParcs.length === 0}
           >
-            <SelectTrigger><SelectValue placeholder="Choisir un type de parc" /></SelectTrigger>
+            <SelectTrigger className="w-full"><SelectValue placeholder="Choisir un type de parc" /></SelectTrigger>
             <SelectContent>
               {typeParcs.map((item) => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
-        <div className="grid w-full gap-2 sm:w-56">
+        <div className="grid w-full gap-2 sm:w-48 sm:flex-none">
           <Label>Parc</Label>
           <Select
             value={parcId}
@@ -126,13 +133,13 @@ export default function SelectParams({
             }}
             disabled={pending || !typeParcId || parcs.length === 0}
           >
-            <SelectTrigger><SelectValue placeholder="Choisir un parc" /></SelectTrigger>
+            <SelectTrigger className="w-full"><SelectValue placeholder="Choisir un parc" /></SelectTrigger>
             <SelectContent>
               {parcs.map((item) => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
-        <div className="grid w-full gap-2 sm:w-56">
+        <div className="grid w-full gap-2 sm:w-48 sm:flex-none">
           <Label>Site</Label>
           <Select
             value={siteId || "all"}
@@ -143,14 +150,14 @@ export default function SelectParams({
             }}
             disabled={pending || !selectedParc || sites.length === 0}
           >
-            <SelectTrigger><SelectValue placeholder="Tous les sites" /></SelectTrigger>
+            <SelectTrigger className="w-full"><SelectValue placeholder="Tous les sites" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Tous les sites</SelectItem>
               {sites.map((item) => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
-        <div className="grid w-full gap-2 sm:w-56">
+        <div className="grid w-full gap-2 sm:w-48 sm:flex-none">
           <Label>Engin</Label>
           <Select
             value={enginId || "all"}
@@ -160,32 +167,32 @@ export default function SelectParams({
             }}
             disabled={pending || !siteId || engins.length === 0}
           >
-            <SelectTrigger><SelectValue placeholder="Tous les engins" /></SelectTrigger>
+            <SelectTrigger className="w-full"><SelectValue placeholder="Tous les engins" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Tous les engins</SelectItem>
               {engins.map((item) => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
-        <div className="grid w-full gap-2 sm:w-56">
-          <Label>Type de lubrifiant</Label>
+        <div className="grid w-full gap-2 sm:w-48 sm:flex-none">
+          <Label>Type de lubrifiant (obligatoire)</Label>
           <Select
-            value={typeLubrifiantId || "all"}
+            value={typeLubrifiantId || "choose"}
             onValueChange={(value) => {
-              setTypeLubrifiantId(value === "all" ? "" : value);
+              setTypeLubrifiantId(value === "choose" ? "" : value);
               setLubrifiantId("");
               clearReport();
             }}
             disabled={pending || typeLubrifiants.length === 0}
           >
-            <SelectTrigger><SelectValue placeholder="Tous les types" /></SelectTrigger>
+            <SelectTrigger className="w-full"><SelectValue placeholder="Choisir un type de lubrifiant" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Tous les types</SelectItem>
+              <SelectItem value="choose">Choisir un type de lubrifiant</SelectItem>
               {typeLubrifiants.map((item) => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
-        <div className="grid w-full gap-2 sm:w-56">
+        <div className="grid w-full gap-2 sm:w-48 sm:flex-none">
           <Label>Lubrifiant</Label>
           <Select
             value={lubrifiantId || "all"}
@@ -195,7 +202,7 @@ export default function SelectParams({
             }}
             disabled={pending || !typeLubrifiantId || lubrifiants.length === 0}
           >
-            <SelectTrigger><SelectValue placeholder="Tous les lubrifiants" /></SelectTrigger>
+            <SelectTrigger className="w-full"><SelectValue placeholder="Tous les lubrifiants" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Tous les lubrifiants</SelectItem>
               {lubrifiants.map((item) => (
@@ -206,8 +213,9 @@ export default function SelectParams({
         </div>
         <Button
           type="button"
+          className="w-full sm:w-auto"
           onClick={generate}
-          disabled={pending || generating || !Number.isInteger(Number(annee)) || Number(annee) < 2000 || Number(annee) > 9999 || !typeParcId || !parcId}
+          disabled={pending || generating || !Number.isInteger(Number(annee)) || Number(annee) < 2000 || Number(annee) > 9999 || !typeParcId || !parcId || !typeLubrifiantId}
         >
           Générer le rapport
         </Button>

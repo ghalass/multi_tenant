@@ -153,7 +153,7 @@ export default function EvolutionCharts({
   return (
     <div className="space-y-5">
       {evolution.length > 0 && (
-        <div className="grid gap-4 xl:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4">
           {evolution.map((item) => {
         const chartData = item.months.map((month) => ({
           ...month,

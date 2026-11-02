@@ -21,8 +21,10 @@ export default async function RapportLubrifiantsPage({
     getLubrifiantReportOptions(),
     hasPermission(ACTION.EXPORT, RESOURCE.RAPPORT),
   ]);
-  const hasPeriod = Boolean(filters.du && filters.au);
-  const reportResponse = hasPeriod
+  const hasRequiredFilters = Boolean(
+    filters.du && filters.au && filters.parcId && filters.typeLubrifiantId,
+  );
+  const reportResponse = hasRequiredFilters
     ? await getLubrifiantConsumptionReport(filters)
     : undefined;
   const report = reportResponse?.success ? reportResponse.data?.[0] : undefined;
@@ -34,7 +36,11 @@ export default async function RapportLubrifiantsPage({
   return (
     <CanAccess resource={RESOURCE.RAPPORT} action={ACTION.READ}>
       <RapportLubrifiantsClient
-        options={optionsResponse.data?.[0] ?? { typeParcs: [], typeLubrifiants: [] }}
+        options={optionsResponse.data?.[0] ?? {
+          typeParcs: [],
+          typeLubrifiants: [],
+          sites: [],
+        }}
         report={report}
         error={error || undefined}
         canExport={canExport}

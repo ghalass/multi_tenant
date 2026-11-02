@@ -36,7 +36,7 @@ export default async function EvolutionSpecificiteLubrifiantsPage({
     parcId: firstString(params.parcId),
     siteId: firstString(params.siteId) || undefined,
     enginId: firstString(params.enginId) || undefined,
-    typeLubrifiantId: firstString(params.typeLubrifiantId) || undefined,
+    typeLubrifiantId: firstString(params.typeLubrifiantId),
     lubrifiantId: firstString(params.lubrifiantId) || undefined,
   };
   const hasValidFilters =
@@ -44,7 +44,8 @@ export default async function EvolutionSpecificiteLubrifiantsPage({
     annee >= 2000 &&
     annee <= 9999 &&
     Boolean(filters.typeParcId) &&
-    Boolean(filters.parcId);
+    Boolean(filters.parcId) &&
+    Boolean(filters.typeLubrifiantId);
 
   const [optionsResponse, lubricantOptionsResponse, reportResponse] = await Promise.all([
     getOptionsRapportPareto(),
@@ -86,7 +87,7 @@ export default async function EvolutionSpecificiteLubrifiantsPage({
           <div className="rounded-lg border border-dashed p-8 text-center">
             <h2 className="font-semibold">Sélectionnez les paramètres du rapport</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Choisissez une année, un type de parc et un parc. Le site et l’engin sont facultatifs.
+              Choisissez une année, un type de parc, un parc et un type de lubrifiant. Le site, l’engin et le lubrifiant sont facultatifs.
             </p>
           </div>
         ) : reportResponse?.success ? (

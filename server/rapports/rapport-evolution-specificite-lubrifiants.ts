@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { RESOURCE } from "@/lib/constantes";
 import { guard } from "@/lib/rbac/middleware";
 import type { ActionResponse } from "@/lib/types/types";
+import { getLubrifiantObjectiveField } from "@/server/lubrifiant-shared";
 
 export type EvolutionSpecificiteFilters = {
   annee: number;
@@ -13,7 +14,7 @@ export type EvolutionSpecificiteFilters = {
   parcId: string;
   siteId?: string;
   enginId?: string;
-  typeLubrifiantId?: string;
+  typeLubrifiantId: string;
   lubrifiantId?: string;
 };
 
@@ -72,24 +73,6 @@ function round(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
-function getObjectiveField(typeName: string): "spe_huile" | "spe_go" | "spe_graisse" | null {
-  const normalized = typeName
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, "");
-  if (normalized.includes("huile")) return "spe_huile";
-  if (
-    normalized.includes("gasoil") ||
-    normalized.includes("diesel") ||
-    normalized === "go"
-  ) {
-    return "spe_go";
-  }
-  if (normalized.includes("graisse")) return "spe_graisse";
-  return null;
-}
-
 export async function getEvolutionSpecificiteLubrifiants(
   filters: EvolutionSpecificiteFilters,
 ): Promise<ActionResponse<EvolutionSpecificiteReport>> {
@@ -126,20 +109,25 @@ export async function getEvolutionSpecificiteLubrifiants(
   if (!typeParcId || !parcId) {
     return { success: false, message: "Sélectionnez un type de parc et un parc.", data: [] };
   }
+  if (!typeLubrifiantId) {
+    return {
+      success: false,
+      message: "Sélectionnez un type de lubrifiant pour générer le rapport.",
+      data: [],
+    };
+  }
   if (enginId && !siteId) {
     return { success: false, message: "Sélectionnez un site avant de choisir un engin.", data: [] };
   }
   if (lubrifiantId && !typeLubrifiantId) {
     return { success: false, message: "Sélectionnez un type de lubrifiant avant de choisir un lubrifiant.", data: [] };
   }
-  if (typeLubrifiantId) {
-    const validType = await prisma.typeLubrifiant.findFirst({
-      where: { id: typeLubrifiantId, tenantId: tenant.id },
-      select: { id: true },
-    });
-    if (!validType) {
-      return { success: false, message: "Le type de lubrifiant sélectionné est invalide.", data: [] };
-    }
+  const validType = await prisma.typeLubrifiant.findFirst({
+    where: { id: typeLubrifiantId, tenantId: tenant.id },
+    select: { id: true },
+  });
+  if (!validType) {
+    return { success: false, message: "Le type de lubrifiant sélectionné est invalide.", data: [] };
   }
   if (lubrifiantId) {
     const validLubrifiant = await prisma.lubrifiant.findFirst({
@@ -193,7 +181,7 @@ export async function getEvolutionSpecificiteLubrifiants(
           lubrifiant: {
             tenantId: tenant.id,
             ...(lubrifiantId ? { id: lubrifiantId } : {}),
-            ...(typeLubrifiantId ? { typeLubrifiantId } : {}),
+            typeLubrifiantId,
             typeLubrifiant: { tenantId: tenant.id },
           },
         },
@@ -318,7 +306,7 @@ export async function getEvolutionSpecificiteLubrifiants(
     : [];
 
   const evolution = [...groups.values()].map((group) => {
-    const objectiveField = getObjectiveField(group.typeLubrifiantName);
+    const objectiveField = getLubrifiantObjectiveField(group.typeLubrifiantName);
     const objectiveValues = objectiveField
       ? objectifs
           .map((objectif) => objectif[objectiveField])

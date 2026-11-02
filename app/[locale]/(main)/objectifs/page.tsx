@@ -31,7 +31,11 @@ export default async function ObjectifsPage({
 }: {
     searchParams: Promise<ObjectifsSearchParams>;
 }): Promise<JSX.Element> {
-    const filters = await searchParams;
+    const searchFilters = await searchParams;
+    const filters = {
+        ...searchFilters,
+        annee: searchFilters.annee || String(new Date().getFullYear()),
+    };
     const [response, optionsResponse] = await Promise.all([
         getAllObjectifs(filters),
         getObjectifOptions(),
@@ -76,7 +80,11 @@ export default async function ObjectifsPage({
             )}
 
             <CanAccess resource={RESOURCE.OBJECTIF} action={ACTION.READ}>
-                <SearchObjectifs sites={options.sites} parcs={options.parcs} />
+                <SearchObjectifs
+                    sites={options.sites}
+                    typeparcs={options.typeparcs}
+                    parcs={options.parcs}
+                />
 
                 <div className="rounded-md border">
                     <Table id="objectifs-table">

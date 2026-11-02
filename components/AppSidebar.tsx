@@ -180,10 +180,10 @@ const rapportsItems = {
       description: "Rapports de consommation des lubrifiants",
     },
     {
-      title: "Évolution spécifique lubrifiants",
+      title: "Spécifique lub",
       url: "/rapports/evolution-specifique-lubrifiants",
       icon: LineChart,
-      description: "Évolution mensuelle du spécifique par type de lubrifiant",
+      description: "Spécifique par type de lubrifiant",
     },
   ],
 };
