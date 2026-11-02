@@ -53,6 +53,7 @@ export default {
     'hrmStats.errors.invalidMonth': 'Sélectionnez un mois valide.',
     'hrmStats.errors.futureMonth': 'Le mois sélectionné ne peut pas être dans le futur.',
     'hrmStats.filters.month': 'Mois',
+    'hrmStats.selectedFilters': 'Filtres sélectionnés',
     'hrmStats.filters.invalidMonth': 'Sélectionnez un mois valide.',
     'hrmStats.filters.futureMonth': 'Le mois sélectionné ne peut pas être dans le futur.',
     'hrmStats.searchBeforeResults': 'Choisissez un mois et vos filtres, puis cliquez sur « Rechercher » pour afficher le calendrier.',

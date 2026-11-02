@@ -149,7 +149,7 @@ export default function SaisieHrmStatsFilters({
         onSubmit={applyFilters}
         className="space-y-4 rounded-lg border bg-card p-4"
       >
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
           <div className="space-y-1">
             <label htmlFor="hrm-stats-month" className="text-sm font-medium">
               {t("hrmStats.filters.month")}

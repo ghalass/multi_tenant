@@ -53,6 +53,7 @@ export default {
     'hrmStats.errors.invalidMonth': 'يرجى اختيار شهر صالح.',
     'hrmStats.errors.futureMonth': 'لا يمكن اختيار شهر في المستقبل.',
     'hrmStats.filters.month': 'الشهر',
+    'hrmStats.selectedFilters': 'عوامل التصفية المحددة',
     'hrmStats.filters.invalidMonth': 'يرجى اختيار شهر صالح.',
     'hrmStats.filters.futureMonth': 'لا يمكن اختيار شهر في المستقبل.',
     'hrmStats.searchBeforeResults': 'اختر الشهر وعوامل التصفية، ثم اضغط على «بحث» لعرض التقويم.',

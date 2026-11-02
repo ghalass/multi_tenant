@@ -191,6 +191,40 @@ export default async function SaisieHrmStatsPage({
   const selectedDayStats = stats?.days.find(
     (day) => day.date === stats.selectedDay,
   );
+  const selectedFilterSummary = stats
+    ? [
+        `${t("hrmStats.filters.month")}: ${new Date(
+          `${stats.month}-01T00:00:00.000Z`,
+        ).toLocaleDateString(locale === "ar" ? "ar" : "fr-FR", {
+          month: "long",
+          year: "numeric",
+          timeZone: "UTC",
+        })}`,
+        ...(stats.selectedDay
+          ? [`${t("hrmStats.filters.referenceDate")}: ${formatDate(stats.selectedDay, locale)}`]
+          : []),
+        ...(filters.siteId
+          ? optionsResult.data.sites
+              .filter((site) => site.id === filters.siteId)
+              .map((site) => `${t("hrmStats.filters.site")}: ${site.name}`)
+          : []),
+        ...(filters.typeparcId
+          ? optionsResult.data.typeParcs
+              .filter((typeParc) => typeParc.id === filters.typeparcId)
+              .map((typeParc) => `${t("hrmStats.filters.typeParc")}: ${typeParc.name}`)
+          : []),
+        ...(filters.parcId
+          ? optionsResult.data.parcs
+              .filter((parc) => parc.id === filters.parcId)
+              .map((parc) => `${t("hrmStats.filters.parc")}: ${parc.name}`)
+          : []),
+        ...(filters.enginId
+          ? optionsResult.data.engins
+              .filter((engin) => engin.id === filters.enginId)
+              .map((engin) => `${t("hrmStats.filters.engin")}: ${engin.name}`)
+          : []),
+      ]
+    : [];
 
   return (
     <div className="container mx-auto space-y-6 py-2">
@@ -304,6 +338,18 @@ export default async function SaisieHrmStatsPage({
 
           {selectedDayStats && stats.selectedDay && (
             <>
+              <section
+                aria-label={t("hrmStats.selectedFilters")}
+                className="space-y-1"
+              >
+                <h2 className="text-lg font-semibold">
+                  {t("hrmStats.selectedFilters")}
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  {selectedFilterSummary.join(" · ")}
+                </p>
+              </section>
+
               <section
                 aria-label={t("hrmStats.summary")}
                 className="grid gap-3 md:grid-cols-3"
