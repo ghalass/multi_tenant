@@ -24,6 +24,7 @@ export const RESOURCE = {
     BACKLOG: "backlog",
     MAINTENANCE_PREVENTIVE: "maintenance_preventive",
     OBJECTIF: "objectif",
+    TENANT: "tenant",
 };
 
 export const PAGINATION_SETTINGS = {

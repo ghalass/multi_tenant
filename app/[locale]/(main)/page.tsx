@@ -9,6 +9,7 @@ import { getSession } from "@/lib/auth";
 import CanAccess from "@/components/can-access";
 import { ACTION } from "@/lib/enums";
 import { getI18n } from "@/locales/server";
+import { RESOURCE } from "@/lib/constantes";
 
 export default async function TenantMainPage(): Promise<import("react").JSX.Element> {
   const { userId, currentTenantId } = await getSession();
@@ -35,7 +36,7 @@ export default async function TenantMainPage(): Promise<import("react").JSX.Elem
                 ? `Sélectionnez votre tenant (${tenants.length})`
                 : "Aucun tenant disponible"}
             </h1>
-            <CanAccess action={ACTION.READ} resource="tenant">
+            <CanAccess action={ACTION.CREATE} resource={RESOURCE.TENANT}>
               <CreateTenantForm />
             </CanAccess>
 

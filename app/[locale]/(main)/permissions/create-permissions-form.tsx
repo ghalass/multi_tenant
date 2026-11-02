@@ -175,7 +175,6 @@ export function CreatePermissionForm(): import("react").JSX.Element {
                           <SelectItem value={Action.read}>Lecture</SelectItem>
                           <SelectItem value={Action.update}>Modification</SelectItem>
                           <SelectItem value={Action.delete}>Suppression</SelectItem>
-                          <SelectItem value={Action.export}>Exportation</SelectItem>
                         </SelectContent>
                       </Select>
                       {fieldState.invalid && (
